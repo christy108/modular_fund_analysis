@@ -35,6 +35,54 @@ def univariate_portfolio_sorting(
     return output
 
 
+    # Function to compute percentage change if the date difference is not larger than 1 months
+def conditional_pct_change(df_view):
+
+    # Generate copy from view
+    df = df_view.copy()
+
+    # Calculate the date differences
+    df['date_diff'] = df['date'].diff().dt.days
+
+    # Calculate the percentage change
+    df['tr'] = df['tri'].pct_change()
+
+    # Mask the percentage change where the date difference is larger than 1 months (the extra 4 days account for bank holidays and weekends)
+    df['tr'] = np.where(df['date_diff'] <= 31+5, df['tr'], np.nan)
+
+    # Drop the date_diff column as it's no longer needed
+    df.drop(columns=['date_diff'], inplace=True)
+
+    # Return output
+    return df
+
+
+    
+
+# Function to standardize pivoted signals
+def standardize_pivot(df_pivot, global_universe, cols_standardization):
+    
+    # Melt the dataframe to long format for groupby calculations
+    df_melted = df_pivot.reset_index().melt(id_vars='date', var_name='gvkey_iid', value_name='value')
+    
+    # Merge with original dataframe to get groupby columns
+    df_merged = df_melted.merge(
+        global_universe[['date', 'gvkey_iid'] + cols_standardization],
+        on=['date', 'gvkey_iid'], 
+        how='left'
+    )
+    
+    # Groupby and transform to get mean and std
+    group_mean = df_merged.groupby(cols_standardization)['value'].transform('mean')
+    group_stdev = df_merged.groupby(cols_standardization)['value'].transform('std')
+    
+    # Standardize
+    df_merged['value'] = (df_merged['value'] - group_mean) / group_stdev
+    
+    # Pivot back to wide format
+    return df_merged.pivot(index='date', columns='gvkey_iid', values='value')
+
+
 
 
 
