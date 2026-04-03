@@ -1,7 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -34,7 +36,7 @@ class StrategyPerformance:
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
         df.sort_index(inplace=True)
-        
+
         self.portfolio_returns = df
 
     def cumulative_performance_table(
@@ -78,3 +80,38 @@ class StrategyPerformance:
         path.parent.mkdir(parents=True, exist_ok=True)
         formatted.to_csv(path)
         return formatted
+
+    def rolling_sharpe(self, window: int) -> pd.DataFrame:
+        """
+        Annualized rolling Sharpe of excess returns (monthly): (mean / std) * sqrt(12).
+        """
+        if window < 2:
+            raise ValueError("window must be at least 2 for rolling Sharpe")
+        df = self.portfolio_returns
+        roll = df.rolling(window=window, min_periods=window)
+        mean = roll.mean()
+        std = roll.std(ddof=1)
+        out = (mean / std) * np.sqrt(12)
+        return out.replace([np.inf, -np.inf], np.nan)
+
+    def plot_rolling_sharpe(
+        self,
+        window: int,
+        ax: Any = None,
+        figsize: tuple[float, float] = (10, 4),
+        **plot_kwargs: Any,
+    ) -> Any:
+        """
+        Plot rolling annualized Sharpe for every column (one line per strategy).
+        """
+        sharpe = self.rolling_sharpe(window)
+        if ax is None:
+            _, ax = plt.subplots(figsize=figsize)
+        for col in sharpe.columns:
+            ax.plot(sharpe.index, sharpe[col], label=col, **plot_kwargs)
+        ax.axhline(0.0, color="gray", linewidth=0.8, linestyle="--")
+        ax.set_title(f"Rolling Sharpe ({window} months), annualized (sqrt(12))")
+        ax.set_ylabel("Sharpe")
+        ax.legend(loc="best")
+        ax.grid(True, alpha=0.3)
+        return ax
