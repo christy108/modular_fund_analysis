@@ -99,19 +99,26 @@ class StrategyPerformance:
         window: int,
         ax: Any = None,
         figsize: tuple[float, float] = (10, 4),
+        save_path: str | Path | None = None,
         **plot_kwargs: Any,
     ) -> Any:
         """
         Plot rolling annualized Sharpe for every column (one line per strategy).
+        If save_path is set, writes the figure (e.g. PDF or PNG) after drawing.
         """
         sharpe = self.rolling_sharpe(window)
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)
+        fig = ax.figure
         for col in sharpe.columns:
             ax.plot(sharpe.index, sharpe[col], label=col, **plot_kwargs)
         ax.axhline(0.0, color="gray", linewidth=0.8, linestyle="--")
-        ax.set_title(f"Rolling Sharpe ({window} months), annualized (sqrt(12))")
+        ax.set_title(f"Rolling Annualised Sharpe ({window}-month window)")
         ax.set_ylabel("Sharpe")
         ax.legend(loc="best")
         ax.grid(True, alpha=0.3)
+        if save_path is not None:
+            out = Path(save_path)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(out, bbox_inches="tight")
         return ax
