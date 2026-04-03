@@ -231,6 +231,11 @@ class PortfolioConstituents:
 
         return fig
 
+
+
+
+        
+
     def plot_pie_categories(
         self,
         col: str,
