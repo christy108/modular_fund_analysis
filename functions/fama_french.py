@@ -66,6 +66,91 @@ def ff3_regressions(excess_returns, fama_french):
     return ff3_output
 
 
+def rolling_ff3_alphas(
+    signals: list[dict],
+    *,
+    fama_french: pd.DataFrame,
+    window_size: int,
+) -> dict[str, pd.Series]:
+    """
+    Compute rolling-window FF3 alphas for multiple signals.
+
+    Parameters
+    ----------
+    signals:
+        List of dicts with keys:
+          - label: str (legend/plot label)
+          - returns: pd.DataFrame (excess returns; index=date, columns=portfolios)
+          - alpha_column: str (which column in `returns` to extract alpha for)
+    fama_french:
+        FF3 factor DataFrame (must include columns: mktrf, smb, hml). Should be aligned
+        in time with `returns` (same number of rows, same ordering).
+    window_size:
+        Rolling window length in rows (e.g. 40 months).
+
+    Returns
+    -------
+    dict[label -> pd.Series]
+        Each series is indexed by the window end date, values are monthly alpha (%),
+        matching `ff3_regressions` output convention.
+    """
+    if not isinstance(window_size, int) or window_size <= 0:
+        raise ValueError("window_size must be a positive integer")
+
+    if not signals:
+        raise ValueError("signals must be a non-empty list of dicts")
+
+    rolling_alphas: dict[str, pd.Series] = {}
+
+    for s in signals:
+        if not isinstance(s, dict):
+            raise TypeError("Each signal must be a dict with keys: label, returns, alpha_column")
+
+        label = s.get("label")
+        returns = s.get("returns")
+        alpha_column = s.get("alpha_column")
+
+        if not isinstance(label, str) or not label:
+            raise ValueError("signal['label'] must be a non-empty str")
+        if not isinstance(returns, pd.DataFrame):
+            raise TypeError(f"signal['returns'] for '{label}' must be a pd.DataFrame")
+        if not isinstance(alpha_column, str) or not alpha_column:
+            raise ValueError(f"signal['alpha_column'] for '{label}' must be a non-empty str")
+        if alpha_column not in returns.columns:
+            raise KeyError(
+                f"signal '{label}' alpha_column '{alpha_column}' not found in returns columns"
+            )
+
+        if len(returns) != len(fama_french):
+            raise ValueError(
+                f"signal '{label}' returns and fama_french must have same length "
+                f"(got {len(returns)} vs {len(fama_french)})"
+            )
+        if window_size > len(returns):
+            raise ValueError(
+                f"signal '{label}' window_size={window_size} exceeds available rows={len(returns)}"
+            )
+
+        window_end_dates = []
+        alpha_vals = []
+
+        for i in range(len(returns) - window_size + 1):
+            window_end_idx = i + window_size
+
+            ret_w = returns.iloc[i:window_end_idx, :]
+            ff_w = fama_french.iloc[i:window_end_idx, :]
+
+            ff3_out = ff3_regressions(ret_w, ff_w.reset_index(drop=True))
+            alpha = ff3_out.loc["alpha", alpha_column]
+
+            window_end_dates.append(ret_w.index[-1])
+            alpha_vals.append(alpha)
+
+        rolling_alphas[label] = pd.Series(alpha_vals, index=pd.Index(window_end_dates, name="date"))
+
+    return rolling_alphas
+
+
 def plot_rolling_alpha_function(
     rolling_alphas: dict[str, pd.Series],
     *,
