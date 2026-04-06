@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
@@ -24,6 +24,12 @@ def _format_pct(decimal: float) -> str:
     if decimal is None or (isinstance(decimal, float) and np.isnan(decimal)):
         return ""
     return f"{100.0 * decimal:.2f}%"
+
+
+def _format_num(x: float, dp: int = 2) -> str:
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return ""
+    return f"{float(x):.{dp}f}"
 
 
 class StrategyPerformance:
@@ -93,6 +99,64 @@ class StrategyPerformance:
         std = roll.std(ddof=1)
         out = (mean / std) * np.sqrt(12)
         return out.replace([np.inf, -np.inf], np.nan)
+
+    def risk_metrics_table(
+        self,
+        csv_path: str | Path,
+        as_of: pd.Timestamp | None = None,
+    ) -> pd.DataFrame:
+        """
+        Build strategies × risk-metrics table, save formatted CSV, return formatted DataFrame.
+
+        Metrics:
+        - Sharpe (annualized, monthly): (mean / std) * sqrt(12)
+        - VaR 1% (monthly): pct_change().quantile(0.01)
+        - Max Drawdown: min(wealth / cummax(wealth) - 1), where wealth = cumprod(1 + r)
+        """
+        df = self.portfolio_returns
+        if df.empty:
+            raise ValueError("portfolio_returns is empty")
+
+        end = as_of if as_of is not None else df.index.max()
+        df_asof = df.loc[df.index <= end]
+        if df_asof.empty:
+            raise ValueError("No rows on or before as_of")
+
+        metrics = pd.DataFrame(
+            index=df.columns,
+            columns=["Sharpe", "VaR 1%", "Max Drawdown"],
+            dtype=float,
+        )
+
+        for col in df.columns:
+            r = df_asof[col].dropna()
+            if r.empty:
+                continue
+
+            std = float(r.std(ddof=1))
+            mean = float(r.mean())
+            metrics.loc[col, "Sharpe"] = (
+                (mean / std) * float(np.sqrt(12)) if std != 0.0 else np.nan
+            )
+
+            r_chg = r.pct_change().dropna()
+            metrics.loc[col, "VaR 1%"] = (
+                float(r_chg.quantile(0.01)) if not r_chg.empty else np.nan
+            )
+
+            wealth = (1.0 + r).cumprod()
+            drawdown = wealth / wealth.cummax() - 1.0
+            metrics.loc[col, "Max Drawdown"] = float(drawdown.min())
+
+        formatted = pd.DataFrame(index=metrics.index)
+        formatted["Sharpe"] = metrics["Sharpe"].map(lambda x: _format_num(x, dp=2))
+        formatted["VaR 1%"] = metrics["VaR 1%"].map(_format_pct)
+        formatted["Max Drawdown"] = metrics["Max Drawdown"].map(_format_pct)
+
+        path = Path(csv_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        formatted.to_csv(path)
+        return formatted
 
     def plot_rolling_sharpe(
         self,

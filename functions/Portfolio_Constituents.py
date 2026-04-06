@@ -231,6 +231,67 @@ class PortfolioConstituents:
 
         return fig
 
+    def run_all_plots(
+        self,
+        *,
+        category_over_time_cols: list[str] | None = None,
+        pie_cols: list[str] | None = None,
+        analyse_all_portfolios_at_once: bool = False,
+        all_sub_portfolios: bool = False,
+        portfolio_key: Hashable | int | None = None,
+        out_dir: str | None = None,
+        save: bool = True,
+        show: bool = True,
+        dpi: int = 300,
+    ) -> dict[str, Any]:
+        """
+        Convenience method to run the common set of constituent plots so notebooks stay small.
+
+        - Over-time plots for `category_over_time_cols`
+        - Final-month pie/donut plots for `pie_cols`
+
+        Returns a dict with created figures.
+        """
+        category_over_time_cols = category_over_time_cols or ["Industry", "loc"]
+        pie_cols = pie_cols or ["Industry", "loc", "MacroRegion"]
+        out_dir = out_dir or f"portfolio_constituents_{self.portfolio_type}"
+
+        figs: dict[str, Any] = {"category_over_time": {}, "pie": {}}
+
+        over_time_suffix = (
+            "all" if analyse_all_portfolios_at_once else ("all_subs" if all_sub_portfolios else "last")
+        )
+        pie_suffix = "all" if analyse_all_portfolios_at_once else "last"
+
+        for col in category_over_time_cols:
+            fig = self.plot_category_over_time(
+                col,
+                portfolio_key=portfolio_key,
+                analyse_all_portfolios_at_once=analyse_all_portfolios_at_once,
+                all_sub_portfolios=all_sub_portfolios,
+                save=save,
+                img_dir=out_dir,
+                dpi=dpi,
+                filename=f"{self.portfolio_type}_counts_over_time_{col}_{over_time_suffix}",
+                show=show,
+            )
+            figs["category_over_time"][col] = fig
+
+        for col in pie_cols:
+            fig = self.plot_pie_categories(
+                col,
+                portfolio_key=portfolio_key,
+                analyse_all_portfolios_at_once=analyse_all_portfolios_at_once,
+                save=save,
+                img_dir=out_dir,
+                dpi=dpi,
+                filename=f"{self.portfolio_type}_final_month_pie_{col}_{pie_suffix}",
+                show=show,
+            )
+            figs["pie"][col] = fig
+
+        return figs
+
 
 
 
