@@ -139,7 +139,7 @@ class StrategyPerformance:
                 (mean / std) * float(np.sqrt(12)) if std != 0.0 else np.nan
             )
 
-            r_chg = r.pct_change().dropna()
+            r_chg = r.dropna()
             metrics.loc[col, "VaR 1%"] = (
                 float(r_chg.quantile(0.01)) if not r_chg.empty else np.nan
             )
