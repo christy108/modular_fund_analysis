@@ -293,6 +293,22 @@ class PortfolioConstituents:
         if total == 0:
             raise ValueError("No constituents to plot after filtering.")
 
+        # Roll up tiny slices into "Other" to reduce clutter.
+        # Rule: if there are >= 3 categories with < 1% share, group them.
+        shares_pct = (counts / total) * 100.0
+        small_mask = shares_pct < 1.0
+        if not dropna:
+            # Keep missing as its own slice even if tiny.
+            small_mask = small_mask & (np.array(categories) != "nan")
+
+        if int(np.sum(small_mask)) >= 3:
+            other_count = int(np.sum(counts[small_mask]))
+            kept_categories = [c for c, keep in zip(categories, ~small_mask) if keep]
+            kept_counts = counts[~small_mask]
+            categories = kept_categories + ["Other"]
+            counts = np.append(kept_counts, other_count).astype(int)
+            total = int(counts.sum())
+
         if value_mode == "percent":
             values = counts / total * 100
             value_label = "%"
