@@ -1,0 +1,10 @@
+,Low pdvocacy,High pdvocacy,Low Prep,High Prep,Low transf,High transf,Sector equal split transf
+alpha,0.25,0.39,0.4,0.3,0.36,0.47,0.38
+beta_mkt,1.04,1.11,1.04,1.08,1.1,1.04,0.98
+beta_smb,-0.1,0.06,-0.08,0.06,0.02,-0.15,-0.11
+beta_hml,0.17,0.28,0.2,0.15,0.23,0.15,0.15
+p-value(alpha),0.1,0.01,0.01,0.05,0.01,0.0,0.01
+p-value(beta_mkt),0.0,0.0,0.0,0.0,0.0,0.0,0.0
+p-value(beta_smb),0.27,0.55,0.3,0.53,0.83,0.08,0.19
+p-value(beta_hml),0.01,0.0,0.0,0.02,0.0,0.0,0.0
+Adj. R^2,0.89,0.9,0.89,0.9,0.93,0.9,0.9
