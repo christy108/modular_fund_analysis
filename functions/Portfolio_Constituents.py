@@ -254,7 +254,7 @@ class PortfolioConstituents:
         """
         category_over_time_cols = category_over_time_cols or ["Industry", "loc"]
         pie_cols = pie_cols or ["Industry", "loc", "MacroRegion"]
-        out_dir = out_dir or f"portfolio_constituents_{self.portfolio_type}"
+        out_dir = out_dir or str(Path("output") / f"portfolio_constituents_{self.portfolio_type}")
 
         figs: dict[str, Any] = {"category_over_time": {}, "pie": {}}
 
