@@ -37,13 +37,14 @@ class StrategyPerformance:
 
     HORIZON_COLUMNS = ["1m", "3m", "YTD", "1yr", "3yr", "5yr", "10yr", "Since launch"]
 
-    def __init__(self, portfolio_returns: pd.DataFrame):
+    def __init__(self, portfolio_returns: pd.DataFrame, ff3_parts_df: pd.DataFrame | None = None):
         df = portfolio_returns.copy()
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
         df.sort_index(inplace=True)
 
         self.portfolio_returns = df
+        self.ff3_parts_df = ff3_parts_df.copy() if isinstance(ff3_parts_df, pd.DataFrame) else None
 
     def cumulative_performance_table(
         self,
@@ -100,7 +101,7 @@ class StrategyPerformance:
         out = (mean / std) * np.sqrt(12)
         return out.replace([np.inf, -np.inf], np.nan)
 
-    def risk_metrics_table(
+    def performance_risk_metrics_table(
         self,
         csv_path: str | Path,
         as_of: pd.Timestamp | None = None,
@@ -148,10 +149,25 @@ class StrategyPerformance:
             drawdown = wealth / wealth.cummax() - 1.0
             metrics.loc[col, "Max Drawdown"] = float(drawdown.min())
 
+        # Optional: add FF3 alpha + p-value(alpha) for matching strategy columns
+        if self.ff3_parts_df is not None:
+            ff3 = self.ff3_parts_df
+            if "alpha" in ff3.index and "p-value(alpha)" in ff3.index:
+                common = metrics.index.intersection(ff3.columns)
+                if len(common) > 0:
+                    metrics["Alpha"] = np.nan
+                    metrics["p-value(alpha)"] = np.nan
+                    metrics.loc[common, "Alpha"] = ff3.loc["alpha", common].astype(float)
+                    metrics.loc[common, "p-value(alpha)"] = ff3.loc["p-value(alpha)", common].astype(float)
+
         formatted = pd.DataFrame(index=metrics.index)
         formatted["Sharpe"] = metrics["Sharpe"].map(lambda x: _format_num(x, dp=2))
         formatted["VaR 1%"] = metrics["VaR 1%"].map(_format_pct)
         formatted["Max Drawdown"] = metrics["Max Drawdown"].map(_format_pct)
+        if "Alpha" in metrics.columns:
+            formatted["Alpha"] = metrics["Alpha"].map(lambda x: _format_num(x, dp=2))
+        if "p-value(alpha)" in metrics.columns:
+            formatted["p-value(alpha)"] = metrics["p-value(alpha)"].map(lambda x: _format_num(x, dp=3))
 
         path = Path(csv_path)
         path.parent.mkdir(parents=True, exist_ok=True)
