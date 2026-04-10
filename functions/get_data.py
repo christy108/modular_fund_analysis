@@ -8,10 +8,18 @@ import wrds
 
 
 
+
+
+
+
+
+
+
 def get_row_universe(start_year, end_year, download_wrds_data=False):
     if download_wrds_data:
-        
+
         conn=wrds.Connection(wrds_username='cbruce1')
+        print("Connecting to WRDS...")
 
         row_universe = conn.raw_sql(f"""
             WITH 
@@ -45,6 +53,7 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
             ORDER BY 
                 date;
         """, date_cols=['date'])
+        print("done downloading from WRDS")
 
         # Keep entries with non-missing total return index
         row_universe = row_universe[row_universe['tri_lcu'].notna()].reset_index(drop=True)
@@ -62,6 +71,9 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
         row_universe['year'] = pd.to_datetime(row_universe['date']).dt.year
         row_universe = row_universe[row_universe['year'] <= end_year]
     return row_universe
+
+
+
 
 
 
