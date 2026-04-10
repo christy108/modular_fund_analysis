@@ -130,6 +130,10 @@ def compute_weighted_average(returns, raw_weights, permnos):
 
 ######TRUUUUUCOOSSSSSTTTT######################################################################
 
+# Import trucost emissions universe from datastream, or use partial file
+global_universe['gvkey'] = global_universe['gvkey'].dropna().astype(float).astype(int).astype(str)
+actual_gvkeys = global_universe['gvkey'].dropna().unique()
+
 try:
     truc1 = pd.read_csv('./data/TruCost_0423.csv') #load piecewise Trucost data
     truc2 = pd.read_csv('./data/TruCost_1023.csv')
