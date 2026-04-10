@@ -362,7 +362,7 @@ class PortfolioConstituents:
             # Keep missing as its own slice even if tiny.
             small_mask = small_mask & (np.array(categories) != "nan")
 
-        if int(np.sum(small_mask)) >= 3:
+        if int(np.sum(small_mask)) >= 2:
             other_count = int(np.sum(counts[small_mask]))
             kept_categories = [c for c, keep in zip(categories, ~small_mask) if keep]
             kept_counts = counts[~small_mask]
