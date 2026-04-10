@@ -14,7 +14,7 @@ def _compound_returns(slice_df: pd.DataFrame) -> pd.Series:
     for col in slice_df.columns:
         r = slice_df[col].dropna()
         if r.empty:
-            out[col] = np.nan
+            out[col] = np.nan  
         else:
             out[col] = float((r + 1).prod() - 1)
     return out

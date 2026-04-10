@@ -124,3 +124,108 @@ def compute_weighted_average(returns, raw_weights, permnos):
 
     # Compute and return weighted average of the returns
     return (returns_selection * weights_selection).sum()
+
+
+
+
+######TRUUUUUCOOSSSSSTTTT######################################################################
+
+try:
+    truc1 = pd.read_csv('./data/TruCost_0423.csv') #load piecewise Trucost data
+    truc2 = pd.read_csv('./data/TruCost_1023.csv')
+    truc3 = pd.read_csv('./data/TruCost_emissions_02-23_vF.csv')
+    truc1 = truc1[['DirectControl','cyear','SP_ISIN']].rename(columns={'DirectControl':'direct_control'}) #keep firm-year and direct emissions
+    truc2 = truc2[['2022','cyear','SP_ISIN']].rename(columns={'2022':'direct_control'})
+    truc3 = truc3[['gvkey','year','scope1_abs','scope2_loc_abs','scope3_down_abs','scope3_up_abs']]
+    truc = pd.concat([truc1,truc2],axis=0).rename(columns={'cyear':'year'}) #concatenate the two pieces
+
+
+    isin_gvkey = pd.read_csv('./data/ISIN_GVKEY_crosswalk.csv') #load ISIN to gvkey mapping
+    truc['gvkey'] = truc['SP_ISIN'].map(isin_gvkey.set_index('isin')['gvkey']) #map ISIN to gvkey in a new column
+    truc = truc.sort_values(by=['gvkey','year','direct_control']) #sort by gvkey and year
+    truc = truc.drop_duplicates(subset=['gvkey','year'],keep='first') #drop duplicates
+
+
+    truc = truc.dropna(subset=['gvkey']) #drop rows with missing gvkey
+    truc['gvkey'] = truc['gvkey'].astype(int).astype(str) #convert gvkey to string
+    truc3['gvkey'] = truc3['gvkey'].astype(int).astype(str) #convert gvkey to string
+
+
+    truc = pd.merge(truc,truc3, on=['gvkey','year'],how='outer') #merge with the third piece
+
+    truc = truc[truc['gvkey'].isin(actual_gvkeys)] #keep only gvkeys in the global universe
+    truc = truc.rename(columns={'gvkey':'ids','year':'cyear'}) #rename gvkey,year to ids,cyear to aid future merging
+    truc.to_csv('./data/shared_TruCost.csv',index=False) #save to disk
+except:
+    print('Original Trucost data not found! Trying to load processed from disk...')
+    truc = pd.read_csv('./data/shared_TruCost.csv')
+    print("Found it!")
+
+
+
+# compute first differences in emissions
+def robust_first_difference(df: pd.DataFrame, id_col, time_col, val_col):
+    """
+    Calculate the first difference of the 'val' column in a DataFrame,
+    considering only consecutive time points and handling NaN values in 'val'.
+    
+    Parameters:
+    - df: pandas DataFrame containing the data (3 necessary columns, the rest ignored)
+    - id_col: string, name of the column containing the ID
+    - time_col: string, name of the column containing the time
+    - val_col: string, name of the column for which to calculate the first difference
+    
+    Returns:
+    - A pandas Series representing the first difference of 'val'.
+    """
+    df=df.copy()
+    if not df.equals(df.sort_values(by=[id_col, time_col])):
+        print("Warning: DataFrame is not sorted by 'id' and 'time'. This might create complications when concatenating back.")
+    
+    # Ensure the DataFrame is sorted by 'id' and then by 'time'
+    df_sorted = df.sort_values(by=[id_col, time_col])
+    
+    # Temporarily forward fill 'val' within each 'id' group for time_diff calculation
+    df_sorted['val_ffill'] = df_sorted.groupby(id_col)[val_col].fillna(method='ffill')
+    
+    # Calculate the time difference within each 'id' group (this is computing the number of time period per id_col)
+    df_sorted['time_diff'] = df_sorted.groupby(id_col)[time_col].diff()
+    df_sorted['time_diff'] = df_sorted['time_diff'].astype('Int64')
+    
+    # Compute the first difference in 'val' using the forward-filled column
+    df_sorted['val_diff_temp'] = df_sorted.groupby(id_col)['val_ffill'].pct_change() ### might become .diff(x) or .pct_change(x) if needed
+    
+    # Apply enhanced mask: set 'val_diff' to NaN where time_diff is not 1, or original 'val' or its preceding value is NaN
+    df_sorted['val_diff'] = np.where(
+        (df_sorted['time_diff'] == 1) &                         # One period difference
+        df_sorted[val_col].notna() &                            # Levels at t are not missing
+        df_sorted.groupby(id_col)[val_col].shift(1).notna(),    # Levels at t-1 are not missing
+        df_sorted['val_diff_temp'],                             # Take the data computed from filled differences 
+        np.nan)                                                 # NaN otherwise
+    
+    return df_sorted['val_diff']
+
+truc = truc.sort_values(by=['ids','cyear'])
+truc['direct_control_diff'] = robust_first_difference(truc, 'ids', 'cyear', 'direct_control')
+truc['scope1_abs_diff'] = robust_first_difference(truc, 'ids', 'cyear', 'scope1_abs')
+truc['scope2_loc_abs_diff'] = robust_first_difference(truc, 'ids', 'cyear', 'scope2_loc_abs')
+truc['scope3_down_abs_diff'] = robust_first_difference(truc, 'ids', 'cyear', 'scope3_down_abs')
+truc['scope3_up_abs_diff'] = robust_first_difference(truc, 'ids', 'cyear', 'scope3_up_abs')
+
+
+# Convert ids to string to join
+truc['ids'] = truc['ids'].astype(str)
+
+# Merge Trucost data with global universe, using constant yearly emissions for all global universe days
+global_universe = pd.merge(
+    global_universe, 
+    truc, 
+    left_on=['gvkey', 'last_year'], 
+    right_on=['ids', 'cyear'], 
+    how='left'
+)
+global_universe = global_universe.drop(columns=['SP_ISIN','cyear','ids'])
+global_universe
+
+global_universe['direct_control'].notna().sum()
+global_universe['scope1_abs_intensity'] = global_universe['scope1_abs'] / global_universe['mktcap']

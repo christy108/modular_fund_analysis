@@ -84,11 +84,6 @@ def standardize_pivot(df_pivot, global_universe, cols_standardization):
 
 
 
-
-
-
-    
-
 def low_high(df, label):
     low_col = df.columns[0]
     high_col = df.columns[-1]
