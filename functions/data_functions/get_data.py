@@ -212,6 +212,37 @@ def get_famafrench_factors(start_year, end_year, download_ff_data=False):
 
 
 
+def get_processed_index(file_path, signal_0_simple_quantiles):
+    
+    if file_path[-4:] == "xlsx":
+        MSCI = pd.read_excel(file_path, index_col= "Date")
+    elif file_path[-4:] == "csv":
+        MSCI = pd.read_csv(file_path, index_col= "Date")
+    elif file_path[-4:] == "parquet":
+        MSCI = pd.read_parquet(file_path)
+
+            
+    MSCI["return"] = MSCI["MSCI_price"].pct_change()
+    MSCI.index = pd.to_datetime(MSCI.index)
+
+
+    #Intesrect the same dates:>
+
+    # Intersect on year-month (month-end day can differ from signal_0_simple_quantiles)
+    ym_msci = MSCI.index.to_period("M")
+    ym_sig = signal_0_simple_quantiles.index.to_period("M")
+    common_ym = ym_msci.unique().intersection(ym_sig.unique())
+
+    MSCI = MSCI[ym_msci.isin(common_ym)].sort_index()
+    # One row per month when MSCI is higher-frequency (last observation in each month)
+    MSCI = MSCI.groupby(MSCI.index.to_period("M"), sort=True).last()
+    MSCI.index = signal_0_simple_quantiles.index
+
+    return MSCI
+
+
+
+
 
 
 
