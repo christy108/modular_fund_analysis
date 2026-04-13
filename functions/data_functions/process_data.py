@@ -62,3 +62,55 @@ def process_usa_universe(usa_universe):
     usa_universe['last_year'] = usa_universe['last_year'].astype(int)
 
     return usa_universe
+
+
+def process_global_universe(usa_universe, row_universe, currency_filter, mktcap_covered):  
+    # Drop old columns
+    usa_universe.drop(columns=['cusip'], inplace=True)
+    row_universe.drop(columns=['isin'], inplace=True)
+
+    # Merge and generate global universe
+    global_universe = pd.concat([usa_universe, row_universe[usa_universe.columns]], axis=0)
+
+    # Re-scale ESG ratings
+    global_universe['esg'] /= 100
+
+    # Drop missings in `mktcap`
+    global_universe = global_universe[global_universe['mktcap'].notna()]
+
+    # Add temporal identifiers
+    global_universe['month'] = global_universe['date'].dt.month
+    global_universe['year'] = global_universe['date'].dt.year
+
+
+    # Filter to keep listing in currency of interest
+    global_universe = global_universe[global_universe['curcdd'].isin(currency_filter)] 
+
+        # First, ensure the data is sorted by date within each group
+    global_universe_sorted = global_universe.sort_values(by=['date'])
+
+    # Use the last() function to get the last available market cap values
+    last_values = global_universe_sorted.groupby(['month', 'year', 'curcdd', 'gvkey', 'iid']).agg(last_mktcap=('mktcap', 'last')).reset_index()
+
+    # Sort `last_values`
+    last_values = last_values.sort_values(by=['month', 'year', 'curcdd', 'last_mktcap'])
+
+    # Aggregate mktcap data
+    last_values['cumulative_mktcap'] = last_values.groupby(['month', 'year', 'curcdd'])['last_mktcap'].cumsum()
+    last_values['total_mktcap'] = last_values.groupby(['month', 'year', 'curcdd'])['last_mktcap'].transform('sum')
+
+    # Merge this novel mktcap data
+    global_universe = pd.merge(
+        global_universe, 
+        last_values,
+        on=['month', 'year', 'curcdd', 'gvkey', 'iid'], 
+        how='left'
+    )
+
+    # Keep `mktcap_covered` of total market cap (of each currency area)
+    global_universe = global_universe[global_universe['cumulative_mktcap'] > (1-mktcap_covered)*global_universe['total_mktcap']]
+
+    # Format the gvkeys
+    global_universe['gvkey'] = global_universe['gvkey'].dropna().astype(float).astype(int).astype(str) 
+
+    return global_universe
