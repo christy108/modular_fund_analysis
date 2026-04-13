@@ -231,6 +231,74 @@ class PortfolioConstituents:
 
         return fig
 
+    def total_stocks_over_time(
+        self,
+        *,
+        unique: bool = False,
+        plot: bool = True,
+        figsize: tuple[float, float] = (12, 4),
+        title: str | None = None,
+        save: bool = False,
+        img_dir: str = "img",
+        dpi: int = 300,
+        filename: str | None = None,
+        show: bool = True,
+    ) -> pd.Series | Any:
+        """
+        Total number of stocks across **all** sub-portfolios each month.
+
+        - If ``unique=False`` (default): sum of portfolio sizes (matches typical quantile split logic).
+        - If ``unique=True``: de-duplicated count across sub-portfolios (union per month).
+
+        Returns the Series if ``plot=False``, otherwise returns the created figure.
+        """
+        if not self.constituents:
+            raise ValueError("constituents is empty.")
+
+        totals: list[int] = []
+        dates: list[pd.Timestamp] = []
+
+        for i, month_series in enumerate(self.constituents):
+            as_of = _formation_date(month_series, i, self.formation_dates)
+            dates.append(as_of)
+
+            if unique:
+                gvkeys = self._collect_gvkeys(
+                    month_series,
+                    portfolio_key=None,
+                    analyse_all_portfolios_at_once=True,
+                )
+                totals.append(int(len(gvkeys)))
+            else:
+                # month_series values are per-sub-portfolio holdings (list/array-like)
+                totals.append(int(month_series.apply(len).sum()))
+
+        s = pd.Series(totals, index=pd.DatetimeIndex(dates, name="date"), name="total_stocks").sort_index()
+
+        if not plot:
+            return s
+
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(s.index, s.values, marker="o", markersize=3)
+        ax.set_title(title or "Total stocks across all portfolios over time")
+        ax.set_ylabel("Number of stocks")
+        ax.grid(True, alpha=0.3)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+
+        if save:
+            os.makedirs(img_dir, exist_ok=True)
+            base = filename or (title or f"total_stocks_over_time_{self.portfolio_type}")
+            out_path = Path(img_dir) / f"{_sanitize_filename(base)}.png"
+            fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+
+        # if show:
+        #     plt.show()
+        # else:
+        #     plt.close(fig)
+
+        return fig
+
     def run_all_plots(
         self,
         *,
