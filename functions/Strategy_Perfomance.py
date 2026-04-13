@@ -202,3 +202,79 @@ class StrategyPerformance:
             out.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(out, bbox_inches="tight")
         return ax
+
+    def plot_cumulative_returns(
+        self,
+        portfolio_returns: pd.DataFrame | None = None,
+        *,
+        colors: list[str] | None = None,
+        line_styles: list[str] | None = None,
+        linewidth: float = 2.3,
+        ylabel: str = "US Dollars",
+        xlabel: str = "Date",
+        title: str | None = None,
+        legend_title: str = "Legend",
+        legend_bbox_to_anchor: tuple[float, float] = (1.05, 1.0),
+        legend_loc: str = "upper left",
+        tight_layout_rect: tuple[float, float, float, float] = (0, 0, 1.6, 0.9),
+        ax: Any = None,
+        figsize: tuple[float, float] = (10, 4),
+        save_path: str | Path | None = None,
+        show: bool = True,
+    ) -> Any:
+        """
+        Compute and plot cumulative returns per column using the notebook styling.
+
+        Expects `portfolio_returns` to be simple returns (e.g., monthly excess returns).
+        Cumulative wealth is computed as `(1 + r).cumprod()` per column.
+        """
+        df = self.portfolio_returns if portfolio_returns is None else portfolio_returns.copy()
+        if df.empty:
+            raise ValueError("portfolio_returns is empty")
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+        df = df.sort_index()
+
+        cumulative = (1.0 + df).cumprod()
+
+        # Match `indices.ipynb` defaults if not provided.
+        if colors is None:
+            colors = ["black", "#d62728", "#87CEEB", "#9467bd", "#ADD8E6"]
+        if line_styles is None:
+            line_styles = ["--", "-.", "-", ":"]
+
+        if ax is None:
+            _, ax = plt.subplots(figsize=figsize)
+        fig = ax.figure
+
+        for i, col in enumerate(cumulative.columns):
+            ax.plot(
+                cumulative.index,
+                cumulative[col],
+                label=str(col),
+                color=colors[i % len(colors)],
+                linewidth=linewidth,
+                linestyle=line_styles[i % len(line_styles)],
+            )
+
+        if title is not None:
+            ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.grid(True)
+
+        # Match `indices.ipynb` styling/approach (legend outside + extra right margin).
+        plt.legend(title=legend_title, bbox_to_anchor=legend_bbox_to_anchor, loc=legend_loc)
+        plt.tight_layout(rect=list(tight_layout_rect))
+
+        if save_path is not None:
+            out = Path(save_path)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(out, bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+        return ax
