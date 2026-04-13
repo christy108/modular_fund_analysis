@@ -1,0 +1,5 @@
+,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
+Market,0.56,-10.54%,-28.25%,,
+High transf,0.62,-10.27%,-25.47%,0.19,0.050
+Sector equal split transf,0.63,-10.72%,-25.54%,0.20,0.050
+MSCI benchmark,0.46,-9.45%,-26.82%,,
