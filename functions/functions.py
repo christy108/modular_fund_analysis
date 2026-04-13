@@ -89,3 +89,7 @@ def low_high(df, label):
     high_col = df.columns[-1]
     return df[[low_col, high_col]].rename(columns={low_col: f'Low {label}', high_col: f'High {label}'})
 
+def set_first_row_to_zero(df: pd.DataFrame, inplace: bool = False) -> pd.DataFrame:
+    out = df if inplace else df.copy()
+    out.iloc[0, :] = 0
+    return out
