@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from functions import univariate_portfolio_sorting
+from functions.functions import univariate_portfolio_sorting
 
 
 @dataclass
