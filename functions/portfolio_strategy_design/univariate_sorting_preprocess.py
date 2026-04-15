@@ -230,6 +230,7 @@ def prepare_univariate_sorting_inputs(
     gu = global_universe.copy()
     gu = intersect_gvkeys_and_filter(gu, lc)
     gu = merge_lc_into_global_universe(gu, lc, category_columns)
+    print(gu.columns)
     gu = add_gvkey_iid_sort_clean(gu)
     gu = to_monthly_last_trading_date(gu)
     gu = compute_monthly_returns_long(gu)
