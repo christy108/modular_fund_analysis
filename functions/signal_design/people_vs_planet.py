@@ -24,7 +24,8 @@ categories_dict_sdgs = {
 
 
 
-
+#####THIS FILE IS OUTDATED######
+#"FOR NOTHING --- GET most recent file from sdg investigation branch"
 
 def people_vs_planet(categories_dict_actions):
 
