@@ -178,6 +178,56 @@ def get_processed_fx_rates(end_year):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def get_famafrench_factors(start_year, end_year, download_ff_data=False):
         if download_ff_data:
             import pandas_datareader.data as web
