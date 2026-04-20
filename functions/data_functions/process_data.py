@@ -64,7 +64,7 @@ def process_usa_universe(usa_universe):
     return usa_universe
 
 
-def process_global_universe(usa_universe, row_universe, currency_filter, mktcap_covered):  
+def process_global_universe(usa_universe, row_universe, currency_filter, mktcap_covered, esg_choice):  
     # Drop old columns
     usa_universe.drop(columns=['cusip'], inplace=True)
     row_universe.drop(columns=['isin'], inplace=True)
@@ -73,7 +73,18 @@ def process_global_universe(usa_universe, row_universe, currency_filter, mktcap_
     global_universe = pd.concat([usa_universe, row_universe[usa_universe.columns]], axis=0)
 
     # Re-scale ESG ratings
-    global_universe['esg'] /= 100
+
+    if esg_choice == "none":
+         global_universe['esg'] /= 100
+    elif esg_choice == "refinitiv":
+        global_universe['esg_refinitive'] /= 100
+    elif esg_choice == "s&p":
+        global_universe['esg_sp'] /= 100
+    elif esg_choice == "refinitiv_n_s&p":
+        global_universe['esg_refinitive'] /= 100
+        global_universe['esg_sp'] /= 100
+
+   
 
     # Drop missings in `mktcap`
     global_universe = global_universe[global_universe['mktcap'].notna()]
