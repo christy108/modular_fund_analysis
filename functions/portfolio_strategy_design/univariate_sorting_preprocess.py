@@ -105,19 +105,6 @@ def apply_optional_geo_filter(global_universe: pd.DataFrame) -> pd.DataFrame:
     return gu[~foreign_listed]
 
 
-def dropna_std_cols_and_build_pivots(
-    global_universe: pd.DataFrame, cols_standardization: Sequence[str]
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Drop rows missing standardization keys; build wide return and signal matrices."""
-    gu = global_universe.copy()
-    cols = list(cols_standardization)
-    gu = gu.dropna(subset=cols)
-    global_returns = gu.pivot(index="date", columns="gvkey_iid", values="tr")
-    s0 = gu.pivot(index="date", columns="gvkey_iid", values="signal_0")
-    s1 = gu.pivot(index="date", columns="gvkey_iid", values="signal_1")
-    s2 = gu.pivot(index="date", columns="gvkey_iid", values="signal_2")
-    return gu, global_returns, s0, s1, s2
-
 
 def _fama_french_dates_as_timestamps(dates: pd.Series) -> pd.Series:
     """Notebook uses Period `date`; some callers use datetime. Normalize for comparison."""
@@ -135,6 +122,24 @@ def align_fama_french_to_returns(
     ff = ff[ts_end >= global_returns.index.min()].copy()
     ff.index = global_returns.index
     return ff.drop(columns=["date"])
+
+
+
+
+def dropna_std_cols_and_build_pivots(
+    global_universe: pd.DataFrame, cols_standardization: Sequence[str]
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Drop rows missing standardization keys; build wide return and signal matrices."""
+    gu = global_universe.copy()
+    cols = list(cols_standardization)
+    gu = gu.dropna(subset=cols)
+    
+    global_returns = gu.pivot(index="date", columns="gvkey_iid", values="tr")
+    s0 = gu.pivot(index="date", columns="gvkey_iid", values="signal_0")
+    s1 = gu.pivot(index="date", columns="gvkey_iid", values="signal_1")
+    s2 = gu.pivot(index="date", columns="gvkey_iid", values="signal_2")
+    return gu, global_returns, s0, s1, s2
+
 
 
 def apply_cross_signal_nan_mask(
@@ -230,7 +235,6 @@ def prepare_univariate_sorting_inputs(
     gu = global_universe.copy()
     gu = intersect_gvkeys_and_filter(gu, lc)
     gu = merge_lc_into_global_universe(gu, lc, category_columns)
-    print(gu.columns)
     gu = add_gvkey_iid_sort_clean(gu)
     gu = to_monthly_last_trading_date(gu)
     gu = compute_monthly_returns_long(gu)
