@@ -181,7 +181,62 @@ def get_processed_fx_rates(end_year):
 
 
 
+def snp_esg_merge_to_universe(usa_universe, row_universe):
 
+    sp_esg_table = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp_esg_table['gvkey'] = sp_esg_table['gvkey'].astype(float).astype(str)
+    sp_esg_table = sp_esg_table.rename(columns={"esg_sp": "esg"})
+
+    # Forward-fill scores to get in each quarter the last available score
+    full_sp_index = pd.MultiIndex.from_product(
+        [
+            sp_esg_table['gvkey'].unique(),
+            sorted(sp_esg_table['year'].unique()),
+            sorted(sp_esg_table['quarter'].unique())
+        ],
+        names=['gvkey', 'year', 'quarter']
+    )
+    sp_esg_table = sp_esg_table.set_index(['gvkey', 'year', 'quarter']).reindex(full_sp_index).reset_index()
+    sp_esg_table = sp_esg_table.sort_values(by=['gvkey', 'year', 'quarter']).reset_index(drop=True)
+    sp_esg_table['esg'] = sp_esg_table.groupby('gvkey')['esg'].ffill()
+
+    # Subsection of `sp_esg_table` to merge
+    esg_to_merge = sp_esg_table[['gvkey', 'year', 'quarter', 'esg']].dropna().copy()
+
+    # Create a date column representing the end of the quarter. This simplifies merging!
+    esg_to_merge['esg_date'] = pd.to_datetime(
+        esg_to_merge['year'].astype(int).astype(str) + 'Q' + esg_to_merge['quarter'].astype(int).astype(str)
+    ) + pd.tseries.offsets.QuarterEnd(0)
+
+    # Sort by the entity identifier and the new date column, which is required for merge_asof
+    esg_to_merge = esg_to_merge.sort_values(by=['esg_date', 'gvkey'])
+
+    # Ensure `usa_universe` and `row_universe` are sorted
+    usa_universe = usa_universe.sort_values(by=['date', 'gvkey'])
+    row_universe = row_universe.sort_values(by=['date', 'gvkey'])
+
+    # Merge
+    # NOTE: `direction='backward'` is key: it finds the last available ESG data prior to or on the universe date.
+    usa_universe = pd.merge_asof(
+        usa_universe,
+        esg_to_merge,
+        left_on='date',
+        right_on='esg_date',
+        by='gvkey',
+        direction='backward', 
+        tolerance=pd.Timedelta('335 days')
+    )
+
+    row_universe = pd.merge_asof(
+        row_universe,
+        esg_to_merge,
+        left_on='date',
+        right_on='esg_date',
+        by='gvkey',
+        direction='backward', 
+        tolerance=pd.Timedelta('335 days')
+    )
+    return usa_universe, row_universe
 
 
 

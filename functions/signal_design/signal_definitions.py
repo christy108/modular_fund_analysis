@@ -90,7 +90,7 @@ def test_multiple_signals(signal_0_name="advocacy", signal_1_name="preparation",
     
     return{
         # 'TYPE: association': 0, 
-        'TYPE: pricing': 3,                                                             # For our universe, these are usually discounts to disadvantaged customers
+        #'TYPE: pricing': 3,                                                             # For our universe, these are usually discounts to disadvantaged customers
         'TYPE: donation & funding': 0, 
         'TYPE: volunteerism': 0, 
         'TYPE_SREC: communication - local communities and society': 0, 
