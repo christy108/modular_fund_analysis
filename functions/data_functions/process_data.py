@@ -95,7 +95,9 @@ def process_global_universe(usa_universe, row_universe, currency_filter, mktcap_
 
 
     # Filter to keep listing in currency of interest
-    global_universe = global_universe[global_universe['curcdd'].isin(currency_filter)] 
+    if currency_filter is not None and len(currency_filter) > 0:
+        global_universe = global_universe[global_universe['curcdd'].isin(currency_filter)] 
+   
 
         # First, ensure the data is sorted by date within each group
     global_universe_sorted = global_universe.sort_values(by=['date'])
