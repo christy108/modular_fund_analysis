@@ -1,28 +1,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
 
 from functions.functions import conditional_pct_change, standardize_pivot
 
-_LC_MERGE_BASE: tuple[str, ...] = (
+_LC_MERGE_FIXED: tuple[str, ...] = (
     "gvkey",
     "rfyear",
     "MacroRegion",
     "loc",
     "Industry",
-    "signal_0",
-    "signal_1",
-    "signal_2",
     "sum_activities",
 )
 
 
-def _lc_merge_columns(category_columns: Sequence[str]) -> list[str]:
-    return list(_LC_MERGE_BASE) + sorted(category_columns)
+def _lc_merge_columns(
+    category_columns: Sequence[str], lc_signal_columns: Sequence[str]
+) -> list[str]:
+    return list(_LC_MERGE_FIXED) + list(lc_signal_columns) + sorted(category_columns)
 
 
 def intersect_gvkeys_and_filter(
@@ -39,9 +38,10 @@ def merge_lc_into_global_universe(
     global_universe: pd.DataFrame,
     lc: pd.DataFrame,
     category_columns: Sequence[str],
+    lc_signal_columns: Sequence[str],
 ) -> pd.DataFrame:
     """Attach LC signals and activity columns at fiscal year (`last_year` ↔ `rfyear`)."""
-    cols = _lc_merge_columns(category_columns)
+    cols = _lc_merge_columns(category_columns, lc_signal_columns)
     missing = [c for c in cols if c not in lc.columns]
     if missing:
         raise ValueError(f"lc is missing columns required for merge: {missing}")
@@ -127,69 +127,68 @@ def align_fama_french_to_returns(
 
 
 def dropna_std_cols_and_build_pivots(
-    global_universe: pd.DataFrame, cols_standardization: Sequence[str]
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Drop rows missing standardization keys; build wide return and signal matrices."""
+    global_universe: pd.DataFrame,
+    cols_standardization: Sequence[str],
+    signal_columns: Sequence[str],
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
+    """Drop rows missing standardization keys; build wide return and per-signal matrices."""
     gu = global_universe.copy()
     cols = list(cols_standardization)
     gu = gu.dropna(subset=cols)
-    
+
     global_returns = gu.pivot(index="date", columns="gvkey_iid", values="tr")
-    s0 = gu.pivot(index="date", columns="gvkey_iid", values="signal_0")
-    s1 = gu.pivot(index="date", columns="gvkey_iid", values="signal_1")
-    s2 = gu.pivot(index="date", columns="gvkey_iid", values="signal_2")
-    return gu, global_returns, s0, s1, s2
+    signals: dict[str, pd.DataFrame] = {
+        col: gu.pivot(index="date", columns="gvkey_iid", values=col)
+        for col in signal_columns
+    }
+    return gu, global_returns, signals
 
 
 
 def apply_cross_signal_nan_mask(
     global_returns: pd.DataFrame,
-    global_signal_0: pd.DataFrame,
-    global_signal_1: pd.DataFrame,
-    global_signal_2: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    signals: Mapping[str, pd.DataFrame],
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
     """NaN any (date, asset) where return or any signal is missing (common universe)."""
     r = global_returns.copy()
-    s0 = global_signal_0.copy()
-    s1 = global_signal_1.copy()
-    s2 = global_signal_2.copy()
-    mask = r.isna() | s0.isna() | s1.isna() | s2.isna()
+    masked_signals = {name: s.copy() for name, s in signals.items()}
+    mask = r.isna()
+    for s in masked_signals.values():
+        mask = mask | s.isna()
     r[mask] = np.nan
-    s0[mask] = np.nan
-    s1[mask] = np.nan
-    s2[mask] = np.nan
-    return r, s0, s1, s2
+    for name in masked_signals:
+        masked_signals[name][mask] = np.nan
+    return r, masked_signals
 
 
 def standardize_all_signals(
-    global_signal_0: pd.DataFrame,
-    global_signal_1: pd.DataFrame,
-    global_signal_2: pd.DataFrame,
+    signals: Mapping[str, pd.DataFrame],
     global_universe: pd.DataFrame,
     cols_standardization: Sequence[str],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     cols = list(cols_standardization)
-    g0 = standardize_pivot(global_signal_0, global_universe, cols)
-    g1 = standardize_pivot(global_signal_1, global_universe, cols)
-    g2 = standardize_pivot(global_signal_2, global_universe, cols)
-    return g0, g1, g2
+    return {
+        name: standardize_pivot(s, global_universe, cols)
+        for name, s in signals.items()
+    }
 
 
-def merge_signals_long(
-    global_signal_0: pd.DataFrame,
-    global_signal_1: pd.DataFrame,
-    global_signal_2: pd.DataFrame,
-) -> pd.DataFrame:
+def merge_signals_long(signals: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
     """Stack standardized signals and merge on (date, gvkey_iid); drop incomplete rows."""
-    g0l = global_signal_0.stack().reset_index()
-    g0l.columns = ["date", "gvkey_iid", "signal_0"]
-    g1l = global_signal_1.stack().reset_index()
-    g1l.columns = ["date", "gvkey_iid", "signal_1"]
-    g2l = global_signal_2.stack().reset_index()
-    g2l.columns = ["date", "gvkey_iid", "signal_2"]
-    out = g0l.merge(g1l, on=["date", "gvkey_iid"], how="left")
-    out = out.merge(g2l, on=["date", "gvkey_iid"], how="left")
-    out = out.dropna(subset=["signal_0", "signal_1", "signal_2"])
+    if not signals:
+        raise ValueError("signals must contain at least one pivot")
+
+    names = list(signals.keys())
+    stacked: list[pd.DataFrame] = []
+    for name in names:
+        long = signals[name].stack().reset_index()
+        long.columns = ["date", "gvkey_iid", name]
+        stacked.append(long)
+
+    out = stacked[0]
+    for df in stacked[1:]:
+        out = out.merge(df, on=["date", "gvkey_iid"], how="left")
+    out = out.dropna(subset=names)
     return out
 
 
@@ -209,10 +208,8 @@ class UnivariateSortingPrep:
 
     global_universe: pd.DataFrame
     global_returns: pd.DataFrame
-    global_signal_0: pd.DataFrame
-    global_signal_1: pd.DataFrame
-    global_signal_2: pd.DataFrame
-    global_combined_signal_max_min: pd.DataFrame
+    signals: dict[str, pd.DataFrame]
+    signal_names: dict[str, str]
     global_long_df: pd.DataFrame
     fama_french: pd.DataFrame
     res_suffix: str
@@ -222,6 +219,8 @@ def prepare_univariate_sorting_inputs(
     global_universe: pd.DataFrame,
     lc: pd.DataFrame,
     fama_french: pd.DataFrame,
+    lc_signals: Mapping[str, str],
+    universe_signals: Mapping[str, str],
     category_columns: Sequence[str],
     cols_standardization: Sequence[str],
     *,
@@ -230,11 +229,42 @@ def prepare_univariate_sorting_inputs(
     """
     Build monthly panel, pivots, aligned factors, masked and z-scored signals, and long-format merge.
 
-    Does not mutate the input `global_universe` or `lc` (works on copies).
+    Parameters
+    ----------
+    lc_signals
+        Mapping ``{column_name: display_name}`` for signals that live in ``lc`` and
+        must be merged into ``global_universe`` at fiscal year.
+    universe_signals
+        Mapping ``{column_name: display_name}`` for signals already present on
+        ``global_universe`` (e.g. ``esg``). No LC merge performed for these.
+
+    Does not mutate the input ``global_universe`` or ``lc`` (works on copies).
     """
+    lc_signals = dict(lc_signals)
+    universe_signals = dict(universe_signals)
+
+    overlap = set(lc_signals).intersection(universe_signals)
+    if overlap:
+        raise ValueError(
+            f"columns appear in both lc_signals and universe_signals: {sorted(overlap)}"
+        )
+
+    missing_lc = [c for c in lc_signals if c not in lc.columns]
+    if missing_lc:
+        raise ValueError(f"lc is missing lc_signals columns: {missing_lc}")
+
+    missing_gu = [c for c in universe_signals if c not in global_universe.columns]
+    if missing_gu:
+        raise ValueError(
+            f"global_universe is missing universe_signals columns: {missing_gu}"
+        )
+
+    signal_columns: list[str] = list(lc_signals.keys()) + list(universe_signals.keys())
+    signal_names: dict[str, str] = {**lc_signals, **universe_signals}
+
     gu = global_universe.copy()
     gu = intersect_gvkeys_and_filter(gu, lc)
-    gu = merge_lc_into_global_universe(gu, lc, category_columns)
+    gu = merge_lc_into_global_universe(gu, lc, category_columns, list(lc_signals.keys()))
     gu = add_gvkey_iid_sort_clean(gu)
     gu = to_monthly_last_trading_date(gu)
     gu = compute_monthly_returns_long(gu)
@@ -242,25 +272,22 @@ def prepare_univariate_sorting_inputs(
     if apply_geo_filter:
         gu = apply_optional_geo_filter(gu)
 
-    gu, global_returns, s0, s1, s2 = dropna_std_cols_and_build_pivots(
-        gu, cols_standardization
+    gu, global_returns, signals = dropna_std_cols_and_build_pivots(
+        gu, cols_standardization, signal_columns
     )
 
     ff = align_fama_french_to_returns(fama_french, global_returns)
 
-    global_returns, s0, s1, s2 = apply_cross_signal_nan_mask(global_returns, s0, s1, s2)
-    s0, s1, s2 = standardize_all_signals(s0, s1, s2, gu, cols_standardization)
-    combined = s2 - s0
-    long_df = merge_signals_long(s0, s1, s2)
+    global_returns, signals = apply_cross_signal_nan_mask(global_returns, signals)
+    signals = standardize_all_signals(signals, gu, cols_standardization)
+    long_df = merge_signals_long(signals)
     suffix = _res_suffix_from_returns_index(global_returns.index)
 
     return UnivariateSortingPrep(
         global_universe=gu,
         global_returns=global_returns,
-        global_signal_0=s0,
-        global_signal_1=s1,
-        global_signal_2=s2,
-        global_combined_signal_max_min=combined,
+        signals=signals,
+        signal_names=signal_names,
         global_long_df=long_df,
         fama_french=ff,
         res_suffix=suffix,
