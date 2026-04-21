@@ -1,5 +1,4 @@
 ,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
-Market,0.54,-10.94%,-28.20%,,
-High transformation,0.56,-10.75%,-25.94%,0.21,0.060
-High esg_refinitive,0.42,-11.73%,-35.64%,0.06,0.590
-Sector equal split transformation,0.63,-10.35%,-24.60%,0.28,0.020
+Market,0.54,-10.84%,-28.25%,,
+High transformation,0.58,-10.49%,-25.59%,0.24,0.020
+Sector equal split transformation,0.64,-11.03%,-25.54%,0.29,0.010

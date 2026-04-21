@@ -317,52 +317,11 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe):
 
 
 
+def get_famafrench_factors(start_year, end_year, region, download_developed_ff_data=False):
+        if download_developed_ff_data:
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def get_famafrench_factors(start_year, end_year, download_ff_data=False):
-        if download_ff_data:
+            # download manually from:
+            # https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
             import pandas_datareader.data as web
             ff3 = web.FamaFrenchReader('Developed_3_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
             ff5 = web.FamaFrenchReader('Developed_5_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
@@ -373,24 +332,36 @@ def get_famafrench_factors(start_year, end_year, download_ff_data=False):
             ff3.to_csv('./data/Developed_3_Factors.csv', index=False)
             ff5.to_csv('./data/Developed_5_Factors.csv', index=False)
         else:
-            ff3 = pd.read_csv('./data/Developed_3_Factors.csv')
-            ff3['year'] = pd.to_datetime(ff3['date']).dt.year
-            ff3 = ff3[ff3['year'] <= end_year]
 
-            ff5 = pd.read_csv('./data/Developed_5_Factors.csv')
-            ff5['year'] = pd.to_datetime(ff5['date']).dt.year
-            ff5 = ff5[ff5['year'] <= end_year]
+            if region == "Developed":
+                ff_file = "./data/FAMA/Developed_3_Factors.csv"
+            elif region == "Europe":
+                ff_file = "./data/FAMA/Europe_3_Factors.csv"
+            elif region == "Japan":
+                ff_file = "./data/FAMA/Japan_3_Factors.csv"
+            elif region == "North_America":
+                ff_file = "./data/FAMA/North_America_3_Factors.csv"
+            else:
+                raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
 
-
-
+            ff3 = pd.read_csv(ff_file)
             
-            ff3['date'] = pd.to_datetime(ff3['date']).dt.to_period('M')
-            ff5['date'] = pd.to_datetime(ff5['date']).dt.to_period('M')
+            ff3 = ff3.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
 
-        fama_french = (ff3.set_index('date')/100).reset_index()
-        fama_french_5 = (ff5.set_index('date')/100).reset_index()
-        
-        return fama_french, fama_french_5
+            # Some provided CSVs have trailing blank rows, which forces float dtype for `date`
+            # (e.g. 199007.0) and breaks strict "%Y%m" parsing.
+            ff3["date"] = pd.to_numeric(ff3["date"], errors="coerce")
+            ff3 = ff3.dropna(subset=["date"]).copy()
+            ff3["date"] = ff3["date"].astype("int64").astype(str)
+            ff3["date"] = pd.to_datetime(ff3["date"], format="%Y%m")
+
+        year = pd.to_datetime(ff3["date"]).dt.year
+        ff3 = ff3[(year <= end_year) & (year > start_year - 1)].copy()
+        ff3["date"] = pd.to_datetime(ff3["date"]).dt.to_period("M")
+
+        # Scale factor returns from percent to decimal without touching the date column
+        fama_french = ff3.set_index("date").div(100).reset_index()
+        return fama_french
 
 
 
