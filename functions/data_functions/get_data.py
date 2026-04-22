@@ -198,14 +198,17 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
 def get_processed_fx_rates(end_year):
 
 
-    # Download from FRB H.10
+    # Download from FRB H.10 without JPY:
     # https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10&series=d3efeda92e22923be9b7c3d7250706ac&lastobs=&from=01/01/2009&to=12/31/2024&filetype=csv&label=include&layout=seriescolumn
 
+
+    #With JPY:
+    #https://www.federalreserve.gov/datadownload/Download.aspx?rel=H10&series=2525778bbd3442ab095d4c1f1b4dd2ab&filetype=csv&label=include&layout=seriescolumn&from=01/01/2009&to=12/31/2024
     try:
         # Load exchange rate data
         FRB_H10 = pd.read_csv(f'./data/FRB/FRB_H10_{end_year}.csv')
         FRB_H10.replace('ND', np.nan, inplace=True)
-        FRB_H10.columns = ['date', 'EUR', 'GBP', 'DKK', 'NOK', 'SEK', 'CHF']
+        FRB_H10.columns = ['date', 'EUR', 'GBP','DKK','JPY', 'NOK', 'SEK', 'CHF']
 
         # Foreign exchange rate data
         fx_rates = FRB_H10.iloc[5:].copy()
@@ -223,7 +226,8 @@ def get_processed_fx_rates(end_year):
         fx_rates = fx_rates.melt(id_vars=['date'], var_name='curcdd', value_name='rate')
 
         # Set dates to datetime format
-        fx_rates['date'] = pd.to_datetime(fx_rates['date'])
+        fx_rates["date"] = pd.to_datetime(fx_rates["date"], format="%d/%m/%Y")
+        #fx_rates["date"] = pd.to_datetime(fx_rates["date"], format="%d/%m/%Y")
 
         return fx_rates
     
