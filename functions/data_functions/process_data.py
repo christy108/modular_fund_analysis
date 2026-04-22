@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def process_japan_universe(japan_universe, fx_rates):
+def process_japan_universe(japan_universe, fx_rates, convert_to_USD: bool = True):
     """
     Standardizes date and gvkey, merges in FX rates by (date, curcdd),
     converts mktcap_lcu and tri_lcu to base-currency mktcap/tri, and
@@ -13,10 +13,14 @@ def process_japan_universe(japan_universe, fx_rates):
     japan_universe["date"] = pd.to_datetime(japan_universe["date"])
     japan_universe["gvkey"] = japan_universe["gvkey"].astype(float).astype(str)
 
-    # Currency conversions
-    japan_universe = pd.merge(japan_universe, fx_rates, on=["date", "curcdd"], how="left")
-    japan_universe["mktcap"] = japan_universe["mktcap_lcu"] / japan_universe["rate"]
-    japan_universe["tri"] = japan_universe["tri_lcu"] / japan_universe["rate"]
+    # Currency conversions (optional)
+    if convert_to_USD:
+        japan_universe = pd.merge(japan_universe, fx_rates, on=["date", "curcdd"], how="left")
+        japan_universe["mktcap"] = japan_universe["mktcap_lcu"] / japan_universe["rate"]
+        japan_universe["tri"] = japan_universe["tri_lcu"] / japan_universe["rate"]
+    else:
+        japan_universe["mktcap"] = japan_universe["mktcap_lcu"]
+        japan_universe["tri"] = japan_universe["tri_lcu"]
 
     # Create the correct year to merge on fundamentals
     japan_universe["last_year"] = np.where(
@@ -30,7 +34,7 @@ def process_japan_universe(japan_universe, fx_rates):
     return japan_universe
 
 
-def process_row_universe(row_universe, fx_rates):
+def process_row_universe(row_universe, fx_rates, convert_to_USD: bool = True):
 
 
     """
@@ -44,10 +48,14 @@ def process_row_universe(row_universe, fx_rates):
     row_universe['date'] = pd.to_datetime(row_universe['date'])
     row_universe['gvkey'] = row_universe['gvkey'].astype(float).astype(str)
 
-    # Currency conversions
-    row_universe = pd.merge(row_universe, fx_rates, on=['date', 'curcdd'], how='left')
-    row_universe['mktcap'] = row_universe['mktcap_lcu'] / row_universe['rate']
-    row_universe['tri'] = row_universe['tri_lcu'] / row_universe['rate']
+    # Currency conversions (optional)
+    if convert_to_USD:
+        row_universe = pd.merge(row_universe, fx_rates, on=["date", "curcdd"], how="left")
+        row_universe["mktcap"] = row_universe["mktcap_lcu"] / row_universe["rate"]
+        row_universe["tri"] = row_universe["tri_lcu"] / row_universe["rate"]
+    else:
+        row_universe["mktcap"] = row_universe["mktcap_lcu"]
+        row_universe["tri"] = row_universe["tri_lcu"]
 
     # Create the correct year to merge on fundamentals
     # For dates in H1 (Jan-Jun), accounting data from Y-1 isn't out yet, so use Y-2's report.
@@ -95,10 +103,10 @@ def process_usa_universe(usa_universe):
 def process_global_universe(
     usa_universe,
     row_universe,
-    japan_universe=None,
-    currency_filter=None,
-    mktcap_covered=1.0,
-    esg_choice="none",
+    japan_universe,
+    currency_filter,
+    mktcap_covered,
+    esg_choice,
 ):
     # Drop old identifier columns (if present)
     usa_universe = usa_universe.drop(columns=["cusip"], errors="ignore")
