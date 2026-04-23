@@ -423,6 +423,94 @@ def get_famafrench_factors(start_year, end_year, region, download_developed_ff_d
         return fama_french
 
 
+    
+#Always download accounting data, each subdata has unique gvkeys to download.
+def get_accounting_data(global_universe, region_analysis, start_year, end_year, dowload_acc_data = True):
+
+    conn=wrds.Connection(wrds_username='cbruce1')
+
+    # Get accounting ratios
+    full_gvkeys = [str.zfill(gvkey, 6) for gvkey in global_universe['gvkey'].astype(float).astype(int).astype(str).unique()]
+    table = 'funda'
+    varlist = ['gvkey', 'datadate', 'at', 'sale', 'ebitda', 'ebit']
+    start_date = f'{start_year}-01-01'
+    end_date = f'{end_year}-12-30'
+
+    # Download from WRDS
+    if dowload_acc_data:
+        na_call = "SELECT " + ', '.join(varlist + ['ni']) + '\n' + "FROM comp_na_daily_all." + table + '\n'+ """
+            WHERE gvkey IN %(gvkey_list)s
+            AND datadate BETWEEN %(start_date)s AND %(end_date)s
+        """
+        compustat_na = conn.raw_sql(
+            na_call,
+            params={
+                    "gvkey_list": tuple(full_gvkeys),
+                    "start_date": start_date,
+                    "end_date": end_date}
+        )
+        df = pd.DataFrame(compustat_na)
+        
+        global_call = "SELECT " + ', '.join(varlist + ['nicon']) + '\n' + "FROM comp_global_daily.g_" + table + '\n' + """     
+            WHERE gvkey IN %(gvkey_list)s
+            AND datadate BETWEEN %(start_date)s AND %(end_date)s
+        """
+        compustat_global = conn.raw_sql(
+            global_call,
+            params={
+                    "gvkey_list": tuple(full_gvkeys),
+                    "start_date": start_date,
+                    "end_date": end_date}
+        )
+        df2 = pd.DataFrame(compustat_global)
+        
+        # rename col in df2 called nicon to ni
+        df2 = df2.rename(columns={'nicon': 'ni'})
+
+        # Concatenate output
+        dt = pd.concat([df, df2])
+        dt = dt[(dt['at']>0) & (dt['sale']>0)]
+
+        dt['roa0'] = dt['ebitda']/dt['at']
+        dt['roa1'] = dt['ebit']/dt['at']
+        dt['roa2'] = dt['ni']/dt['at']
+        dt['ros0'] = dt['ebitda']/dt['sale']
+        dt['ros1'] = dt['ebit']/dt['sale']
+        dt['ros2'] = dt['ni']/dt['sale']
+        
+        dt['sales_intensity'] = dt['sale']/dt['at']
+        
+        dt['year'] = pd.to_datetime(dt['datadate']).dt.year
+        dt = dt.drop(columns=['ni', 'ebitda', 'at', 'sale', 'datadate'])
+
+        # Save to disk
+        print('Saving to disk!')
+        dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}.csv', index=False)
+        
+    else:
+        print("Read CSV")
+        dt = pd.read_csv(f'./data/ACC/acc_comp_{region_analysis}.csv')
+
+    #Remove the ".0" In GVKEY
+    dt['gvkey'] = dt['gvkey'].astype(str).str.replace(r'\.0$', '', regex=True)
+    import numpy as np
+    dt["year"] = dt["year"].astype(np.int64)
+
+    #convert gvkey removing any ".0" and adding 00 to the from ensuring 6 numbers
+    global_universe['gvkey'] = global_universe['gvkey'].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(6)
+
+    # Merge data with global universe
+    global_universe = pd.merge(
+        global_universe, 
+        dt, 
+        left_on=['gvkey', 'last_year'], 
+        right_on=['gvkey', 'year'], 
+        how='left'
+    )
+
+    return global_universe
+
+
 
 
 def get_processed_index(file_path, signal_0_simple_quantiles):
