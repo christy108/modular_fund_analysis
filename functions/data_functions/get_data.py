@@ -486,7 +486,7 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
         dt = dt.drop(columns=['ni', 'ebitda', 'at', 'sale', 'datadate'])
 
         # Save to disk
-        print('Saving to disk!')
+        print('Downloaded Fresh Accounting Data and Saving to disk!')
         dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}.csv', index=False)
         
     else:
