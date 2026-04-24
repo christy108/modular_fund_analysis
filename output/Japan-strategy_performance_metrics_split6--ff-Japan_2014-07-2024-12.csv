@@ -1,5 +1,5 @@
 ,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
 Market,0.66,-11.23%,-26.95%,,
-Low transformation,0.70,-10.99%,-25.09%,0.44,0.100
-Low preparation,0.64,-11.20%,-28.26%,0.37,0.150
-Low advocacy,0.54,-11.82%,-30.85%,0.26,0.350
+High transformation,0.63,-11.51%,-25.41%,0.35,0.170
+High preparation,0.63,-11.94%,-27.09%,0.39,0.160
+High advocacy,0.60,-11.59%,-23.46%,0.31,0.230

@@ -28,6 +28,9 @@ def intersect_gvkeys_and_filter(
     global_universe: pd.DataFrame, lc: pd.DataFrame
 ) -> pd.DataFrame:
     """Keep WRDS rows whose gvkey appears in both panels."""
+
+    #Fill the gvkey with 0s to make it 6 digits
+    lc["gvkey"] = lc["gvkey"].astype(str).str.zfill(6)
     lc_gvkey = lc["gvkey"].unique()
     gu_gvkey = global_universe["gvkey"].unique()
     mapping = np.intersect1d(lc_gvkey, gu_gvkey)
