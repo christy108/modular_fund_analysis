@@ -6,7 +6,17 @@ from typing import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from functions.functions import conditional_pct_change, standardize_pivot
+import os
+import sys
+# When running this file directly, add repo root to sys.path
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from functions.functions import standardize_pivot
+
+
+
 
 _LC_MERGE_FIXED: tuple[str, ...] = (
     "gvkey",
@@ -79,12 +89,21 @@ def to_monthly_last_trading_date(global_universe: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_monthly_returns_long(global_universe: pd.DataFrame) -> pd.DataFrame:
-    """Within each `gvkey_iid`, compute `tr` from `tri` with gap masking (`conditional_pct_change`)."""
-    return (
-        global_universe.groupby("gvkey_iid", group_keys=False)
-        .apply(conditional_pct_change)
-        .reset_index(drop=True)
-    )
+    """Within each `gvkey_iid`, compute `tr` from `tri` with gap masking (vectorized)."""
+    gu = global_universe.copy()
+
+    # Preserve row order exactly as input (so downstream merges/indexing match prior runs),
+    # while computing pct_change on (gvkey_iid, date)-sorted rows.
+    orig_index = gu.index
+    gu_sorted = gu.sort_values(["gvkey_iid", "date"])
+
+    date_diff_days = gu_sorted.groupby("gvkey_iid")["date"].diff().dt.days
+    tr = gu_sorted.groupby("gvkey_iid")["tri"].pct_change()
+
+    # Match conditional_pct_change: allow up to 31+5 day gaps (weekends/holidays).
+    gu_sorted["tr"] = tr.where(date_diff_days <= 36, np.nan)
+
+    return gu_sorted.reindex(orig_index)
 
 
 def normalize_category_shares(
