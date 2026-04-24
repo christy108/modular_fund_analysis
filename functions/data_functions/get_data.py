@@ -487,11 +487,11 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
 
         # Save to disk
         print('Downloaded Fresh Accounting Data and Saving to disk!')
-        dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}.csv', index=False)
+        dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv', index=False)
         
     else:
         print("Read CSV")
-        dt = pd.read_csv(f'./data/ACC/acc_comp_{region_analysis}.csv')
+        dt = pd.read_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv')
 
     #Remove the ".0" In GVKEY
     dt['gvkey'] = dt['gvkey'].astype(str).str.replace(r'\.0$', '', regex=True)
