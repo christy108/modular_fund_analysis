@@ -1,13 +1,13 @@
 # Fund analysis — `Main.ipynb` walkthrough
 
-This repository wires together **sustainability / corporate-initiative signals** from a “Golden” longitudinal company panel (LC) with **WRDS Compustat-style price and market-cap data**, then runs **univariate quantile portfolios**, a **sector-split strategy**, **Fama–French three-factor attribution**, and **performance diagnostics**. The notebook is the orchestration layer; reusable logic lives under `functions/`.
+This repository wires together **initiative / sustainability signals** from a “Golden” longitudinal company panel (LC) with **WRDS-style price + market-cap panels** (USA + ROW + Japan), then runs **monthly univariate quantile portfolios** (and an optional **sector-split** strategy), **Fama–French (FF3)** attribution, and **performance diagnostics**. The notebook is the orchestration layer; reusable logic lives under `functions/`.
 
 ---
 
 ## What the pipeline is trying to achieve
 
 1. **Define interpretable signals** from granular initiative types (mapped into a small number of buckets, e.g. “advocacy / preparation / transformation”), expressed as **shares of total counted activities** per firm-year.
-2. **Intersect** that panel with a **tradable equity universe** (USA primary listings + selected global listings in EUR/GBP/CHF, then filtered to the currencies you choose), with **publication-lagged** merges from fiscal year to price dates.
+2. **Intersect** that panel with a **tradable equity universe** (USA + ROW + Japan; then filtered to the currencies you choose), with **publication-lagged** merges from fiscal year to price dates.
 3. **Sort stocks each month** into quantile portfolios on standardized signals and measure **next-month** returns (classic portfolio-sort timing).
 4. **Compare** strategies to a **broad benchmark (MSCI)** and to **FF3-adjusted** metrics, and **inspect who is in the portfolios** (industry, country, macro region).
 
@@ -15,9 +15,9 @@ This repository wires together **sustainability / corporate-initiative signals**
 
 ## Prerequisites and inputs
 
-- **Python**: NumPy, pandas, matplotlib; regressions use **statsmodels** (see `functions/fama_french.py`).
+- **Python**: NumPy, pandas, matplotlib; regressions use **statsmodels** (see `functions/portfolio_metrics/fama_french.py`).
 - **Golden LC CSV**: path in the notebook (`golden_location`). The filename is versioned (e.g. `LC_dataset_v_2B1_20260409.csv`).
-- **WRDS extracts** (when not downloading live): `./data/usa_universe.csv` and the ROW universe file used by `get_row_universe` (see `functions/data_functions/get_data.py`). Toggle `download_wrds_data` / `download_ff_data` in the notebook to refresh.
+- **WRDS extracts / caches**: used by `get_usa_universe`, `get_row_universe`, and `get_japan_universe` (see `functions/data_functions/get_data.py`). The notebook currently calls these with `download_wrds_data=False` (cached/local unless you change it).
 - **FX**: Federal Reserve H.10–style series consumed by `get_processed_fx_rates` (see `get_data.py`).
 - **Fama–French factors**: downloaded or cached as expected by `get_famafrench_factors`.
 - **MSCI file**: `./data/MSCI/MSCI_World.xlsx` for benchmark alignment in the notebook.
@@ -29,16 +29,17 @@ This repository wires together **sustainability / corporate-initiative signals**
 
 | Area | Module | Role |
 |------|--------|------|
-| Small utilities | `functions/functions.py` | `univariate_portfolio_sorting`, `conditional_pct_change`, `standardize_pivot`, `low_high`, `set_first_row_to_zero` |
+| Small utilities | `functions/functions.py` | `conditional_pct_change`, `standardize_pivot`, `low_high`, `set_first_row_to_zero` |
+| Signal design | `functions/signal_design/signal_definitions.py` | defines `categories_dict` + user-facing signal names used in the notebook (`signal_0/1/2`) |
 | LC panel | `functions/data_functions/process_lc.py` | `process_lc`, `map_sectors`, `filter_sum_activities_by_fiscal_year_quantiles` |
-| WRDS / FX / FF | `functions/data_functions/get_data.py` | `get_usa_universe`, `get_row_universe`, `get_processed_fx_rates`, `get_famafrench_factors`, `get_processed_index` |
-| Universe construction | `functions/data_functions/process_data.py` | `process_usa_universe`, `process_row_universe`, `process_global_universe` |
-| Signal + returns prep | `functions/portfolio_strategy/univariate_sorting_preprocess.py` | `prepare_univariate_sorting_inputs` and helpers (merge LC, monthly returns, masking, z-scores) |
-| Quantile portfolios | `functions/portfolio_strategy/Univariate_Portfolio.py` | `UnivariateQuantilePortfolio` |
-| Sector strategy | `functions/portfolio_strategy/Sector_Portfolio.py` | `SectorPortfolio` |
-| FF tables / rolling alpha | `functions/fama_french.py` | `ff3_regressions`, `rolling_ff3_alphas`, plotting helper |
-| Performance tables / charts | `functions/Strategy_Perfomance.py` | `StrategyPerformance` |
-| Constituent analytics | `functions/Portfolio_Constituents.py` | `PortfolioConstituents` |
+| WRDS / FX / FF / ESG / accounting | `functions/data_functions/get_data.py` | `get_usa_universe`, `get_row_universe`, `get_japan_universe`, `get_processed_fx_rates`, ESG merges, `get_famafrench_factors`, `get_processed_index`, `get_accounting_data` |
+| Universe construction | `functions/data_functions/process_data.py` | `process_usa_universe`, `process_row_universe`, `process_japan_universe`, `process_global_universe` |
+| Signal + returns prep | `functions/portfolio_strategy_design/univariate_sorting_preprocess.py` | `prepare_univariate_sorting_inputs` and helpers (merge LC, monthly returns, masking, z-scores) |
+| Quantile portfolios | `functions/portfolio_strategy_design/Univariate_Portfolio.py` | `UnivariateQuantilePortfolio` |
+| Sector strategy | `functions/portfolio_strategy_design/Sector_Portfolio.py` | `SectorPortfolio` |
+| FF tables / rolling alpha | `functions/portfolio_metrics/fama_french.py` | `ff3_regressions`, `rolling_ff3_alphas`, plotting helper |
+| Performance tables / charts | `functions/portfolio_metrics/Strategy_Perfomance.py` | `StrategyPerformance` |
+| Constituent analytics | `functions/portfolio_metrics/Portfolio_Constituents.py` | `PortfolioConstituents` |
 
 ---
 
@@ -48,15 +49,17 @@ This repository wires together **sustainability / corporate-initiative signals**
 
 - Imports **NumPy**, **pandas**, **matplotlib**, and project modules.
 - From `functions.functions`: `low_high` (keeps low/high quantile columns for compact FF tables), `set_first_row_to_zero` (aligns cumulative return paths).
-- From `functions.data_functions.get_data`: universe loaders, FX, Fama–French factors, index helper.
+- From `functions.signal_design.signal_definitions`: chooses the LC category dictionary and the display names for `signal_0/1/2`.
+- From `functions.data_functions.get_data`: universe loaders (including Japan), FX, ESG merges, accounting merges, Fama–French factors, and index helper.
 - From `functions.data_functions.process_data`: transforms that turn raw WRDS frames into a single `global_universe`.
-- From `functions.portfolio_strategy.univariate_sorting_preprocess`: `prepare_univariate_sorting_inputs`, which is the main “econometrics prep” step before sorting.
+- From `functions.portfolio_strategy_design.univariate_sorting_preprocess`: `prepare_univariate_sorting_inputs`, the “econometrics prep” step before sorting.
 
 ### Manual configuration (immediately after dependencies)
 
-- **`download_wrds_data` / `download_ff_data`**: whether to pull fresh WRDS / Ken French data or use local files.
-- **`esg_choice`**: placeholder for ESG integration (`'none'` sets a neutral ESG column in the notebook for both universes).
-- **`start_year` / `end_year`**: sample window (comment notes alignment with ESG sources when `start_year == 2013`).
+- **`start_year` / `end_year`**: sample window (comment notes ESG sources align for `start_year == 2013`).
+- **`region_analysis`**: preset that drives currencies + FF region (e.g. `Europe_and_North_America_and_Japan` keeps `['EUR','USD','JPY']` and uses `fama_factor_region="Developed"`).
+- **`esg_choice`**: `"none"`, `"refinitiv"`, `"s&p"`, `"refinitiv_n_s&p"` (controls ESG merges into the universe; `"none"` sets a constant ESG field).
+- **`add_accounting_data`**: if true, merges accounting features into `global_universe` (reduces sample).
 - **`top_x_by_industry_even_split`**: how many names to keep per industry in the sector-split strategy (`SectorPortfolio`).
 - **`no_simple_quantiles`**: number of univariate quantile portfolios (columns `p_1` … `p_K`).
 - **`alpha_bound`**: total tail mass trimmed from `sum_activities` **within each fiscal year** (split equally below/above; see `filter_sum_activities_by_fiscal_year_quantiles` in `process_lc.py`).
@@ -66,10 +69,10 @@ This repository wires together **sustainability / corporate-initiative signals**
 
 - Loads the **LC** dataset from disk. This is the initiative / disclosure panel that supplies `gvkey`, fiscal year `rfyear`, geography, GICS, and activity-type columns.
 
-### Filters
+### Filters (region, currency, factor set)
 
 - **`currency_filter`**: restricts `global_universe` to listings in those currencies (e.g. EUR and USD).
-- **`execute_location_filters` / `loc_filter`**: optional subset of LC rows by `loc` (e.g. USA only).
+- **`convert_to_USD`**: controls FX conversion in ROW/Japan processing.
 - **`drop_real_estate`**: drops Real Estate from LC before mapping industries.
 
 ---
@@ -110,25 +113,29 @@ This repository wires together **sustainability / corporate-initiative signals**
 
 - Counts distinct `gvkey` for USA or Europe in LC before WRDS-driven filters narrow the tradable set.
 
-#### 2.2 WRDS, Fama–French, and FX
+#### 2.2 WRDS, Fama–French, FX, ESG, accounting
 
 **FX (`get_processed_fx_rates`)**
 
 - Loads/processes exchange rates so ROW market cap and total return index can be expressed in a common currency basis (see `process_row_universe`).
 
-**USA universe**
+**USA / ROW / Japan universes**
 
 - `get_usa_universe` loads or downloads primary US listings with market cap and total return index `tri`.
 - `process_usa_universe` parses dates, string `gvkey`, sets `curcdd = USD`, and computes **`last_year`**: fiscal year used to merge LC fundamentals — **Jan–Jun** maps to **calendar_year − 2**, **Jul–Dec** to **calendar_year − 1** (publication / availability lag).
 
-**ROW universe**
-
 - `get_row_universe` loads or downloads global listings (with local-currency `mktcap_lcu`, `tri_lcu` and `curcdd`).
 - `process_row_universe` merges FX, builds USD (or base) `mktcap` and `tri`, and applies the same **`last_year`** convention.
+- `get_japan_universe` / `process_japan_universe` add Japan as a third leg of the investable universe, using the same conventions.
 
-**ESG shortcut**
+**ESG**
 
 - If `esg_choice == 'none'`, the notebook sets `esg` to a constant so downstream code paths that expect the column still run.
+- Otherwise, the notebook merges S&P / Refinitiv ESG signals into the USA/ROW universes via helpers in `get_data.py`.
+
+**Accounting data (optional)**
+
+- If `add_accounting_data == True`, the notebook calls `get_accounting_data(...)` after building the combined universe. This reduces the sample and adds features like `roa*`, `ros*`, `sales_intensity` used for diagnostics / extensions.
 
 **Fama–French**
 
@@ -156,9 +163,9 @@ This repository wires together **sustainability / corporate-initiative signals**
 7. Optional **`apply_geo_filter`** (off in the notebook: `apply_geo_filter=False`).
 8. **`dropna_std_cols_and_build_pivots`**: drops rows missing standardization keys, then builds wide matrices: **`global_returns`**, **`global_signal_0/1/2`**.
 9. **`align_fama_french_to_returns`**: trims and reindexes FF to the return calendar.
-10. **`apply_cross_signal_nan_mask`**: for each (date, asset), if **return or any of the three signals** is NaN, all are set NaN — enforcing a **common sorting universe**.
+10. **`apply_cross_signal_nan_mask`**: for each (date, asset), if **return or any requested signal** is NaN, all are set NaN — enforcing a **common sorting universe**.
 11. **`standardize_all_signals`**: cross-sectionally z-scores each signal using groups defined by **`cols_standardization`** (notebook: `rfyear`, `curcdd`, `Industry`) — compares firms **within the same fiscal year, listing currency, and mapped industry**.
-12. Also returns **`global_combined_signal_max_min`** (`signal_2 - signal_0`), a long merged frame, and **`res_suffix`** for output filenames.
+12. Returns a long merged frame plus aligned FF factors and a filename suffix used by downstream outputs.
 
 **Manual sorting controls**
 
@@ -230,8 +237,8 @@ The notebook builds **three** sorters **U0, U1, U2** on `global_signal_0`, `glob
 ## How to run
 
 1. Ensure **data paths** in the notebook (`golden_location`, `./data/...`, MSCI path) exist on your machine.
-2. Run cells **top to bottom** after adjusting **manual inputs** (years, filters, category dictionary, quantiles).
-3. If WRDS credentials and downloads are enabled, verify `get_data.py` connection settings match your environment.
+2. Set the core switches (`region_analysis`, `esg_choice`, `add_accounting_data`, `no_simple_quantiles`) and confirm the implied `currency_filter` / `fama_factor_region` are what you intend.
+3. Run cells **top to bottom**. If you enable live downloads, verify `get_data.py` is configured for your environment.
 
 ---
 
@@ -245,4 +252,4 @@ The notebook builds **three** sorters **U0, U1, U2** on `global_signal_0`, `glob
 
 ## Typo in the notebook headings
 
-Section **2.2** is titled “Fama-Frenmch” in the notebook; the code uses the standard **Fama–French** datasets and `functions/fama_french.py`.
+Section **2.2** is titled “Fama-Frenmch” in the notebook; the code uses the standard **Fama–French** datasets and `functions/portfolio_metrics/fama_french.py`.

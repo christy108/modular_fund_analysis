@@ -1,5 +1,5 @@
 ,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
-Market,0.73,-15.16%,-35.44%,,
-High transformation,0.68,-15.21%,-36.32%,0.75,0.120
-High preparation,0.68,-15.51%,-39.36%,0.79,0.110
-High advocacy,0.73,-15.94%,-36.65%,0.84,0.080
+Market,0.60,-11.00%,-28.24%,,
+High transformation,0.55,-11.23%,-30.37%,0.27,0.340
+High esg_refinitive,0.66,-11.13%,-26.93%,0.45,0.120
+High esg_sp,0.62,-10.86%,-25.51%,0.36,0.180

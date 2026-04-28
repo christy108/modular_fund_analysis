@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def process_japan_universe(japan_universe, fx_rates, convert_to_USD: bool = True):
+def process_japan_universe(japan_universe, fx_rates, convert_to_USD):
     """
     Standardizes date and gvkey, merges in FX rates by (date, curcdd),
     converts mktcap_lcu and tri_lcu to base-currency mktcap/tri, and
@@ -34,7 +34,7 @@ def process_japan_universe(japan_universe, fx_rates, convert_to_USD: bool = True
     return japan_universe
 
 
-def process_row_universe(row_universe, fx_rates, convert_to_USD: bool = True):
+def process_row_universe(row_universe, fx_rates, convert_to_USD):
 
 
     """

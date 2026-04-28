@@ -206,7 +206,7 @@ def get_processed_fx_rates(end_year):
     #https://www.federalreserve.gov/datadownload/Download.aspx?rel=H10&series=2525778bbd3442ab095d4c1f1b4dd2ab&filetype=csv&label=include&layout=seriescolumn&from=01/01/2009&to=12/31/2024
     try:
         # Load exchange rate data
-        FRB_H10 = pd.read_csv(f'./data/FRB/FRB_H10_{end_year}.csv')
+        FRB_H10 = pd.read_csv(f'./data/FRB/FRB_H10_2024.csv')
         FRB_H10.replace('ND', np.nan, inplace=True)
         FRB_H10.columns = ['date', 'EUR', 'GBP','DKK','JPY', 'NOK', 'SEK', 'CHF']
 
@@ -229,6 +229,8 @@ def get_processed_fx_rates(end_year):
         fx_rates["date"] = pd.to_datetime(fx_rates["date"], format="%d/%m/%Y")
         #fx_rates["date"] = pd.to_datetime(fx_rates["date"], format="%d/%m/%Y")
 
+        fx_rates = fx_rates[fx_rates['date'] <= f'12/31/{end_year}']
+
         return fx_rates
     
     except Exception as e:
@@ -240,7 +242,7 @@ def get_processed_fx_rates(end_year):
 
 
 
-def get_snp_esg_merge_to_universe(usa_universe, row_universe):
+def get_snp_esg_merge_to_universe(usa_universe, row_universe, japan_universe=None):
 
     sp_esg_table = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
     sp_esg_table['gvkey'] = sp_esg_table['gvkey'].astype(float).astype(str)
@@ -273,6 +275,8 @@ def get_snp_esg_merge_to_universe(usa_universe, row_universe):
     # Ensure `usa_universe` and `row_universe` are sorted
     usa_universe = usa_universe.sort_values(by=['date', 'gvkey'])
     row_universe = row_universe.sort_values(by=['date', 'gvkey'])
+    if japan_universe is not None:
+        japan_universe = japan_universe.sort_values(by=["date", "gvkey"])
 
     # Merge
     # NOTE: `direction='backward'` is key: it finds the last available ESG data prior to or on the universe date.
@@ -295,12 +299,24 @@ def get_snp_esg_merge_to_universe(usa_universe, row_universe):
         direction='backward', 
         tolerance=pd.Timedelta('335 days')
     )
+    if japan_universe is not None:
+        japan_universe = pd.merge_asof(
+            japan_universe,
+            esg_to_merge,
+            left_on="date",
+            right_on="esg_date",
+            by="gvkey",
+            direction="backward",
+            tolerance=pd.Timedelta("335 days"),
+        )
+        return usa_universe, row_universe, japan_universe
+
     return usa_universe, row_universe
 
 
 
 
-def get_refinitive_snp_merge_to_universe(usa_universe, row_universe):
+def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_universe=None):
 
     # Function to get the last non-NaN value in each group
     def last_non_nan(series):
@@ -372,6 +388,17 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe):
         right_on=['isin', 'year'], 
         how='left'
     )
+    # Map esg data onto `japan_universe` (Japan universe uses ISIN like ROW)
+    if japan_universe is not None:
+        japan_universe = pd.merge(
+            japan_universe,
+            refinitiv_esg_table[["isin", "year", "esg_refinitive"]].dropna(subset=["isin"]),
+            left_on=["isin", "last_year"],
+            right_on=["isin", "year"],
+            how="left",
+        )
+        return usa_universe, row_universe, japan_universe
+
     return usa_universe, row_universe
 
 
