@@ -27,6 +27,28 @@ def process_lc(lc: pd.DataFrame, start_year: int, end_year: int):
     return lc
 
 
+def add_available_fyears(
+    lc: pd.DataFrame,
+    rfyear_col: str = "rfyear",
+    gvkey_col: str = "gvkey",
+) -> pd.DataFrame:
+    """
+    Adds two columns to `lc`:
+      - available_fyears:   sorted list of unique rfyear values for that gvkey
+      - n_available_fyears: count of unique rfyears for that gvkey
+    """
+    years_per_gvkey = (
+        lc.groupby(gvkey_col)[rfyear_col]
+          .apply(lambda s: sorted(int(y) for y in s.dropna().unique()))
+          .rename("available_fyears")
+    )
+
+    agg = years_per_gvkey.to_frame()
+    agg["n_available_fyears"] = agg["available_fyears"].apply(len)
+    agg = agg.reset_index()
+
+    lc = lc.drop(columns=["available_fyears", "n_available_fyears"], errors="ignore")
+    return lc.merge(agg, on=gvkey_col, how="left")
 
 
 
