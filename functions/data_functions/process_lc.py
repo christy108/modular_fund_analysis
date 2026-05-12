@@ -16,6 +16,10 @@ def process_lc(lc: pd.DataFrame, start_year: int, end_year: int):
     regions = ["Asia-Pacific", "Europe", "United States and Canada"]
     lc = lc[lc['MacroRegion'].isin(regions)]
 
+    lc = add_missing_gvkeys(lc)
+
+
+
     # Filter data to keep observatios from `start_year`
     lc = lc[lc['rfyear'] >= start_year]
     lc = lc[lc['rfyear'] <= end_year]
@@ -64,3 +68,12 @@ def map_sectors(x):
     elif x in ['Communication Services', 'Information Technology']:
         return 'ICT'
     return x
+
+def add_missing_gvkeys(lc: pd.DataFrame):
+        dict_of_gvkeys = {"Artner Co Ltd": 287055, "TDK Corp": 10275, "StemCell Institute Inc": 349316}
+        mask = lc["gvkey"].isna() & lc["conml"].isin(dict_of_gvkeys)
+        lc.loc[mask, "gvkey"] = lc.loc[mask, "conml"].map(dict_of_gvkeys)
+        print(f">>>> add_missing_gvkeys: filled {mask.sum()} rows")
+        return lc
+
+
