@@ -115,6 +115,36 @@ def dict_5_signals_Action_1D_Moji(signal_0_name="Advocacy", signal_1_name="Upski
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name
 
 
+
+
+def dict_5_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name="Upskilling", signal_2_name="Adaptation-change", signal_3_name="Innovation"):
+    return{
+    
+    "TYPE: donation & funding": 0, 
+    "TYPE: communication": 0, 
+    "TYPE: association": 0, 
+
+    
+    "TYPE: training": 1, 
+    "TYPE: volunteerism": 1, 
+
+
+    "TYPE: adoption of standards and rules": 2, 
+    "TYPE: assessment and measurement": 2, 
+    "TYPE: incentives": 2, 
+    "TYPE: organizational structuring": 2, 
+    "TYPE: asset modification": 2, 
+    "TYPE: modification of procedures": 2, 
+   
+
+
+    "TYPE: new products": 3, 
+    "TYPE: r&d investments": 3, 
+
+    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
+
+
+
 def test_multiple_signals(signal_0_name="advocacy", signal_1_name="preparation", signal_2_name="transformation", signal_3_name="pricing"):
     
     return{

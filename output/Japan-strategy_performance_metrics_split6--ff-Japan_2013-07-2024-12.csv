@@ -1,9 +1,8 @@
 ,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
-Sample,0.82,-11.23%,-24.48%,0.45,0.070
+Sample,0.82,-11.21%,-24.43%,0.45,0.070
 Market,0.51,-8.91%,-28.93%,,
-High Advocacy,0.73,-10.69%,-23.03%,0.33,0.190
-High Upskilling,0.77,-12.40%,-29.07%,0.45,0.110
-High Measurement,0.76,-12.49%,-27.39%,0.45,0.110
-High Adaptation-change,0.72,-11.67%,-26.63%,0.33,0.200
-High Innovation,0.84,-10.17%,-25.20%,0.46,0.060
-Low Advocacy,0.78,-11.92%,-29.80%,0.45,0.100
+High Advocacy,0.71,-10.81%,-24.60%,0.31,0.220
+High Upskilling,0.78,-11.94%,-29.42%,0.46,0.100
+High Adaptation-change,0.73,-11.33%,-28.69%,0.37,0.160
+High Innovation,0.85,-10.07%,-24.19%,0.47,0.050
+Low Advocacy,0.78,-11.83%,-30.14%,0.44,0.110
