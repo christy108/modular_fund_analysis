@@ -179,6 +179,7 @@ class StrategyPerformance:
         window: int,
         ax: Any = None,
         figsize: tuple[float, float] = (10, 4),
+        line_styles: list[str] | None = None,
         save_path: str | Path | None = None,
         **plot_kwargs: Any,
     ) -> Any:
@@ -187,11 +188,19 @@ class StrategyPerformance:
         If save_path is set, writes the figure (e.g. PDF or PNG) after drawing.
         """
         sharpe = self.rolling_sharpe(window)
+        if line_styles is None:
+            line_styles = ["--", "-.", "-", ":"]
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)
         fig = ax.figure
-        for col in sharpe.columns:
-            ax.plot(sharpe.index, sharpe[col], label=col, **plot_kwargs)
+        for i, col in enumerate(sharpe.columns):
+            ax.plot(
+                sharpe.index,
+                sharpe[col],
+                label=col,
+                linestyle=line_styles[i % len(line_styles)],
+                **plot_kwargs,
+            )
         ax.axhline(0.0, color="gray", linewidth=0.8, linestyle="--")
         ax.set_title(f"Rolling Annualised Sharpe ({window}-month window)")
         ax.set_ylabel("Sharpe")
@@ -239,7 +248,7 @@ class StrategyPerformance:
 
         # Match `indices.ipynb` defaults if not provided.
         if colors is None:
-            colors = ["black", "#d62728", "#87CEEB", "#9467bd", "#ADD8E6"]
+            colors = ["black", "#d62728", "#87CEEB", "#9467bd", "#ADD8E6","#FFA500","#008000"]
         if line_styles is None:
             line_styles = ["--", "-.", "-", ":"]
 

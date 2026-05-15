@@ -158,6 +158,7 @@ def plot_rolling_alpha_function(
     ylabel: str = "Monthly alpha (%)",
     figsize: tuple[float, float] = (10, 6),
     cmap_name: str = "viridis",
+    line_styles: list[str] | None = None,
     grid: bool = True,
     rotate_xticks: int = 45,
     legend_title: str = "Legend",
@@ -194,11 +195,19 @@ def plot_rolling_alpha_function(
     # Generalizing: sample n+1 colors and drop the endpoint.
     color_positions = np.linspace(0, 1, n + 1)[:-1] if n > 1 else [0.0]
     colors = [cmap(float(p)) for p in color_positions]
+    if line_styles is None:
+        line_styles = ["--", "-.", "-", ":"]
 
-    for (label, s), color in zip(zip(labels, series_list), colors):
+    for i, ((label, s), color) in enumerate(zip(zip(labels, series_list), colors)):
         if not isinstance(s, pd.Series):
             raise TypeError(f"rolling_alphas['{label}'] must be a pd.Series, got {type(s)}")
-        s.plot(ax=ax, label=label, color=color)
+        ax.plot(
+            s.index,
+            s.values,
+            label=label,
+            color=color,
+            linestyle=line_styles[i % len(line_styles)],
+        )
 
     ax.set_title(title)
     ax.set_xlabel("")
