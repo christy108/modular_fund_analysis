@@ -1,5 +1,40 @@
+import re
+
+import numpy as np
 import pandas as pd
 
+_TYPE_SREC_RE = re.compile(r"^TYPE_SREC:\s*(.+?)\s*-\s*(.+?)\s*$")
+_SDG_SREC_RE = re.compile(r"^SDG_SREC:\s*SDG\s*(\d+)\s*-\s*(.+?)\s*$")
+
+
+def _stakeholder_column_groups(df, pattern):
+    groups = {}
+    for col in df.columns:
+        m = pattern.match(str(col))
+        if m is None:
+            continue
+        groups.setdefault(m.group(2).strip(), []).append(col)
+    return groups
+
+
+def _sum_stakeholder_groups(df, groups):
+    return pd.DataFrame({k: df[cols].fillna(0).sum(axis=1) for k, cols in groups.items()})
+
+
+def add_srec_stakeholder_columns(lc: pd.DataFrame) -> pd.DataFrame:
+    by_type = _sum_stakeholder_groups(lc, _stakeholder_column_groups(lc, _TYPE_SREC_RE))
+    by_sdg = _sum_stakeholder_groups(lc, _stakeholder_column_groups(lc, _SDG_SREC_RE))
+    by_type, by_sdg = by_type.align(by_sdg, join="outer", fill_value=0)
+    if not np.array_equal(by_type.values, by_sdg.values):
+        diff = (by_type - by_sdg).stack()
+        raise ValueError(
+            "TYPE_SREC vs SDG_SREC stakeholder totals differ:\n"
+            + diff[diff != 0].head(10).to_string()
+        )
+
+    print("Added SREC columns: ", by_type.columns)
+    out = by_type.rename(columns=lambda s: f"SREC: {s}")
+    return lc.join(out)
 
 
 def process_lc(lc: pd.DataFrame, start_year: int, end_year: int):
@@ -24,7 +59,7 @@ def process_lc(lc: pd.DataFrame, start_year: int, end_year: int):
     lc = lc[lc['rfyear'] >= start_year]
     lc = lc[lc['rfyear'] <= end_year]
 
-    return lc
+    return add_srec_stakeholder_columns(lc)
 
 
 def add_available_fyears(
