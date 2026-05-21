@@ -403,50 +403,73 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_unive
 
 
 
-def get_famafrench_factors(start_year, end_year, region, download_developed_ff_data=False):
+def get_famafrench_factors(start_year, end_year, region, factors_number, download_developed_ff_data=False):
         if download_developed_ff_data:
 
             # download manually from:
             # https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
-            import pandas_datareader.data as web
-            ff3 = web.FamaFrenchReader('Developed_3_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
-            ff5 = web.FamaFrenchReader('Developed_5_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
-            
-            ff3 = ff3[0].reset_index().rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
-            ff5 = ff5[0].reset_index().rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf', 'RMW': 'rmw', 'CMA': 'cma'})
 
-            ff3.to_csv('./data/Developed_3_Factors.csv', index=False)
-            ff5.to_csv('./data/Developed_5_Factors.csv', index=False)
-        else:
-
-            if region == "Developed":
-                ff_file = "./data/FAMA/Developed_3_Factors.csv"
-            elif region == "Europe":
-                ff_file = "./data/FAMA/Europe_3_Factors.csv"
-            elif region == "Japan":
-                ff_file = "./data/FAMA/Japan_3_Factors.csv"
-            elif region == "North_America":
-                ff_file = "./data/FAMA/North_America_3_Factors.csv"
+            if factors_number == 3:
+                import pandas_datareader.data as web
+                ff3 = web.FamaFrenchReader('Developed_3_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
+                ff = ff3[0].reset_index().rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
+                ff.to_csv('./data/Developed_3_Factors.csv', index=False)
+            elif factors_number == 5:
+                ff5 = web.FamaFrenchReader('Developed_5_Factors', start=f'01-01-{start_year}', end=f'31-12-{end_year}').read()
+                ff= ff5[0].reset_index().rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf', 'RMW': 'rmw', 'CMA': 'cma'})
+                ff.to_csv('./data/Developed_5_Factors.csv', index=False)
             else:
-                raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+                raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
+        else:
+            if factors_number == 3:
+                if region == "Developed":
+                    ff_file = "./data/FAMA/Developed_3_Factors.csv"
+                elif region == "Europe":
+                    ff_file = "./data/FAMA/Europe_3_Factors.csv"
+                elif region == "Japan":
+                    ff_file = "./data/FAMA/Japan_3_Factors.csv"
+                elif region == "North_America":
+                    ff_file = "./data/FAMA/North_America_3_Factors.csv"
+                else:
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+            elif factors_number == 5:
+                if region == "Developed":
+                    ff_file = "./data/FAMA/Developed_5_Factors.csv"
+                elif region == "Europe":
+                    ff_file = "./data/FAMA/Europe_5_Factors.csv"
+                elif region == "Japan":
+                    ff_file = "./data/FAMA/Japan_5_Factors.csv"
+                elif region == "North_America":
+                    ff_file = "./data/FAMA/North_America_5_Factors.csv"
+                else:
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+            else:
+                raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
 
-            ff3 = pd.read_csv(ff_file)
+
+
+            ff = pd.read_csv(ff_file)
             
-            ff3 = ff3.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
+            if factors_number == 3:
+                ff= ff.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
+            elif factors_number == 5:
+                ff= ff.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RMW': 'rmw', 'CMA': 'cma', 'RF': 'rf'})
+            else:
+                raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
 
             # Some provided CSVs have trailing blank rows, which forces float dtype for `date`
             # (e.g. 199007.0) and breaks strict "%Y%m" parsing.
-            ff3["date"] = pd.to_numeric(ff3["date"], errors="coerce")
-            ff3 = ff3.dropna(subset=["date"]).copy()
-            ff3["date"] = ff3["date"].astype("int64").astype(str)
-            ff3["date"] = pd.to_datetime(ff3["date"], format="%Y%m")
+            ff["date"] = pd.to_numeric(ff["date"], errors="coerce")
+            ff = ff.dropna(subset=["date"]).copy()
+            ff["date"] = ff["date"].astype("int64").astype(str)
+            ff["date"] = pd.to_datetime(ff["date"], format="%Y%m")
 
-        year = pd.to_datetime(ff3["date"]).dt.year
-        ff3 = ff3[(year <= end_year) & (year > start_year - 1)].copy()
-        ff3["date"] = pd.to_datetime(ff3["date"]).dt.to_period("M")
+        year = pd.to_datetime(ff["date"]).dt.year
+        ff = ff[(year <= end_year) & (year > start_year - 1)].copy()
+        ff["date"] = pd.to_datetime(ff["date"]).dt.to_period("M")
 
         # Scale factor returns from percent to decimal without touching the date column
-        fama_french = ff3.set_index("date").div(100).reset_index()
+        fama_french = ff.set_index("date").div(100).reset_index()
         return fama_french
 
 

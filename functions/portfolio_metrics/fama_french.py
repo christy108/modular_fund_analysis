@@ -68,14 +68,85 @@ def ff3_regressions(excess_returns, fama_french):
     return ff3_output
 
 
-def rolling_ff3_alphas(
+def ff5_regressions(excess_returns, fama_french):
+
+    stat_index = [
+        'alpha',
+        'beta_mkt',
+        'beta_smb',
+        'beta_hml',
+        'beta_rmw',
+        'beta_cma',
+        'p-value(alpha)',
+        'p-value(beta_mkt)',
+        'p-value(beta_smb)',
+        'p-value(beta_hml)',
+        'p-value(beta_rmw)',
+        'p-value(beta_cma)',
+        'Adj. R^2',
+    ]
+
+    ff5_output = pd.DataFrame(np.nan, index=stat_index, columns=excess_returns.columns)
+
+    # Gather FF5 factors
+    independent_data = fama_french[['mktrf', 'smb', 'hml', 'rmw', 'cma']]
+
+    for col in excess_returns.columns:
+
+        # Gather dependent data
+        dependent_data = pd.Series(excess_returns[col].values, name='excrt')
+
+        # Merge variables
+        ols_data = 100 * pd.concat(
+            [
+                dependent_data,
+                independent_data,
+            ],
+            axis=1,
+        )
+
+        # Skip missings
+        ols_data = ols_data[ols_data.notna().all(axis=1)].reset_index(drop=True)
+
+        if ols_data.empty:
+            continue
+
+        # Model
+        mod = smf.ols(formula='excrt ~ mktrf + smb + hml + rmw + cma', data=ols_data)
+
+        # Estimate and show output
+        fitted_model = mod.fit(cov_type='HC1')
+
+        coef = fitted_model.params
+        pval = fitted_model.pvalues
+
+        ff5_output.loc['alpha', col] = coef.get('Intercept', np.nan)
+        ff5_output.loc['beta_mkt', col] = coef.get('mktrf', np.nan)
+        ff5_output.loc['beta_smb', col] = coef.get('smb', np.nan)
+        ff5_output.loc['beta_hml', col] = coef.get('hml', np.nan)
+        ff5_output.loc['beta_rmw', col] = coef.get('rmw', np.nan)
+        ff5_output.loc['beta_cma', col] = coef.get('cma', np.nan)
+
+        ff5_output.loc['p-value(alpha)', col] = pval.get('Intercept', np.nan)
+        ff5_output.loc['p-value(beta_mkt)', col] = pval.get('mktrf', np.nan)
+        ff5_output.loc['p-value(beta_smb)', col] = pval.get('smb', np.nan)
+        ff5_output.loc['p-value(beta_hml)', col] = pval.get('hml', np.nan)
+        ff5_output.loc['p-value(beta_rmw)', col] = pval.get('rmw', np.nan)
+        ff5_output.loc['p-value(beta_cma)', col] = pval.get('cma', np.nan)
+        ff5_output.loc['Adj. R^2', col] = fitted_model.rsquared_adj
+
+    # Return regression output
+    return ff5_output
+
+
+def rolling_ff_alphas(
     signals: list[dict],
     *,
     fama_french: pd.DataFrame,
     window_size: int,
 ) -> dict[str, pd.Series]:
     """
-    Compute rolling-window FF3 alphas for multiple signals.
+    Compute rolling-window FF factors alphas for multiple signals.
 
     Parameters
     ----------
