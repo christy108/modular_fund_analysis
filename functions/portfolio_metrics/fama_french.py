@@ -144,6 +144,7 @@ def rolling_ff_alphas(
     *,
     fama_french: pd.DataFrame,
     window_size: int,
+    n_factors: int = 3,
 ) -> dict[str, pd.Series]:
     """
     Compute rolling-window FF factors alphas for multiple signals.
@@ -156,17 +157,36 @@ def rolling_ff_alphas(
           - returns: pd.DataFrame (excess returns; index=date, columns=portfolios)
           - alpha_column: str (which column in `returns` to extract alpha for)
     fama_french:
-        FF3 factor DataFrame (must include columns: mktrf, smb, hml). Should be aligned
-        in time with `returns` (same number of rows, same ordering).
+        Fama-French factor DataFrame. For FF3: mktrf, smb, hml. For FF5: also rmw, cma.
+        Should be aligned in time with `returns` (same number of rows, same ordering).
     window_size:
         Rolling window length in rows (e.g. 40 months).
+    n_factors:
+        3 for FF3 (`ff3_regressions`) or 5 for FF5 (`ff5_regressions`).
 
     Returns
     -------
     dict[label -> pd.Series]
         Each series is indexed by the window end date, values are monthly alpha (%),
-        matching `ff3_regressions` output convention.
+        matching `ff3_regressions` / `ff5_regressions` output convention.
     """
+    if n_factors not in (3, 5):
+        raise ValueError("n_factors must be 3 or 5")
+
+    if n_factors == 3:
+        regress = ff3_regressions
+        required_cols = ["mktrf", "smb", "hml"]
+    else:
+        regress = ff5_regressions
+        required_cols = ["mktrf", "smb", "hml", "rmw", "cma"]
+
+    missing_cols = [c for c in required_cols if c not in fama_french.columns]
+    if missing_cols:
+        raise ValueError(
+            f"n_factors={n_factors} requires columns {required_cols}; "
+            f"missing from fama_french: {missing_cols}"
+        )
+
     if not isinstance(window_size, int) or window_size <= 0:
         raise ValueError("window_size must be a positive integer")
 
@@ -213,8 +233,8 @@ def rolling_ff_alphas(
             ret_w = returns.iloc[i:window_end_idx, :]
             ff_w = fama_french.iloc[i:window_end_idx, :]
 
-            ff3_out = ff3_regressions(ret_w, ff_w.reset_index(drop=True))
-            alpha = ff3_out.loc["alpha", alpha_column]
+            ff_out = regress(ret_w, ff_w.reset_index(drop=True))
+            alpha = ff_out.loc["alpha", alpha_column]
 
             window_end_dates.append(ret_w.index[-1])
             alpha_vals.append(alpha)
@@ -222,6 +242,36 @@ def rolling_ff_alphas(
         rolling_alphas[label] = pd.Series(alpha_vals, index=pd.Index(window_end_dates, name="date"))
 
     return rolling_alphas
+
+
+def rolling_ff3_alphas(
+    signals: list[dict],
+    *,
+    fama_french: pd.DataFrame,
+    window_size: int,
+) -> dict[str, pd.Series]:
+    """Rolling FF3 alphas; alias for ``rolling_ff_alphas(..., n_factors=3)``."""
+    return rolling_ff_alphas(
+        signals,
+        fama_french=fama_french,
+        window_size=window_size,
+        n_factors=3,
+    )
+
+
+def rolling_ff5_alphas(
+    signals: list[dict],
+    *,
+    fama_french: pd.DataFrame,
+    window_size: int,
+) -> dict[str, pd.Series]:
+    """Rolling FF5 alphas; alias for ``rolling_ff_alphas(..., n_factors=5)``."""
+    return rolling_ff_alphas(
+        signals,
+        fama_french=fama_french,
+        window_size=window_size,
+        n_factors=5,
+    )
 
 
 def rolling_alphas_to_dataframe(rolling_alphas: dict[str, pd.Series]) -> pd.DataFrame:

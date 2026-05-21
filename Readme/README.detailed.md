@@ -37,7 +37,7 @@ This repository wires together **initiative / sustainability signals** from a �
 | Signal + returns prep | `functions/portfolio_strategy_design/univariate_sorting_preprocess.py` | `prepare_univariate_sorting_inputs` and helpers (merge LC, monthly returns, masking, z-scores) |
 | Quantile portfolios | `functions/portfolio_strategy_design/Univariate_Portfolio.py` | `UnivariateQuantilePortfolio` |
 | Sector strategy | `functions/portfolio_strategy_design/Sector_Portfolio.py` | `SectorPortfolio` |
-| FF tables / rolling alpha | `functions/portfolio_metrics/fama_french.py` | `ff3_regressions`, `rolling_ff3_alphas`, plotting helper |
+| FF tables / rolling alpha | `functions/portfolio_metrics/fama_french.py` | `ff3_regressions`, `ff5_regressions`, `rolling_ff_alphas` (`n_factors` 3 or 5), plotting helper |
 | Performance tables / charts | `functions/portfolio_metrics/Strategy_Perfomance.py` | `StrategyPerformance` |
 | Constituent analytics | `functions/portfolio_metrics/Portfolio_Constituents.py` | `PortfolioConstituents` |
 
@@ -209,7 +209,7 @@ The notebook builds **three** sorters **U0, U1, U2** on `global_signal_0`, `glob
 
 #### Rolling alpha
 
-- **`rolling_ff3_alphas`**: rolling window (notebook: **40 months**) of FF3 alpha for selected series — e.g. **high transformation** quantile (`p_{no_simple_quantiles}`) and the **sector equal-split** strategy.
+- **`rolling_ff_alphas`**: rolling window (notebook: **40 months**) of FF3 or FF5 alpha (`n_factors` matches `ff_factors_number`) for selected series — e.g. **high transformation** quantile (`p_{no_simple_quantiles}`) and the **sector equal-split** strategy. Aliases: `rolling_ff3_alphas`, `rolling_ff5_alphas`.
 - **`plot_rolling_alpha_function`**: saves a time-series figure under `./output/img/`.
 
 ---
