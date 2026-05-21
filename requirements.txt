@@ -1,0 +1,25 @@
+# Core data stack
+numpy==2.4.5
+pandas==3.0.3
+scipy==1.17.1
+
+# Plotting & EDA
+matplotlib==3.10.9
+seaborn
+
+# Econometrics & ML
+statsmodels==0.14.6
+scikit-learn
+
+# WRDS / Compustat data access
+wrds
+
+# File I/O (Excel, Parquet)
+openpyxl
+pyarrow
+
+# Jupyter notebooks (Main.ipynb, data_analysis/)
+ipykernel==7.2.0
+ipython==9.13.0
+jupyter_client==8.8.0
+jupyter_core==5.9.1
