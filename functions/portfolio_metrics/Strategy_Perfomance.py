@@ -101,6 +101,34 @@ class StrategyPerformance:
         out = (mean / std) * np.sqrt(12)
         return out.replace([np.inf, -np.inf], np.nan)
 
+    def gross_cumulative_returns(
+        self,
+        portfolio_returns: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
+        """
+        Gross cumulative wealth index per column: ``(1 + r).cumprod()``.
+
+        Same series as used by ``plot_cumulative_returns``.
+        """
+        df = self.portfolio_returns if portfolio_returns is None else portfolio_returns.copy()
+        if df.empty:
+            raise ValueError("portfolio_returns is empty")
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+        return (1.0 + df.sort_index()).cumprod()
+
+    def save_gross_cumulative_returns_csv(
+        self,
+        csv_path: str | Path,
+        portfolio_returns: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
+        """Save gross cumulative returns (plot input) to CSV."""
+        cumulative = self.gross_cumulative_returns(portfolio_returns)
+        path = Path(csv_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        cumulative.to_csv(path)
+        return cumulative
+
     def performance_risk_metrics_table(
         self,
         csv_path: str | Path,
@@ -229,6 +257,7 @@ class StrategyPerformance:
         ax: Any = None,
         figsize: tuple[float, float] = (10, 4),
         save_path: str | Path | None = None,
+        csv_path: str | Path | None = None,
         show: bool = True,
     ) -> Any:
         """
@@ -237,14 +266,11 @@ class StrategyPerformance:
         Expects `portfolio_returns` to be simple returns (e.g., monthly excess returns).
         Cumulative wealth is computed as `(1 + r).cumprod()` per column.
         """
-        df = self.portfolio_returns if portfolio_returns is None else portfolio_returns.copy()
-        if df.empty:
-            raise ValueError("portfolio_returns is empty")
-        if not isinstance(df.index, pd.DatetimeIndex):
-            df.index = pd.to_datetime(df.index)
-        df = df.sort_index()
-
-        cumulative = (1.0 + df).cumprod()
+        cumulative = self.gross_cumulative_returns(portfolio_returns)
+        if csv_path is not None:
+            path = Path(csv_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cumulative.to_csv(path)
 
         # Match `indices.ipynb` defaults if not provided.
         if colors is None:

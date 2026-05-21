@@ -1,0 +1,8 @@
+,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
+Market,0.46,-9.39%,-28.93%,,
+High communities,0.75,-9.34%,-21.45%,0.40,0.240
+High employees,0.87,-10.59%,-24.18%,0.55,0.140
+High suppliers,0.81,-9.54%,-22.77%,0.46,0.270
+High shareholders,0.97,-9.21%,-22.23%,0.68,0.070
+High customers,1.02,-8.11%,-18.61%,0.68,0.030
+Low communities,0.92,-9.33%,-22.04%,0.60,0.090

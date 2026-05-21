@@ -1,5 +1,7 @@
-import pandas as pd
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
@@ -151,6 +153,25 @@ def rolling_ff3_alphas(
     return rolling_alphas
 
 
+def rolling_alphas_to_dataframe(rolling_alphas: dict[str, pd.Series]) -> pd.DataFrame:
+    """Wide DataFrame of rolling alpha series (one column per label)."""
+    if not rolling_alphas:
+        raise ValueError("rolling_alphas must be a non-empty dict of label -> pd.Series")
+    return pd.DataFrame(rolling_alphas)
+
+
+def save_rolling_alphas_csv(
+    rolling_alphas: dict[str, pd.Series],
+    csv_path: str | Path,
+) -> pd.DataFrame:
+    """Save rolling alpha series (plot input) to CSV."""
+    df = rolling_alphas_to_dataframe(rolling_alphas)
+    path = Path(csv_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path)
+    return df
+
+
 def plot_rolling_alpha_function(
     rolling_alphas: dict[str, pd.Series],
     *,
@@ -163,6 +184,7 @@ def plot_rolling_alpha_function(
     rotate_xticks: int = 45,
     legend_title: str = "Legend",
     save_path: str | None = None,
+    csv_path: str | Path | None = None,
     ax=None,
     show: bool = True,
 ):
@@ -215,6 +237,9 @@ def plot_rolling_alpha_function(
     ax.grid(grid)
     ax.tick_params(axis="x", rotation=rotate_xticks)
     ax.legend(title=legend_title)
+
+    if csv_path is not None:
+        save_rolling_alphas_csv(rolling_alphas, csv_path)
 
     if save_path is not None:
         ax.figure.savefig(save_path, bbox_inches="tight")
