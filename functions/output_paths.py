@@ -1,10 +1,13 @@
 """Standard layout for run artifacts under ``output/``.
 
-Layout::
+Layouts (run ``Main.ipynb`` once per ``esg_choice``; region always before ESG)::
 
-    output/{signal}/{region}/{start}-{end}_split{n}/csvs/
-    output/{signal}/{region}/{start}-{end}_split{n}/images/
-    output/{signal}/{region}/{start}-{end}_split{n}/images/Other/
+    none:            output/{signal}/{region}/no_esg/{start}-{end}_split{n}/
+    refinitiv:       output/{signal}/{region}/esg/refinitiv_esg/{start}-{end}_split{n}/
+    s&p:             output/{signal}/{region}/esg/sp_esg/{start}-{end}_split{n}/
+    refinitiv_n_s&p: output/{signal}/{region}/esg/refinitiv_and_sp_esg/{start}-{end}_split{n}/
+
+Each run folder contains ``csvs/``, ``images/``, and ``images/Other/``.
 """
 
 from __future__ import annotations
@@ -19,6 +22,24 @@ def _sanitize_path_part(name: str) -> str:
     return s or "unnamed"
 
 
+NO_ESG_RUN_FOLDER = "no_esg"
+ESG_ROOT_FOLDER = "esg"
+
+# Leaf folder under ``output/{signal}/{region}/esg/`` (run the notebook once per choice).
+ESG_OUTPUT_FOLDERS: dict[str, str] = {
+    "refinitiv": "refinitiv_esg",
+    "s&p": "sp_esg",
+    "refinitiv_n_s&p": "refinitiv_and_sp_esg",
+}
+
+
+def esg_output_leaf(esg_choice: str) -> str:
+    """Folder name under ``output/{signal}/{region}/esg/`` for a given ``esg_choice``."""
+    if esg_choice in ESG_OUTPUT_FOLDERS:
+        return ESG_OUTPUT_FOLDERS[esg_choice]
+    return _sanitize_path_part(f"{esg_choice}_esg")
+
+
 def output_run_dir(
     signal_name: str,
     region: str,
@@ -26,14 +47,23 @@ def output_run_dir(
     end_date: str,
     split: int,
     *,
+    esg_choice: str | None = None,
     base: str | Path = "output",
 ) -> Path:
-    """``output/{signal}/{region}/{start}-{end}_split{n}/``"""
+    """Resolve the run directory from ``esg_choice`` (see module docstring)."""
     run_label = f"{start_date}-{end_date}_split{split}"
+    signal = _sanitize_path_part(signal_name)
+    region_part = _sanitize_path_part(region)
+
+    if not esg_choice or esg_choice == "none":
+        return Path(base) / signal / region_part / NO_ESG_RUN_FOLDER / run_label
+
     return (
         Path(base)
-        / _sanitize_path_part(signal_name)
-        / _sanitize_path_part(region)
+        / signal
+        / region_part
+        / ESG_ROOT_FOLDER
+        / esg_output_leaf(esg_choice)
         / run_label
     )
 
@@ -45,9 +75,12 @@ def output_csv_dir(
     end_date: str,
     split: int,
     *,
+    esg_choice: str | None = None,
     base: str | Path = "output",
 ) -> Path:
-    return output_run_dir(signal_name, region, start_date, end_date, split, base=base) / "csvs"
+    return output_run_dir(
+        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+    ) / "csvs"
 
 
 def output_images_dir(
@@ -57,9 +90,12 @@ def output_images_dir(
     end_date: str,
     split: int,
     *,
+    esg_choice: str | None = None,
     base: str | Path = "output",
 ) -> Path:
-    return output_run_dir(signal_name, region, start_date, end_date, split, base=base) / "images"
+    return output_run_dir(
+        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+    ) / "images"
 
 
 def output_images_other_dir(
@@ -69,10 +105,13 @@ def output_images_other_dir(
     end_date: str,
     split: int,
     *,
+    esg_choice: str | None = None,
     base: str | Path = "output",
 ) -> Path:
     """``.../images/Other/`` — rolling Sharpe, portfolio constituents, etc."""
-    return output_images_dir(signal_name, region, start_date, end_date, split, base=base) / "Other"
+    return output_images_dir(
+        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+    ) / "Other"
 
 
 RUN_PARAM_NAMES = [
