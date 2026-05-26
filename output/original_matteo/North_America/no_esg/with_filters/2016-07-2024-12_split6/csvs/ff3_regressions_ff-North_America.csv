@@ -1,0 +1,10 @@
+,Low advocacy,High advocacy,Low preparation,High preparation,Low transformation,High transformation
+alpha,0.13,0.08,0.05,0.0,0.16,0.37
+beta_mkt,1.0,1.05,1.0,1.03,1.06,0.99
+beta_smb,0.01,0.18,0.14,0.08,0.18,0.08
+beta_hml,0.26,0.32,0.24,0.24,0.31,0.23
+p-value(alpha),0.3,0.52,0.73,0.97,0.18,0.01
+p-value(beta_mkt),0.0,0.0,0.0,0.0,0.0,0.0
+p-value(beta_smb),0.87,0.0,0.02,0.25,0.0,0.18
+p-value(beta_hml),0.0,0.0,0.0,0.0,0.0,0.0
+Adj. R^2,0.94,0.94,0.91,0.93,0.95,0.92

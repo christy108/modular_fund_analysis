@@ -1,0 +1,10 @@
+,Low advocacy,High advocacy,Low preparation,High preparation,Low transformation,High transformation,Low esg_refinitive,High esg_refinitive
+alpha,0.15,0.15,0.13,0.03,0.21,0.43,0.24,0.16
+beta_mkt,0.96,1.07,1.03,1.03,1.05,0.98,1.01,1.04
+beta_smb,-0.08,0.16,0.09,-0.04,0.14,-0.04,0.24,-0.01
+beta_hml,0.25,0.29,0.22,0.19,0.29,0.18,0.29,0.24
+p-value(alpha),0.29,0.35,0.47,0.84,0.14,0.01,0.18,0.25
+p-value(beta_mkt),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+p-value(beta_smb),0.22,0.01,0.25,0.56,0.01,0.59,0.0,0.91
+p-value(beta_hml),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+Adj. R^2,0.94,0.94,0.92,0.94,0.95,0.93,0.92,0.94

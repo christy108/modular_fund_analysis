@@ -145,13 +145,13 @@ def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name=
 
 
 
-def dict_5_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="shareholders", signal_4_name="customers"):
-    return {"SREC: local communities and society": 0,
-            "SREC: employees": 1,
-            "SREC: suppliers": 2,
-            "SREC: shareholders": 3,
-            "SREC: customers": 4,
-            }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name
+# def dict_5_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="shareholders", signal_4_name="customers"):
+#     return {"SREC: local communities and society": 0,
+#             "SREC: employees": 1,
+#             "SREC: suppliers": 2,
+#             "SREC: shareholders": 3,
+#             "SREC: customers": 4,
+#             }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name
 
 
 def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="customers"):

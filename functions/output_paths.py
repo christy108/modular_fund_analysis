@@ -2,10 +2,10 @@
 
 Layouts (run ``Main.ipynb`` once per ``esg_choice``; region always before ESG)::
 
-    none:            output/{signal}/{region}/no_esg/{start}-{end}_split{n}/
-    refinitiv:       output/{signal}/{region}/esg/refinitiv_esg/{start}-{end}_split{n}/
-    s&p:             output/{signal}/{region}/esg/sp_esg/{start}-{end}_split{n}/
-    refinitiv_n_s&p: output/{signal}/{region}/esg/refinitiv_and_sp_esg/{start}-{end}_split{n}/
+    none:            output/{signal}/{region}/no_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    refinitiv:       output/{signal}/{region}/esg/refinitiv_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    s&p:             output/{signal}/{region}/esg/sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    refinitiv_n_s&p: output/{signal}/{region}/esg/refinitiv_and_sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
 
 Each run folder contains ``csvs/``, ``images/``, and ``images/Other/``.
 """
@@ -24,6 +24,8 @@ def _sanitize_path_part(name: str) -> str:
 
 NO_ESG_RUN_FOLDER = "no_esg"
 ESG_ROOT_FOLDER = "esg"
+WITH_FILTERS_FOLDER = "with_filters"
+NO_FILTERS_FOLDER = "no_filters"
 
 # Leaf folder under ``output/{signal}/{region}/esg/`` (run the notebook once per choice).
 ESG_OUTPUT_FOLDERS: dict[str, str] = {
@@ -40,6 +42,11 @@ def esg_output_leaf(esg_choice: str) -> str:
     return _sanitize_path_part(f"{esg_choice}_esg")
 
 
+def filters_output_leaf(execute_3_filters: bool) -> str:
+    """Folder name for the 3-filter branch (``execute_3_filters`` in ``Main.ipynb``)."""
+    return WITH_FILTERS_FOLDER if execute_3_filters else NO_FILTERS_FOLDER
+
+
 def output_run_dir(
     signal_name: str,
     region: str,
@@ -48,15 +55,24 @@ def output_run_dir(
     split: int,
     *,
     esg_choice: str | None = None,
+    execute_3_filters: bool = False,
     base: str | Path = "output",
 ) -> Path:
-    """Resolve the run directory from ``esg_choice`` (see module docstring)."""
+    """Resolve the run directory from ``esg_choice`` and ``execute_3_filters`` (see module docstring)."""
     run_label = f"{start_date}-{end_date}_split{split}"
     signal = _sanitize_path_part(signal_name)
     region_part = _sanitize_path_part(region)
+    filter_part = filters_output_leaf(execute_3_filters)
 
     if not esg_choice or esg_choice == "none":
-        return Path(base) / signal / region_part / NO_ESG_RUN_FOLDER / run_label
+        return (
+            Path(base)
+            / signal
+            / region_part
+            / NO_ESG_RUN_FOLDER
+            / filter_part
+            / run_label
+        )
 
     return (
         Path(base)
@@ -64,6 +80,7 @@ def output_run_dir(
         / region_part
         / ESG_ROOT_FOLDER
         / esg_output_leaf(esg_choice)
+        / filter_part
         / run_label
     )
 
@@ -76,10 +93,18 @@ def output_csv_dir(
     split: int,
     *,
     esg_choice: str | None = None,
+    execute_3_filters: bool = False,
     base: str | Path = "output",
 ) -> Path:
     return output_run_dir(
-        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+        signal_name,
+        region,
+        start_date,
+        end_date,
+        split,
+        esg_choice=esg_choice,
+        execute_3_filters=execute_3_filters,
+        base=base,
     ) / "csvs"
 
 
@@ -91,10 +116,18 @@ def output_images_dir(
     split: int,
     *,
     esg_choice: str | None = None,
+    execute_3_filters: bool = False,
     base: str | Path = "output",
 ) -> Path:
     return output_run_dir(
-        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+        signal_name,
+        region,
+        start_date,
+        end_date,
+        split,
+        esg_choice=esg_choice,
+        execute_3_filters=execute_3_filters,
+        base=base,
     ) / "images"
 
 
@@ -106,11 +139,19 @@ def output_images_other_dir(
     split: int,
     *,
     esg_choice: str | None = None,
+    execute_3_filters: bool = False,
     base: str | Path = "output",
 ) -> Path:
     """``.../images/Other/`` — rolling Sharpe, portfolio constituents, etc."""
     return output_images_dir(
-        signal_name, region, start_date, end_date, split, esg_choice=esg_choice, base=base
+        signal_name,
+        region,
+        start_date,
+        end_date,
+        split,
+        esg_choice=esg_choice,
+        execute_3_filters=execute_3_filters,
+        base=base,
     ) / "Other"
 
 
