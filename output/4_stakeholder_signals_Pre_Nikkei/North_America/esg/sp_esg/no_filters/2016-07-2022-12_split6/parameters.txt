@@ -1,6 +1,7 @@
 
 === Run parameters ===
 region_analysis              = 'North_America'
+only_usa_in_North_America    = True
 action_characterization      = '4_stakeholder_signals_Pre_Nikkei'
 no_simple_quantiles          = 6
 execute_3_filters            = False

@@ -117,6 +117,48 @@ def dict_5_signals_Action_1D_Moji(signal_0_name="Advocacy", signal_1_name="Upski
 
 
 
+# Sectors, then Stakeholders (alphas)
+def dict_all_SDG_1D_prosperity_into_people(signal_0_name="people plus prosperity", signal_1_name="planet"):
+    """
+    SDG grouping for the first Social Impact
+
+    Difference from dict_all_SDG_1D:
+      - SDG 9, 11, 16, and 17 are moved from prosperity into people.
+      - Planet stays unchanged.
+      - The function returns two active signals, so it will produce:
+          High people plus prosperity
+          Low people plus prosperity
+          High planet
+          Low planet
+    """
+    return {
+        # people plus prosperity
+        'SDG: 1': 0,
+        'SDG: 2': 0,
+        'SDG: 3': 0,
+        'SDG: 4': 0,
+        'SDG: 5': 0,
+        'SDG: 8': 0,
+        'SDG: 10': 0,
+
+        # former prosperity SDGs moved into people
+        'SDG: 9': 0,
+        'SDG: 11': 0,
+        'SDG: 16': 0,
+        'SDG: 17': 0,
+
+        # planet
+        'SDG: 6': 1,
+        'SDG: 7': 1,
+        'SDG: 12': 1,
+        'SDG: 13': 1,
+        'SDG: 14': 1,
+        'SDG: 15': 1,
+    }, signal_0_name, signal_1_name
+
+
+
+
 def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name="Upskilling", signal_2_name="Adaptation-change", signal_3_name="Innovation"):
     return{
     

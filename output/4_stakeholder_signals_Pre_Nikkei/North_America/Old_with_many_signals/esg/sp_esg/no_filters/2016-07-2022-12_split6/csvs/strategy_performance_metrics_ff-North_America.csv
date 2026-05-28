@@ -1,0 +1,9 @@
+,Sharpe,VaR 1%,Max Drawdown,Alpha,p-value(alpha)
+Market,0.67,-10.40%,-24.13%,,
+High esg_sp,0.74,-11.10%,-21.60%,0.12,0.350
+Low esg_sp,0.65,-12.28%,-30.51%,0.13,0.420
+High customers,0.84,-11.38%,-23.12%,0.28,0.040
+High suppliers,0.53,-11.86%,-28.55%,-0.12,0.380
+High employees,0.61,-12.97%,-29.13%,-0.00,0.980
+High communities,0.75,-10.90%,-25.39%,0.18,0.210
+Low communities,0.72,-12.22%,-25.45%,0.17,0.280

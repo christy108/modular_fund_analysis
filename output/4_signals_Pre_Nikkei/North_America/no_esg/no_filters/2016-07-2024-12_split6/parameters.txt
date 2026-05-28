@@ -1,10 +1,12 @@
 
 === Run parameters ===
 region_analysis              = 'North_America'
+only_usa_in_North_America    = True
 action_characterization      = '4_signals_Pre_Nikkei'
 no_simple_quantiles          = 6
 execute_3_filters            = False
 golden_data                  = 'v_2C'
+signal_denominator           = 'Sum_All_Initiatives'
 esg_choice                   = 'none'
 start_year                   = 2015
 end_year                     = 2024
