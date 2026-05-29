@@ -1,0 +1,10 @@
+,Low people plus prosperity,High people plus prosperity,Low planet,High planet
+alpha,0.13,-0.04,-0.05,0.16
+beta_mkt,0.96,1.07,1.07,0.94
+beta_smb,0.07,0.19,0.17,0.07
+beta_hml,0.24,0.33,0.34,0.23
+p-value(alpha),0.34,0.79,0.73,0.26
+p-value(beta_mkt),0.0,0.0,0.0,0.0
+p-value(beta_smb),0.22,0.0,0.0,0.25
+p-value(beta_hml),0.0,0.0,0.0,0.0
+Adj. R^2,0.92,0.94,0.95,0.92
