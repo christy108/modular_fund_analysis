@@ -1,9 +1,24 @@
-
+# Local data (keep shared reference files)
 /data/*
 /descriptives/*.csv
 !/data/shared_*
-# .gitignore
+
+# Generated analysis outputs
+/output/
+
+# Presentation / slide exports
+/neat_results/
+
+# Python
 .venv/
 __pycache__/
 *.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Debug / scratch
 debuggggg.csv
