@@ -1,0 +1,24 @@
+
+=== Run parameters ===
+region_analysis              = 'United_States'
+action_characterization      = 'original_matteo'
+no_simple_quantiles          = 6
+execute_3_filters            = True
+golden_data                  = 'v_2C'
+signal_denominator           = 'Sum_All_Signals'
+esg_choice                   = 'none'
+start_year                   = 2012
+end_year                     = 2024
+fama_factor_region           = 'United_States'
+ff_factors_number            = 3
+currency_filter              = ['USD']
+convert_to_USD               = True
+drop_real_estate             = True
+use_alpha_bound              = True
+show_sector_portfolio        = False
+industry_level               = 0
+min_available_fyears         = 3
+top_x_by_industry_even_split = 6
+alpha_bound                  = 0.1
+mktcap_covered               = 0.95
+======================

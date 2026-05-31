@@ -428,10 +428,12 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                     ff_file = "./data/FAMA/Europe_3_Factors.csv"
                 elif region == "Japan":
                     ff_file = "./data/FAMA/Japan_3_Factors.csv"
-                elif region == "North_America":
-                    ff_file = "./data/FAMA/North_America_3_Factors.csv"
+                elif region == "North_America_and_Canada":
+                    ff_file = "./data/FAMA/North_America_and_Canada_3_Factors.csv"
+                elif region == "United_States":
+                    ff_file = "./data/FAMA/United_States_3_Factors.csv"
                 else:
-                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada")
             elif factors_number == 5:
                 if region == "Developed":
                     ff_file = "./data/FAMA/Developed_5_Factors.csv"
@@ -439,8 +441,10 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                     ff_file = "./data/FAMA/Europe_5_Factors.csv"
                 elif region == "Japan":
                     ff_file = "./data/FAMA/Japan_5_Factors.csv"
-                elif region == "North_America":
-                    ff_file = "./data/FAMA/North_America_5_Factors.csv"
+                elif region == "North_America_and_Canada":
+                    ff_file = "./data/FAMA/North_America_and_Canada_5_Factors.csv"
+                elif region == "United_States":
+                    ff_file = "./data/FAMA/United_States_5_Factors.csv"
                 else:
                     raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
             else:

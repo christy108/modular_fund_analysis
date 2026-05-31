@@ -157,7 +157,6 @@ def output_images_other_dir(
 
 RUN_PARAM_NAMES = [
     "region_analysis",
-    "only_usa_in_North_America",
     "action_characterization",
     "no_simple_quantiles",
     "execute_3_filters",
