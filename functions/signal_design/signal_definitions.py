@@ -86,35 +86,6 @@ def dict_2d_actions_stakeholders_original_matteo(signal_0_name="advocacy", signa
 
 
 
-def dict_5_signals_Action_1D_Moji(signal_0_name="Advocacy", signal_1_name="Upskilling", signal_2_name="Measurement", signal_3_name="Adaptation-change", signal_4_name="Innovation"):
-    return{
-    
-    "TYPE: donation & funding": 0, 
-    "TYPE: communication": 0, 
-    "TYPE: association": 0, 
-
-    "TYPE: incentives": 1, 
-    "TYPE: training": 1, 
-    "TYPE: volunteerism": 1, 
-
-
-    "TYPE: adoption of standards and rules": 2, 
-    "TYPE: assessment and measurement": 2, 
-    
-
-
-    "TYPE: organizational structuring": 3, 
-    "TYPE: asset modification": 3, 
-    "TYPE: modification of procedures": 3, 
-    "TYPE: pricing": 3, 
-
-
-    "TYPE: new products": 4, 
-    "TYPE: r&d investments": 4, 
-
-    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name
-
-
 
 
 # Sectors, then Stakeholders (alphas)
@@ -184,6 +155,9 @@ def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name=
     "TYPE: r&d investments": 3, 
 
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
+
+
+    
 
 
 

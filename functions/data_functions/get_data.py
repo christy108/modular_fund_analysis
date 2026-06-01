@@ -156,6 +156,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
                 g_secd.iid,
                 g_secd.isin,
                 g_secd.curcdd,
+                g_secd.prccd,
                 (g_secd.prccd * g_secd.cshoc / g_secd.qunit) AS mktcap_lcu,
                 CASE
                     WHEN g_secd.ajexdi <> 0
@@ -184,7 +185,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
         japan_universe = japan_universe.drop(columns=["year"])
 
         print("Saving to disk!")
-        japan_universe.to_csv("./data/japan_universe.csv")
+        japan_universe.to_csv("./data/japan_universe_new.csv")
         return japan_universe
 
     else:
@@ -429,7 +430,7 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                 elif region == "Japan":
                     ff_file = "./data/FAMA/Japan_3_Factors.csv"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_and_Canada_3_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_3_Factors.csv"
                 elif region == "United_States":
                     ff_file = "./data/FAMA/United_States_3_Factors.csv"
                 else:
@@ -442,7 +443,7 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                 elif region == "Japan":
                     ff_file = "./data/FAMA/Japan_5_Factors.csv"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_and_Canada_5_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_5_Factors.csv"
                 elif region == "United_States":
                     ff_file = "./data/FAMA/United_States_5_Factors.csv"
                 else:
