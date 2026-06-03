@@ -2,10 +2,10 @@
 
 Layouts (run ``Main.ipynb`` once per ``esg_choice``; region always before ESG)::
 
-    none:            output/{signal}/{region}/no_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
-    refinitiv:       output/{signal}/{region}/esg/refinitiv_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
-    s&p:             output/{signal}/{region}/esg/sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
-    refinitiv_n_s&p: output/{signal}/{region}/esg/refinitiv_and_sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    none:            output/{signal}/{region}/{denominator}/no_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    refinitiv:       output/{signal}/{region}/{denominator}/esg/refinitiv_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    s&p:             output/{signal}/{region}/{denominator}/esg/sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
+    refinitiv_n_s&p: output/{signal}/{region}/{denominator}/esg/refinitiv_and_sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
 
 Each run folder contains ``csvs/``, ``images/``, and ``images/Other/``.
 """
@@ -50,6 +50,7 @@ def filters_output_leaf(execute_3_filters: bool) -> str:
 def output_run_dir(
     signal_name: str,
     region: str,
+    signal_denominator: str | None,
     start_date: str,
     end_date: str,
     split: int,
@@ -62,22 +63,23 @@ def output_run_dir(
     run_label = f"{start_date}-{end_date}_split{split}"
     signal = _sanitize_path_part(signal_name)
     region_part = _sanitize_path_part(region)
+    denom_part = _sanitize_path_part(signal_denominator) if signal_denominator else None
     filter_part = filters_output_leaf(execute_3_filters)
+
+    base_dir = Path(base) / signal / region_part
+    if denom_part:
+        base_dir = base_dir / denom_part
 
     if not esg_choice or esg_choice == "none":
         return (
-            Path(base)
-            / signal
-            / region_part
+            base_dir
             / NO_ESG_RUN_FOLDER
             / filter_part
             / run_label
         )
 
     return (
-        Path(base)
-        / signal
-        / region_part
+        base_dir
         / ESG_ROOT_FOLDER
         / esg_output_leaf(esg_choice)
         / filter_part
@@ -88,6 +90,7 @@ def output_run_dir(
 def output_csv_dir(
     signal_name: str,
     region: str,
+    signal_denominator: str | None,
     start_date: str,
     end_date: str,
     split: int,
@@ -99,6 +102,7 @@ def output_csv_dir(
     return output_run_dir(
         signal_name,
         region,
+        signal_denominator,
         start_date,
         end_date,
         split,
@@ -111,6 +115,7 @@ def output_csv_dir(
 def output_images_dir(
     signal_name: str,
     region: str,
+    signal_denominator: str | None,
     start_date: str,
     end_date: str,
     split: int,
@@ -122,6 +127,7 @@ def output_images_dir(
     return output_run_dir(
         signal_name,
         region,
+        signal_denominator,
         start_date,
         end_date,
         split,
@@ -134,6 +140,7 @@ def output_images_dir(
 def output_images_other_dir(
     signal_name: str,
     region: str,
+    signal_denominator: str | None,
     start_date: str,
     end_date: str,
     split: int,
@@ -146,6 +153,7 @@ def output_images_other_dir(
     return output_images_dir(
         signal_name,
         region,
+        signal_denominator,
         start_date,
         end_date,
         split,
