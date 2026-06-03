@@ -159,17 +159,6 @@ def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name=
 
     
 
-
-
-# def dict_5_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="shareholders", signal_4_name="customers"):
-#     return {"SREC: local communities and society": 0,
-#             "SREC: employees": 1,
-#             "SREC: suppliers": 2,
-#             "SREC: shareholders": 3,
-#             "SREC: customers": 4,
-#             }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name
-
-
 def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="customers"):
     return {"SREC: local communities and society": 0,
             "SREC: employees": 1,
@@ -177,39 +166,3 @@ def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_
             "SREC: customers": 3,
             }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
-def test_multiple_signals(signal_0_name="advocacy", signal_1_name="preparation", signal_2_name="transformation", signal_3_name="pricing"):
-    
-    return{
-        # 'TYPE: association': 0, 
-        #'TYPE: pricing': 3,                                                             # For our universe, these are usually discounts to disadvantaged customers
-        'TYPE: donation & funding': 0, 
-        'TYPE: volunteerism': 0, 
-        'TYPE_SREC: communication - local communities and society': 0, 
-        'TYPE_SREC: training - local communities and society': 0,                       # For our universe, these are usually akin to volunteering activities
-        'TYPE_SREC: incentives - local communities and society': 0,                     # For our universe, these are usually `donation & funding` through vouchers etc.
-        'TYPE_SREC: organizational structuring - local communities and society': 0, 
-
-        'TYPE: adoption of standards and rules': 1, 
-        'TYPE: assessment and measurement': 1,                                          # For our universe, these are mostly partnerships (e.g., with ONGs) for enviromental/social impact assessments
-        'TYPE_SREC: communication - employees': 1, 
-        'TYPE_SREC: training - employees': 1, 
-        'TYPE_SREC: incentives - employees': 1, 
-        'TYPE_SREC: organizational structuring - employees': 1, 
-
-        'TYPE: asset modification': 2,
-        'TYPE: modification of procedures': 2, 
-        'TYPE: new products': 2, 
-        'TYPE: r&d investments': 2, 
-        'TYPE_SREC: communication - customers': 2, 
-        'TYPE_SREC: communication - shareholders': 2, 
-        'TYPE_SREC: communication - suppliers': 2, 
-        'TYPE_SREC: training - customers': 2, 
-        'TYPE_SREC: training - shareholders': 2, 
-        'TYPE_SREC: training - suppliers': 2, 
-        'TYPE_SREC: incentives - customers': 2, 
-        'TYPE_SREC: incentives - shareholders': 2, 
-        'TYPE_SREC: incentives - suppliers': 2, 
-        'TYPE_SREC: organizational structuring - customers': 2, 
-        'TYPE_SREC: organizational structuring - shareholders': 2, 
-        'TYPE_SREC: organizational structuring - suppliers': 2, 
-    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
