@@ -129,9 +129,6 @@ def process_global_universe(
         global_universe["esg_refinitive"] /= 100
     elif esg_choice == "s&p":
         global_universe["esg_sp"] /= 100
-    elif esg_choice == "refinitiv_n_s&p":
-        global_universe["esg_refinitive"] /= 100
-        global_universe["esg_sp"] /= 100
 
    
 

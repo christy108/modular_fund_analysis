@@ -5,7 +5,6 @@ Layouts (run ``Main.ipynb`` once per ``esg_choice``; region always before ESG)::
     none:            output/{signal}/{region}/{denominator}/no_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
     refinitiv:       output/{signal}/{region}/{denominator}/esg/refinitiv_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
     s&p:             output/{signal}/{region}/{denominator}/esg/sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
-    refinitiv_n_s&p: output/{signal}/{region}/{denominator}/esg/refinitiv_and_sp_esg/{with_filters|no_filters}/{start}-{end}_split{n}/
 
 Each run folder contains ``csvs/``, ``images/``, and ``images/Other/``.
 """
@@ -31,7 +30,6 @@ NO_FILTERS_FOLDER = "no_filters"
 ESG_OUTPUT_FOLDERS: dict[str, str] = {
     "refinitiv": "refinitiv_esg",
     "s&p": "sp_esg",
-    "refinitiv_n_s&p": "refinitiv_and_sp_esg",
 }
 
 
