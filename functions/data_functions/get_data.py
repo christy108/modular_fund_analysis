@@ -318,6 +318,102 @@ def get_snp_esg_merge_to_universe(usa_universe, row_universe, japan_universe=Non
 
 
 def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_universe=None):
+    """Merge LSEG / Refinitiv ESG scores onto the regional universes.
+
+    Data source: ``./data/ESG/ESG Ratings/LSEG ESG Score.csv`` (LSEG is the new Refinitiv
+    export). Unlike the previous export this file already carries ``cusip`` and ``isin``
+    inline, so the old RIC -> identifier crosswalk (``identifiers_table.parquet``) is not
+    needed.
+
+    Design notes / why this is correct and consistent with the previous implementation:
+      * Output column is still ``esg_refinitive`` -> drop-in compatible with process_data,
+        Main.ipynb (``universe_signals``/rolling alpha) and output_paths.
+      * Merge keys are identical to the old logic:
+            USA         -> ['cusip', 'last_year'] == ['cusip', 'year']
+            ROW / Japan -> ['isin',  'last_year'] == ['isin',  'year']
+        and ``how='left'`` preserves every universe row (``esg_refinitive`` is NaN when
+        unmatched), exactly as before.
+      * ``cusip``/``isin`` are read as strings so leading zeros / alpha check chars survive
+        and match the universe identifier format (universe cusip is a 9-char string).
+      * The raw file is already one row per (orgpermid, year); we additionally collapse to
+        UNIQUE (cusip, year) and (isin, year) keys so the left-join cannot duplicate a
+        universe row in the rare case (1 cusip, 2 isin in this file) where two issuers share
+        an identifier+year. ``mean`` resolves those ties.
+
+    IMPORTANT: LSEG ``valuescore`` is already on a 0-1 scale, so ``process_global_universe``
+    must NOT divide ``esg_refinitive`` by 100 (the old 0-100 score did). See process_data.py.
+
+    The previous RIC-based implementation is preserved verbatim as
+    ``get_refinitive_snp_merge_to_universe_OLD`` in case we want to revert.
+    """
+
+    # --- Load new LSEG / Refinitiv export (cusip + isin already inline) ---
+    refinitiv_esg_table = pd.read_csv(
+        './data/ESG/ESG Ratings/LSEG ESG Score.csv',
+        dtype={'cusip': str, 'isin': str},
+    )
+
+    # --- Keep usable ESG score rows only ---
+    # ``.copy()`` so the subsequent column assignments operate on an owned frame
+    # (avoids the pandas SettingWithCopy / chained-assignment FutureWarning).
+    refinitiv_esg_table = refinitiv_esg_table[refinitiv_esg_table['fieldname'] == 'ESGScore'].copy()
+    refinitiv_esg_table = refinitiv_esg_table.dropna(subset=['valuescore'])
+
+    # Keep the downstream column name; valuescore is already 0-1 (no rescaling here).
+    refinitiv_esg_table = refinitiv_esg_table.rename(columns={'valuescore': 'esg_refinitive'})
+
+    # Year as int to match the universe-side `last_year` (also int).
+    refinitiv_esg_table['year'] = refinitiv_esg_table['year'].astype(int)
+
+    # --- Collapse to UNIQUE merge keys (guards against row duplication on the left-join) ---
+    usa_esg = (
+        refinitiv_esg_table.dropna(subset=['cusip'])
+        .groupby(['cusip', 'year'], as_index=False)['esg_refinitive'].mean()
+    )
+    row_esg = (
+        refinitiv_esg_table.dropna(subset=['isin'])
+        .groupby(['isin', 'year'], as_index=False)['esg_refinitive'].mean()
+    )
+
+    # --- Map esg data onto `usa_universe` (merge on CUSIP) ---
+    usa_universe = pd.merge(
+        usa_universe,
+        usa_esg,
+        left_on=['cusip', 'last_year'],
+        right_on=['cusip', 'year'],
+        how='left',
+    )
+
+    # --- Map esg data onto `row_universe` (merge on ISIN) ---
+    row_universe = pd.merge(
+        row_universe,
+        row_esg,
+        left_on=['isin', 'last_year'],
+        right_on=['isin', 'year'],
+        how='left',
+    )
+
+    # --- Map esg data onto `japan_universe` (Japan universe uses ISIN like ROW) ---
+    if japan_universe is not None:
+        japan_universe = pd.merge(
+            japan_universe,
+            row_esg,
+            left_on=['isin', 'last_year'],
+            right_on=['isin', 'year'],
+            how='left',
+        )
+        return usa_universe, row_universe, japan_universe
+
+    return usa_universe, row_universe
+
+
+def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_universe=None):
+    """DEPRECATED / BACKUP: original RIC-based Refinitiv merge.
+
+    Kept verbatim so we can revert to the old ESG source. Reads the old files
+    ``esg_table.csv`` + ``identifiers_table.parquet`` and joins RIC -> CUSIP/ISIN.
+    Not called by the pipeline; swap the call in Main.ipynb to use it.
+    """
 
     # Function to get the last non-NaN value in each group
     def last_non_nan(series):

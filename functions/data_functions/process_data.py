@@ -126,7 +126,9 @@ def process_global_universe(
     if esg_choice == "none":
         global_universe["esg"] /= 100
     elif esg_choice == "refinitiv":
-        global_universe["esg_refinitive"] /= 100
+        # LSEG `valuescore` is already on a 0-1 scale; no rescaling needed.
+        # (The OLD Refinitiv export was 0-100 and divided by 100 here.)
+        pass
     elif esg_choice == "s&p":
         global_universe["esg_sp"] /= 100
 
