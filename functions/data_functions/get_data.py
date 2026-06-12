@@ -217,8 +217,12 @@ def get_processed_fx_rates(end_year):
         # Set rates to float (safer: coerce non-numeric to NaN)
         fx_rates.iloc[:, 1:] = fx_rates.iloc[:, 1:].apply(pd.to_numeric, errors='coerce')
 
-        # Invert ALL currencies (everything except date)
-        fx_rates.iloc[:, 1:] = 1 / fx_rates.iloc[:, 1:]
+        # FRB H.10 quotes EUR and GBP as USD-per-unit (RXI$US series) but all
+        # other currencies as units-per-USD (RXI series). Invert only EUR/GBP so
+        # every rate is "foreign per USD"; then `mktcap_lcu / rate` is correct.
+        for c in ["EUR", "GBP"]:
+            fx_rates[c] = 1 / fx_rates[c]
+        # JPY/DKK/NOK/SEK/CHF already in "foreign per USD" — leave as-is
 
         # Forward-fill fx rates (in levels)
         fx_rates = fx_rates.ffill(axis=0)
