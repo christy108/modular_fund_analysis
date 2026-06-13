@@ -22,9 +22,10 @@ def process_japan_universe(japan_universe, fx_rates, convert_to_USD):
         japan_universe["mktcap"] = japan_universe["mktcap_lcu"]
         japan_universe["tri"] = japan_universe["tri_lcu"]
 
+    # double check thissssss
     # Create the correct year to merge on fundamentals
     japan_universe["last_year"] = np.where(
-        japan_universe["date"].dt.month <= 6,
+        japan_universe["date"].dt.month <= 3,
         japan_universe["date"].dt.year - 2,
         japan_universe["date"].dt.year - 1,
     )

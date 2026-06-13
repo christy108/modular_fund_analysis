@@ -298,6 +298,31 @@ def prepare_univariate_sorting_inputs(
         gu, cols_standardization, signal_columns
     )
 
+    # --- Diagnostic: print FF dates vs returns dates side by side to check alignment ---
+    _ff_dates = _fama_french_dates_as_timestamps(fama_french["date"].copy())
+    _ff_dates = _ff_dates[_ff_dates >= global_returns.index.min()].reset_index(drop=True)
+    _ret_dates = pd.Series(global_returns.index, name="returns_date")
+    _cmp = pd.DataFrame(
+        {
+            "ff_date": _ff_dates.dt.strftime("%Y-%m"),
+            "returns_date": pd.Series(_ret_dates).dt.strftime("%Y-%m"),
+        }
+    )
+    _cmp["match"] = _cmp["ff_date"] == _cmp["returns_date"]
+    print(f"[prepare_univariate_sorting_inputs] FF rows={len(_ff_dates)} | returns rows={len(global_returns)}")
+    print(f"[prepare_univariate_sorting_inputs] all months match: {bool(_cmp['match'].all())}")
+    with pd.option_context("display.max_rows", None):
+        print(_cmp.to_string(index=True))
+
+    if len(_ff_dates) != len(global_returns) or not bool(_cmp["match"].all()):
+        _mismatches = _cmp[~_cmp["match"]]
+        raise ValueError(
+            "Fama-French dates do not match returns dates "
+            f"(FF rows={len(_ff_dates)}, returns rows={len(global_returns)}). "
+            "First mismatches:\n"
+            f"{_mismatches.head(10).to_string(index=True)}"
+        )
+
     ff = align_fama_french_to_returns(fama_french, global_returns)
 
     global_returns, signals = apply_cross_signal_nan_mask(global_returns, signals)
