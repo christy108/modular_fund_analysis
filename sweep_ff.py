@@ -79,6 +79,8 @@ BASE = {
     "drop_health_care": False,
     "anlayse_fashion_only": False,
     "use_alpha_bound": True,
+    # Japan fundamentals lag: months <= this -> use (year-2) report, else (year-1).
+    "japan_year_adjustment_split_month_for_two_or_one": 3,
 }
 
 # --------------------------------------------------------------------------- #
@@ -92,8 +94,9 @@ SWEEP_GRID = {
     "mktcap_covered": [0.925, 0.95, 0.975],
     "drop_real_estate": [True],
     "drop_fin": [True, False],
-    "min_available_fyears": [1, 3, 4, 6],
-    "min_initatives_annual_reports": [5, 10,20], 
+    "min_available_fyears": [3, 4],
+    "min_initatives_annual_reports": [5, 10, 20],
+    "japan_year_adjustment_split_month_for_two_or_one": [3, 6],
 }
 
 

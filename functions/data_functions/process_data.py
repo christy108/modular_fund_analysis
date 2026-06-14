@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def process_japan_universe(japan_universe, fx_rates, convert_to_USD):
+def process_japan_universe(japan_universe, fx_rates, convert_to_USD, japan_year_adjustment_split_month_for_two_or_one):
     """
     Standardizes date and gvkey, merges in FX rates by (date, curcdd),
     converts mktcap_lcu and tri_lcu to base-currency mktcap/tri, and
@@ -25,7 +25,7 @@ def process_japan_universe(japan_universe, fx_rates, convert_to_USD):
     # double check thissssss
     # Create the correct year to merge on fundamentals
     japan_universe["last_year"] = np.where(
-        japan_universe["date"].dt.month <= 3,
+        japan_universe["date"].dt.month <= japan_year_adjustment_split_month_for_two_or_one,
         japan_universe["date"].dt.year - 2,
         japan_universe["date"].dt.year - 1,
     )
