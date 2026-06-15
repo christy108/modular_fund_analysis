@@ -64,7 +64,7 @@ BASE = {
     "end_year": 2024,
     "no_simple_quantiles": 6,
     "ff_factors_number": 5,              # pinned: FF5 needs rmw/cma
-    "signal_denominator": "Sum_All_Signals",
+    
     "alpha_bound": 0.1,
     "mktcap_covered": 0.95,
     "add_accounting_data": False,
@@ -74,9 +74,14 @@ BASE = {
     "min_initatives_annual_reports": 5,
     "drop_suspicious_gvkeys": True,
     "drop_real_estate": True,
-    "drop_fin": False,
-    "drop_utilities": False,
+   
+    "drop_utilities": True, 
     "drop_health_care": False,
+
+    "drop_fin": False,
+
+
+   "signal_denominator": "Sum_All_Signals",
     "anlayse_fashion_only": False,
     "use_alpha_bound": True,
     # Japan fundamentals lag: months <= this -> use (year-2) report, else (year-1).
@@ -88,15 +93,15 @@ BASE = {
 # Keep it small first; the cartesian product grows fast.
 # --------------------------------------------------------------------------- #
 SWEEP_GRID = {
-    "start_year": [2012, 2015, 2019],
+    "start_year": [2012,2013,2014,2015,2016,2017,2018,2019],
    
-    "alpha_bound": [0.05, 0.075, 0.1],
-    "mktcap_covered": [0.925, 0.95, 0.975],
+    "alpha_bound": [0.1],
+    "mktcap_covered": [0.95],
     "drop_real_estate": [True],
-    "drop_fin": [True, False],
-    "min_available_fyears": [3, 4],
-    "min_initatives_annual_reports": [5, 10, 20],
-    "japan_year_adjustment_split_month_for_two_or_one": [3, 6],
+    "drop_fin": [False],
+    "min_available_fyears": [3],
+    "min_initatives_annual_reports": [5],
+    "japan_year_adjustment_split_month_for_two_or_one": [3],
 }
 
 
