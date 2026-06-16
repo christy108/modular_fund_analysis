@@ -411,6 +411,100 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_unive
     return usa_universe, row_universe
 
 
+def get_msci_esg_merge_to_universe(usa_universe, row_universe, japan_universe=None, score_column="industry"):
+    """Merge MSCI ESG scores onto the regional universes.
+
+    Data source: ``./data/ESG/ESG Ratings/MSCI ESG Updated.csv`` — a MONTHLY panel
+    (``issuer_isin`` x ``as_of_date``) of MSCI ESG metrics spanning ~2007-2025.
+
+    Design notes / consistency with the LSEG and S&P merge functions:
+      * Output column is ``esg_msci`` -> drop-in for process_data, Main.ipynb
+        (``universe_signals`` / rolling alpha) and output_paths.
+      * Annual collapse: keep the LAST month of each calendar year per issuer, then
+        left-merge on the universe ``last_year`` lag key (USA on cusip, ROW/Japan on
+        isin). ``how='left'`` preserves every universe row (``esg_msci`` is NaN when
+        unmatched), exactly like the other ESG merges. Picking December-of-year-Y and
+        merging via ``last_year`` keeps the join point-in-time safe (no look-ahead).
+      * MSCI carries ISIN only; the USA universe matches via a derived CUSIP
+        (``cusip = isin[2:11]`` for US ISINs, whose NSIN is the 9-char CUSIP).
+      * Scores are on a 0-10 scale; ``process_global_universe`` divides ``esg_msci`` by
+        10 for 0-1 consistency with ``esg_refinitive`` / ``esg_sp``.
+
+    ``score_column`` toggle (set via ``msci_score_column`` in Main.ipynb):
+        "industry" -> ``industry_adjusted_score`` (100% populated; default)
+        "weighted" -> ``weighted_average_score``  (~85% populated)
+    """
+
+    _MSCI_COLS = {"industry": "industry_adjusted_score", "weighted": "weighted_average_score"}
+    if score_column not in _MSCI_COLS:
+        raise ValueError(
+            f"score_column must be one of {list(_MSCI_COLS)}, got {score_column!r}"
+        )
+    raw_col = _MSCI_COLS[score_column]
+
+    # --- Load MSCI monthly panel (ISIN inline; no identifier crosswalk needed) ---
+    msci = pd.read_csv(
+        './data/ESG/ESG Ratings/MSCI ESG Updated.csv',
+        dtype={'issuer_isin': str},
+        low_memory=False,
+    )
+
+    # --- Standardise types and keep usable score rows only ---
+    msci['as_of_date'] = pd.to_datetime(msci['as_of_date'], format='%d/%m/%Y', errors='coerce')
+    msci[raw_col] = pd.to_numeric(msci[raw_col], errors='coerce')  # drops any '#REF!'-type junk
+    msci = msci.dropna(subset=['issuer_isin', 'as_of_date', raw_col]).copy()
+    msci['year'] = msci['as_of_date'].dt.year.astype(int)
+
+    # --- Collapse to the LAST month of each calendar year per issuer ---
+    msci = (
+        msci.sort_values('as_of_date')
+        .groupby(['issuer_isin', 'year'], as_index=False)
+        .tail(1)
+    )
+    msci = msci.rename(columns={raw_col: 'esg_msci'})
+
+    # --- Collapse to UNIQUE merge keys (guards the left-join against row duplication) ---
+    row_esg = (
+        msci.groupby(['issuer_isin', 'year'], as_index=False)['esg_msci'].mean()
+        .rename(columns={'issuer_isin': 'isin'})
+    )
+
+    usa_src = msci[msci['issuer_isin'].str[:2] == 'US'].copy()
+    usa_src['cusip'] = usa_src['issuer_isin'].str[2:11]
+    usa_esg = usa_src.groupby(['cusip', 'year'], as_index=False)['esg_msci'].mean()
+
+    # --- Map esg data onto `usa_universe` (merge on derived CUSIP) ---
+    usa_universe = pd.merge(
+        usa_universe,
+        usa_esg,
+        left_on=['cusip', 'last_year'],
+        right_on=['cusip', 'year'],
+        how='left',
+    )
+
+    # --- Map esg data onto `row_universe` (merge on ISIN) ---
+    row_universe = pd.merge(
+        row_universe,
+        row_esg,
+        left_on=['isin', 'last_year'],
+        right_on=['isin', 'year'],
+        how='left',
+    )
+
+    # --- Map esg data onto `japan_universe` (Japan universe uses ISIN like ROW) ---
+    if japan_universe is not None:
+        japan_universe = pd.merge(
+            japan_universe,
+            row_esg,
+            left_on=['isin', 'last_year'],
+            right_on=['isin', 'year'],
+            how='left',
+        )
+        return usa_universe, row_universe, japan_universe
+
+    return usa_universe, row_universe
+
+
 def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_universe=None):
     """DEPRECATED / BACKUP: original RIC-based Refinitiv merge.
 

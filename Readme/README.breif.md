@@ -43,5 +43,6 @@ This repo builds **initiative-based firm signals** from a “Golden LC” panel,
 - **Data** (universes, FX, FF, ESG, accounting): `functions/data_functions/`
 - **Portfolio construction**: `functions/portfolio_strategy_design/`
 - **Attribution + reporting**: `functions/portfolio_metrics/`
+- **Extras** (e.g. `play_done_sound` end-of-run audio cue): `functions/extra_functions/`
 
 A full step-by-step walkthrough aligned to the notebook is in `Readme/README.detailed.md`.

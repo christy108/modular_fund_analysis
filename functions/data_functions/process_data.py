@@ -132,6 +132,9 @@ def process_global_universe(
         pass
     elif esg_choice == "s&p":
         global_universe["esg_sp"] /= 100
+    elif esg_choice == "msci":
+        # MSCI industry-adjusted / weighted scores are 0-10; rescale to 0-1.
+        global_universe["esg_msci"] /= 10
 
    
 

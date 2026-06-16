@@ -40,6 +40,7 @@ This repository wires together **initiative / sustainability signals** from a â€
 | FF tables / rolling alpha | `functions/portfolio_metrics/fama_french.py` | `ff3_regressions`, `ff5_regressions`, `rolling_ff_alphas` (`n_factors` 3 or 5), plotting helper |
 | Performance tables / charts | `functions/portfolio_metrics/Strategy_Perfomance.py` | `StrategyPerformance` |
 | Constituent analytics | `functions/portfolio_metrics/Portfolio_Constituents.py` | `PortfolioConstituents` |
+| Extras / utilities | `functions/extra_functions/code_done_sound_effect.py` | `play_done_sound` (end-of-run audio cue: macOS `afplay`, with WebAudio / IPython `Audio` fallbacks) |
 
 ---
 
@@ -231,6 +232,13 @@ The notebook builds **three** sorters **U0, U1, U2** on `global_signal_0`, `glob
 - Joins constituents to **`Industry`**, **`loc`**, **`MacroRegion`** at formation dates (point-in-time last observation in universe).
 - **`run_all_plots`**: time series of counts and **donut** charts for the **last** formation month; options documented in the markdown cell (`analyse_all_portfolios_at_once`, `all_sub_portfolios`).
 - **`total_stocks_over_time`**: diagnostic for non-NaN breadth across quantiles.
+
+---
+
+### 8. End-of-run audio cue
+
+- The final cell imports **`play_done_sound`** from `functions/extra_functions/code_done_sound_effect.py` and calls it so you get an audible signal when the notebook finishes.
+- It prefers the macOS system sound via `afplay` ("Glass"), and falls back to a WebAudio beep or an IPython `Audio` tone in other runtimes.
 
 ---
 
