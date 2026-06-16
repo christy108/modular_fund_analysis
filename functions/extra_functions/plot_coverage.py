@@ -7,29 +7,36 @@ covers, on two axes:
   * **Name coverage**       = sample distinct names / universe distinct names
 
 where the "universe" is the full ``process_global_universe`` output (after the
-currency + ``mktcap_covered`` filters) and the "sample" is the monthly panel that
-actually entered the portfolio analysis (``global_universe`` after
-``prepare_univariate_sorting_inputs``).
+currency + ``mktcap_covered`` filters) and the "sample" is the EXACT monthly panel
+that entered the portfolio sorts.
+
+EXACT sample = the masked analysis panel
+----------------------------------------
+The sample is taken from ``global_returns`` (or any signal pivot), i.e. the
+``date x gvkey_iid`` matrix returned by ``prepare_univariate_sorting_inputs`` AFTER
+``apply_cross_signal_nan_mask``. A listing counts as "in sample" in a given month
+**iff its cell is non-NaN that month** — exactly the rule behind the "Total Stocks
+without NAN" plot. This is the real sample (post LC-intersection, post
+standardization dropna, post cross-signal mask), so the curves and the count
+subplot match that plot to the listing.
 
 Year-aware (NOT membership)
 ---------------------------
-Coverage is computed **per month**: a company counts toward the sample only in the
-months in which it actually appears in the analysis panel (i.e. it has a usable
-signal that month). This is deliberately *not* a static "ever-qualifies" membership
-set — because LC report coverage expands over time, the sample (and therefore
-coverage) grows across the sample window, matching the "Total Stocks without NAN"
-plot. Matching is done on ``(year-month, gvkey)`` presence in ``sample_universe``.
+Because masking is per (month, listing), a company contributes only in the months it
+actually has a usable signal. As LC report coverage expands over time the sample
+(and therefore coverage) grows across the window — it is deliberately not a static
+"ever-qualifies" set.
 
 Currency safety
 ---------------
-Coverage is a *ratio*, so a single common currency must be used for both the
-numerator and the denominator. We use ``global_universe['mktcap']`` which the
-pipeline expresses in ONE currency per run:
+Coverage is a *ratio*, so a single common currency must be used for numerator and
+denominator. We use ``full_universe['mktcap']`` which the pipeline expresses in ONE
+currency per run:
   * ``convert_to_USD=True``  -> every row is USD (summable across currencies)
   * ``convert_to_USD=False`` -> ``currency_filter`` restricts the run to a single
     currency, so ``mktcap`` is that one local currency (still summable)
-To make the guarantee explicit, :func:`compute_coverage_over_time` REFUSES to sum
-across multiple currencies when ``convert_to_USD=False`` (raises ``ValueError``).
+:func:`compute_coverage_over_time` REFUSES to sum across multiple currencies when
+``convert_to_USD=False`` (raises ``ValueError``).
 
 Nothing here is imported by the core pipeline; it only reads already-computed
 objects, so it cannot change any analysis result.
@@ -41,9 +48,25 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+def _sample_gvkey_iid_by_month(sample_panel: pd.DataFrame) -> dict:
+    """Map each calendar month (Period[M]) -> set of non-NaN ``gvkey_iid`` that month.
+
+    ``sample_panel`` is a wide ``date x gvkey_iid`` matrix (e.g. ``global_returns`` or
+    ``signals['signal_2']``). Non-NaN cell == listing is in the analysis sample that month.
+    """
+    panel = sample_panel.copy()
+    panel.index = pd.to_datetime(panel.index)
+    months = panel.index.to_period("M")
+    by_month: dict = {}
+    for period, (_, row) in zip(months, panel.iterrows()):
+        present = row.dropna().index
+        by_month.setdefault(period, set()).update(str(c) for c in present)
+    return by_month
+
+
 def compute_coverage_over_time(
     full_universe: pd.DataFrame,
-    sample_universe: pd.DataFrame,
+    sample_panel: pd.DataFrame,
     *,
     convert_to_USD: bool,
     mktcap_col: str = "mktcap",
@@ -52,26 +75,28 @@ def compute_coverage_over_time(
     iid_col: str = "iid",
     date_col: str = "date",
 ) -> pd.DataFrame:
-    """Monthly, year-aware name- and market-cap coverage of ``sample_universe`` within ``full_universe``.
+    """Monthly, exact name- and market-cap coverage of the analysis sample within ``full_universe``.
 
-    ``sample_universe`` is the post-analysis monthly panel (``global_universe`` after
-    ``prepare_univariate_sorting_inputs``); a company is "in sample" in a given month
-    iff it appears in ``sample_universe`` that month.
+    ``sample_panel`` is the masked ``date x gvkey_iid`` panel (``global_returns`` or a
+    signal pivot). A listing is "in sample" in a month iff its panel cell is non-NaN.
 
     Returns a DataFrame indexed by month (Timestamp) with columns:
-    ``mktcap_total, mktcap_sample, names_total, names_sample,
+    ``mktcap_total, mktcap_sample, names_total, names_sample, issues_sample,
     mktcap_coverage_pct, name_coverage_pct``.
+    ``issues_sample`` is the exact non-NaN column count of ``sample_panel`` that month
+    (issue / share-class level), so it lines up with the "Total Stocks without NAN" plot.
     """
     needed = [date_col, gvkey_col, currency_col, mktcap_col]
     missing = [c for c in needed if c not in full_universe.columns]
     if missing:
         raise ValueError(f"full_universe is missing columns: {missing}")
-    for c in (date_col, gvkey_col):
-        if c not in sample_universe.columns:
-            raise ValueError(f"sample_universe is missing column: {c!r}")
+    if iid_col not in full_universe.columns:
+        raise ValueError(
+            f"full_universe is missing column {iid_col!r}; needed to rebuild gvkey_iid "
+            "for an exact match against the analysis panel."
+        )
 
-    df = full_universe[[c for c in [date_col, gvkey_col, iid_col, currency_col, mktcap_col]
-                        if c in full_universe.columns]].copy()
+    df = full_universe[[date_col, gvkey_col, iid_col, currency_col, mktcap_col]].copy()
     df = df.dropna(subset=[mktcap_col])
     df[date_col] = pd.to_datetime(df[date_col])
 
@@ -86,14 +111,14 @@ def compute_coverage_over_time(
 
     # --- collapse universe to last trading day per (month, listing) to avoid double-counting ---
     df["ym"] = df[date_col].dt.to_period("M")
-    listing_keys = ["ym", gvkey_col] + ([iid_col] if iid_col in df.columns else [])
-    df = df.sort_values(date_col).groupby(listing_keys, as_index=False).last()
+    df["gvkey_iid"] = df[gvkey_col].astype(str) + "_" + df[iid_col].astype(str)
+    df = df.sort_values(date_col).groupby(["ym", "gvkey_iid"], as_index=False).last()
 
-    # --- year-aware sample membership: (month, gvkey) actually present in the analysis panel ---
-    sdates = pd.to_datetime(sample_universe[date_col])
-    sample_pairs = set(zip(sdates.dt.to_period("M"), sample_universe[gvkey_col].astype(str)))
+    # --- exact sample membership: (month, gvkey_iid) non-NaN in the masked analysis panel ---
+    sample_by_month = _sample_gvkey_iid_by_month(sample_panel)
     df["in_sample"] = [
-        (ym, str(g)) in sample_pairs for ym, g in zip(df["ym"], df[gvkey_col])
+        gi in sample_by_month.get(ym, set())
+        for ym, gi in zip(df["ym"], df["gvkey_iid"])
     ]
 
     g = df.groupby("ym")
@@ -109,6 +134,14 @@ def compute_coverage_over_time(
             ),
         }
     )
+
+    # Exact issue-level sample count straight from the panel (matches the non-NaN plot).
+    issues = pd.Series(
+        {ym: len(s) for ym, s in sample_by_month.items()}, name="issues_sample"
+    )
+    issues.index = issues.index.astype("period[M]")
+    out = out.join(issues)
+
     out["mktcap_coverage_pct"] = 100.0 * out["mktcap_sample"] / out["mktcap_total"]
     out["name_coverage_pct"] = 100.0 * out["names_sample"] / out["names_total"]
     out.index = out.index.to_timestamp()
@@ -117,7 +150,7 @@ def compute_coverage_over_time(
 
 def plot_coverage(
     full_universe: pd.DataFrame,
-    sample_universe: pd.DataFrame,
+    sample_panel: pd.DataFrame,
     *,
     convert_to_USD: bool,
     currency_label: str | None = None,
@@ -125,13 +158,18 @@ def plot_coverage(
     save_path=None,
     show: bool = True,
 ) -> pd.DataFrame:
-    """Compute and plot year-aware market-cap & name coverage over time. Returns the table."""
+    """Compute and plot exact market-cap & name coverage, plus a sample-count subplot. Returns the table."""
     cov = compute_coverage_over_time(
-        full_universe, sample_universe, convert_to_USD=convert_to_USD
+        full_universe, sample_panel, convert_to_USD=convert_to_USD
     )
     cur = currency_label or ("USD" if convert_to_USD else "local currency")
 
-    fig, ax = plt.subplots(figsize=(11, 5))
+    fig, (ax, ax2) = plt.subplots(
+        2, 1, figsize=(11, 8), sharex=True,
+        gridspec_kw={"height_ratios": [2, 1]},
+    )
+
+    # --- top: coverage ratios ---
     ax.plot(cov.index, cov["mktcap_coverage_pct"],
             color="C0", lw=2, label=f"Market-cap coverage ({cur})")
     ax.plot(cov.index, cov["name_coverage_pct"],
@@ -144,10 +182,23 @@ def plot_coverage(
 
     ax.set_ylim(0, 100)
     ax.set_ylabel("Coverage (%)")
-    ax.set_xlabel("Date")
     ax.set_title(title)
     ax.grid(alpha=0.3)
     ax.legend(loc="best")
+
+    # --- bottom: absolute sample size (matches the "Total Stocks without NAN" plot) ---
+    ax2.plot(cov.index, cov["issues_sample"],
+             color="C2", lw=2, label="Sample stocks (non-NaN, issue level)")
+    ax2.plot(cov.index, cov["names_sample"],
+             color="C3", lw=2, ls="--", label="Sample distinct names (gvkey)")
+    ax2.plot(cov.index, cov["names_total"],
+             color="grey", lw=1.5, ls=":", label="Universe distinct names")
+    ax2.set_ylabel("Count")
+    ax2.set_xlabel("Date")
+    ax2.set_ylim(bottom=0)
+    ax2.grid(alpha=0.3)
+    ax2.legend(loc="best")
+
     fig.tight_layout()
 
     if save_path is not None:
@@ -163,7 +214,7 @@ def plot_universe_coverage_from_regions(
     usa_universe: pd.DataFrame,
     row_universe: pd.DataFrame,
     japan_universe: pd.DataFrame | None,
-    sample_universe: pd.DataFrame,
+    sample_panel: pd.DataFrame,
     *,
     currency_filter,
     mktcap_covered: float,
@@ -171,14 +222,16 @@ def plot_universe_coverage_from_regions(
     convert_to_USD: bool,
     region_analysis: str = "",
     gvkey_col: str = "gvkey",
+    iid_col: str = "iid",
     save_path=None,
     show: bool = True,
 ) -> pd.DataFrame:
-    """Notebook-friendly wrapper: rebuild the FULL universe, then plot year-aware coverage.
+    """Notebook-friendly wrapper: rebuild the FULL universe, then plot exact coverage.
 
-    ``sample_universe`` is the post-analysis ``global_universe`` (the monthly panel that
-    entered the sorts). The full universe is rebuilt from the regional universes via
-    ``process_global_universe`` (cell 25 overwrites the original full ``global_universe``).
+    ``sample_panel`` is the masked analysis panel (``global_returns`` or a signal pivot,
+    a ``date x gvkey_iid`` matrix). The full universe is rebuilt from the regional
+    universes via ``process_global_universe``. ``gvkey`` is zero-padded to 6 digits on
+    both sides so the rebuilt ``gvkey_iid`` matches the panel's columns exactly.
     """
     # Imported lazily so this diagnostic module has no import-time effect on the pipeline.
     from functions.data_functions.process_data import process_global_universe
@@ -189,9 +242,6 @@ def plot_universe_coverage_from_regions(
     )
     full_universe[gvkey_col] = full_universe[gvkey_col].astype(str).str.zfill(6)
 
-    sample = sample_universe.copy()
-    sample[gvkey_col] = sample[gvkey_col].astype(str).str.zfill(6)
-
     currency_label = "USD" if convert_to_USD else (
         currency_filter[0] if currency_filter else None
     )
@@ -201,7 +251,7 @@ def plot_universe_coverage_from_regions(
 
     return plot_coverage(
         full_universe,
-        sample,
+        sample_panel,
         convert_to_USD=convert_to_USD,
         currency_label=currency_label,
         title=title,

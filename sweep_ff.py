@@ -94,12 +94,11 @@ BASE = {
 # Keep it small first; the cartesian product grows fast.
 # --------------------------------------------------------------------------- #
 SWEEP_GRID = {
-    "start_year": [2012],
-    "end_year": [2022, 2024],
-    "min_initatives_annual_reports": [1,5],
-    "min_available_fyears": [3,4],
-    "no_simple_quantiles": [5,6,7],
-    "mktcap_covered": [0.9, 0.95],
+    "start_year": [2012, 2013, 2015, 2018, 2019],
+  
+    "no_simple_quantiles": [5,6,7,8,9,10],
+    "drop_utilities": [True, False],
+   
    
 }
 
