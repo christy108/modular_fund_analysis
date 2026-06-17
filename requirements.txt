@@ -1,0 +1,29 @@
+# fund_analysis dependencies
+# Versions pinned to the project .venv (Python 3.14).
+# Install with:  pip install -r requirements.txt
+
+# --- Core data / numerics ---
+pandas==2.2.3
+numpy==2.4.3
+
+# --- Econometrics (FF3/FF5 OLS in functions/portfolio_metrics/fama_french.py) ---
+statsmodels==0.14.6
+scikit-learn==1.8.0          # used by functions/unused_functions.py (LinearRegression, QuantileRegressor)
+
+# --- Plotting ---
+matplotlib==3.10.8
+
+# --- Data sources ---
+wrds==3.5.0                  # Compustat price/accounting pulls (get_data.py)
+pandas-datareader==0.10.0    # Fama-French factor download (get_famafrench_factors)
+
+# --- File formats ---
+openpyxl==3.1.5              # read MSCI_World.xlsx / write sweep .xlsx
+pyarrow==23.0.1             # read/write .parquet (LC master, ESG identifiers)
+
+# --- Notebook execution / parameter sweep ---
+papermill==2.7.0            # sweep_ff.py executes Main.ipynb per parameter combo
+ipykernel==7.2.0            # provides the "python3" kernel papermill runs against
+ipython==9.8.0              # IPython.display.Audio/Javascript (code_done_sound_effect.py)
+nbformat==5.10.4
+jupyter_core==5.9.1

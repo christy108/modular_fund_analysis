@@ -30,6 +30,7 @@ NO_FILTERS_FOLDER = "no_filters"
 ESG_OUTPUT_FOLDERS: dict[str, str] = {
     "refinitiv": "refinitiv_esg",
     "s&p": "sp_esg",
+    "msci": "msci_esg",
 }
 
 
