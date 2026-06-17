@@ -43,9 +43,13 @@ import papermill as pm
 # --------------------------------------------------------------------------- #
 # Paths / constants
 # --------------------------------------------------------------------------- #
+# Unique per-script tag so two sweeps can run concurrently without clobbering
+# each other's outputs (separate OUT_DIR + prefixed run_id). Keep distinct across
+# copies of this script (e.g. "A" here, "B" in sweep_ff copy.py).
+SWEEP_TAG = "A"
 REPO = Path(__file__).resolve().parent
 NB_IN = REPO / "Main.ipynb"
-OUT_DIR = REPO / "output" / "SWEEP"
+OUT_DIR = REPO / "output" / f"SWEEP_{SWEEP_TAG}"
 RUN_NB_DIR = OUT_DIR / "executed_notebooks"
 PKL_DIR = OUT_DIR / "ff_pickles"
 KERNEL_NAME = "python3"
@@ -58,7 +62,7 @@ KERNEL_NAME = "python3"
 BASE = {
     "golden_data": "v_2C",
     "region_analysis": "Japan",          # pinned (see module docstring)
-    "action_characterization": "4_stakeholder_new",
+    "action_characterization": "4_signals_new",
     "esg_choice": "none",
     "start_year": 2012,
     "end_year": 2024,
@@ -94,6 +98,7 @@ BASE = {
 # Keep it small first; the cartesian product grows fast.
 # --------------------------------------------------------------------------- #
 SWEEP_GRID = {
+    "esg_choice": ["refinitiv", "msci"],
     "start_year": [2012, 2013, 2015, 2018, 2019],
   
     "no_simple_quantiles": [5,6,7,8,9,10],
@@ -226,7 +231,7 @@ def main(argv=None) -> int:
     ff5_csv = OUT_DIR / f"sweep_ff_{stamp}_ff5.csv"
 
     for i, params in enumerate(combos):
-        run_id = f"{i:04d}"
+        run_id = f"{SWEEP_TAG}_{i:04d}"
         label = ", ".join(f"{k}={params[k]}" for k in swept_keys)
         print(f"[{i + 1}/{len(combos)}] run {run_id}: {label}")
         try:
