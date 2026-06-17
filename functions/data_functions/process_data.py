@@ -192,3 +192,47 @@ def process_global_universe(
     )
 
     return global_universe
+
+
+def convert_factors_to_jpy(fama_french, fx_rates, rf_japan_path):
+    """Convert USD Fama-French factors to a JPY (Japanese-investor) numeraire.
+
+    - Market factor: add back US rf, scale by the month-over-month JPY/USD FX
+      ratio FX(t)/FX(t-1), strip the 1, then subtract the Japanese rf.
+    - Zero-cost long-short factors (SMB/HML/RMW/CMA): scale by the FX ratio only.
+      The loop auto-adapts to FF3 (smb/hml) or FF5 (+rmw/cma) via `if c in columns`.
+    - Risk-free: overwrite the US rf with the Japanese monthly T-bill.
+
+    Merges are done on the Period[M] `date` key, so every row is matched by
+    calendar month; row order and length are preserved (left merge), which keeps
+    downstream positional code (cell 42 `.values`, regressions `reset_index`) valid.
+    """
+    ff = fama_french.copy()
+
+    # Month-end JPY/USD level, then month-over-month ratio FX(t)/FX(t-1)
+    jpy = (fx_rates.loc[fx_rates['curcdd'] == 'JPY', ['date', 'rate']]
+           .dropna().sort_values('date').set_index('date')['rate'])
+    jpy_me = jpy.resample('ME').last()
+    fx_ratio = (jpy_me / jpy_me.shift(1)).rename('fx_ratio')
+    fx_ratio.index = fx_ratio.index.to_period('M')   # match fama_french Period[M] key
+
+    # Japanese monthly risk-free (T-bill) keyed by month
+    rfj = pd.read_excel(rf_japan_path)[['Month', 'Rf Japan (monthly)']].dropna()
+    rfj['Month'] = pd.PeriodIndex(rfj['Month'].astype(str), freq='M')
+    rfj = rfj.set_index('Month')['Rf Japan (monthly)'].rename('rf_jp')
+
+    # Left-merge by month: preserves order/length, matches month-to-month
+    ff = ff.merge(fx_ratio, left_on='date', right_index=True, how='left')
+    ff = ff.merge(rfj,      left_on='date', right_index=True, how='left')
+
+    r = ff['fx_ratio']
+    # Market factor uses the ORIGINAL US rf (before we overwrite rf below)
+    ff['mktrf'] = (1 + ff['mktrf'] + ff['rf']) * r - 1 - ff['rf_jp']
+    # Long-short factors: scale by FX ratio only (FF3 -> smb/hml; FF5 -> +rmw/cma)
+    for c in ('smb', 'hml', 'rmw', 'cma'):
+        if c in ff.columns:
+            ff[c] = ff[c] * r
+    # Overwrite the risk-free with the Japanese series
+    ff['rf'] = ff['rf_jp']
+
+    return ff.drop(columns=['fx_ratio', 'rf_jp'])
