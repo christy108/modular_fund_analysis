@@ -505,6 +505,87 @@ def get_msci_esg_merge_to_universe(usa_universe, row_universe, japan_universe=No
     return usa_universe, row_universe
 
 
+def _coverage_snp_exact_year(usa_universe, row_universe, japan_universe=None):
+    """Coverage-only S&P attach on an EXACT fiscal-year basis (NO ffill / merge_asof /
+    tolerance), so the diagnostic compares S&P like-for-like with MSCI/Refinitiv.
+
+    The production merge ``get_snp_esg_merge_to_universe`` forward-fills scores and attaches
+    as-of the trading date with an ~11-month tolerance, which carries a score into later
+    (even data-absent) years and overstates S&P coverage relative to the exact-year
+    MSCI/Refinitiv merges. Here a score counts only when the firm's own fiscal year
+    (``last_year``) has a raw S&P observation. NOT used by the pipeline.
+    """
+    sp = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp['gvkey'] = sp['gvkey'].astype(float).astype(str)   # same gvkey form as the pipeline merge
+    sp = sp.dropna(subset=['esg_sp'])
+    # one row per exact (gvkey, fiscal year); mean resolves the quarterly observations
+    sp_year = sp.groupby(['gvkey', 'year'], as_index=False)['esg_sp'].mean()
+    sp_year['year'] = sp_year['year'].astype(int)
+
+    def _attach(u):
+        if u is None:
+            return None
+        return u.merge(
+            sp_year, left_on=['gvkey', 'last_year'], right_on=['gvkey', 'year'], how='left'
+        )
+
+    if japan_universe is not None:
+        return _attach(usa_universe), _attach(row_universe), _attach(japan_universe)
+    return _attach(usa_universe), _attach(row_universe)
+
+
+def merge_all_esg_to_universe(usa_universe, row_universe, japan_universe=None, msci_score_column="industry"):
+    """Attach ALL THREE provider columns (``esg_refinitive``, ``esg_msci``, ``esg_sp``)
+    to the regional universes regardless of ``esg_choice``.
+
+    This is for the ESG-coverage DIAGNOSTIC only: the production pipeline still merges a
+    single provider (driven by ``esg_choice``) and only standardises that one as a
+    ``universe_signal``, so adding the other two columns here cannot change any analysis
+    result. It simply lets the coverage table report every provider in one run.
+
+    All three are attached on an EXACT fiscal-year basis here (MSCI/Refinitiv as in the
+    pipeline; S&P via ``_coverage_snp_exact_year`` rather than the pipeline's ffill/as-of
+    merge) so the coverage figures are like-for-like across providers.
+
+    Safe to call on universes that already carry one provider's column (e.g. after the
+    ``esg_choice`` merge in Main.ipynb): any pre-existing provider columns and the helper
+    columns each underlying merge introduces (``year`` / ``quarter`` / ``esg_date``) are
+    stripped first and between merges, so they cannot collide (``year_x`` / ``year_y``) or
+    leak downstream. Operates on copies; the inputs are never mutated.
+    """
+    provider_cols = ["esg_refinitive", "esg_msci", "esg_sp"]
+    helper_cols = ["year", "quarter", "esg_date"]
+
+    def _strip(df, cols):
+        if df is None:
+            return None
+        return df.drop(columns=[c for c in cols if c in df.columns], errors="ignore")
+
+    # Start from clean copies: no stale provider/helper columns to collide on.
+    u = _strip(usa_universe, provider_cols + helper_cols).copy()
+    r = _strip(row_universe, provider_cols + helper_cols).copy()
+    j = None if japan_universe is None else _strip(japan_universe, provider_cols + helper_cols).copy()
+
+    if j is not None:
+        u, r, j = get_refinitive_snp_merge_to_universe(u, r, j)
+        u, r, j = _strip(u, helper_cols), _strip(r, helper_cols), _strip(j, helper_cols)
+        u, r, j = get_msci_esg_merge_to_universe(u, r, j, score_column=msci_score_column)
+        u, r, j = _strip(u, helper_cols), _strip(r, helper_cols), _strip(j, helper_cols)
+        # S&P on an exact fiscal-year basis (coverage-only; see _coverage_snp_exact_year).
+        u, r, j = _coverage_snp_exact_year(u, r, j)
+        u, r, j = _strip(u, helper_cols), _strip(r, helper_cols), _strip(j, helper_cols)
+        return u, r, j
+
+    u, r = get_refinitive_snp_merge_to_universe(u, r)
+    u, r = _strip(u, helper_cols), _strip(r, helper_cols)
+    u, r = get_msci_esg_merge_to_universe(u, r, score_column=msci_score_column)
+    u, r = _strip(u, helper_cols), _strip(r, helper_cols)
+    # S&P on an exact fiscal-year basis (coverage-only; see _coverage_snp_exact_year).
+    u, r = _coverage_snp_exact_year(u, r)
+    u, r = _strip(u, helper_cols), _strip(r, helper_cols)
+    return u, r
+
+
 def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_universe=None):
     """DEPRECATED / BACKUP: original RIC-based Refinitiv merge.
 

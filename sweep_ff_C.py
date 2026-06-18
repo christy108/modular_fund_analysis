@@ -204,6 +204,10 @@ def main(argv=None) -> int:
     ap.add_argument("--flush", type=int, default=10,
                     help="rebuild the .xlsx every N runs (default 10). The CSV "
                          "checkpoints are always written after every run.")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue the latest run: skip combos already present in "
+                         "the most recent CSV checkpoint and append to those same "
+                         "files instead of starting a new timestamped set.")
     args = ap.parse_args(argv)
 
     combos = list(iter_combos())
@@ -222,16 +226,38 @@ def main(argv=None) -> int:
 
     swept_keys = list(SWEEP_GRID.keys())
     ff3_rows, ff5_rows = [], []
+    done: set = set()
+    stamp = None
+
+    # --resume: reload the latest checkpoint, pre-fill rows, and reuse its stamp so
+    # new results append to the SAME csv/xlsx. Completed combos are matched on the
+    # swept-parameter values (string-compared) so any failed/missing run is retried.
+    if args.resume:
+        prev = sorted(OUT_DIR.glob("sweep_ff_*_ff3.csv"))
+        if prev:
+            ff3_prev = prev[-1]
+            stamp = ff3_prev.name[len("sweep_ff_"):-len("_ff3.csv")]
+            ff5_prev = OUT_DIR / f"sweep_ff_{stamp}_ff5.csv"
+            ff3_rows = pd.read_csv(ff3_prev).to_dict("records")
+            if ff5_prev.exists():
+                ff5_rows = pd.read_csv(ff5_prev).to_dict("records")
+            done = {tuple(str(r[k]) for k in swept_keys) for r in ff3_rows}
+            print(f"resume: {len(done)} combo(s) already done in {ff3_prev.name}; skipping them.")
+        else:
+            print("resume: no existing checkpoint found; starting a fresh run.")
 
     # Output paths share one timestamp. CSVs are appended after every run (the
     # crash-proof record); the xlsx is rebuilt every `--flush` runs and at the end.
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if stamp is None:
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_xlsx = OUT_DIR / f"sweep_ff_{stamp}.xlsx"
     ff3_csv = OUT_DIR / f"sweep_ff_{stamp}_ff3.csv"
     ff5_csv = OUT_DIR / f"sweep_ff_{stamp}_ff5.csv"
 
     for i, params in enumerate(combos):
         run_id = f"{SWEEP_TAG}_{i:04d}"
+        if tuple(str(params[k]) for k in swept_keys) in done:
+            continue
         label = ", ".join(f"{k}={params[k]}" for k in swept_keys)
         print(f"[{i + 1}/{len(combos)}] run {run_id}: {label}")
         try:
