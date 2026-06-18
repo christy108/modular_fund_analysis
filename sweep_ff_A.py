@@ -62,6 +62,7 @@ KERNEL_NAME = "python3"
 BASE = {
     "golden_data": "v_2C",
     "region_analysis": "Japan",          # pinned (see module docstring)
+    "fama_factors_currency": "JPY",   # pinned: Japanese-investor numeraire (USD factors -> JPY)
     "action_characterization": "4_signals_new",
     "esg_choice": "none",
     "start_year": 2012,
@@ -98,14 +99,14 @@ BASE = {
 # Keep it small first; the cartesian product grows fast.
 # --------------------------------------------------------------------------- #
 SWEEP_GRID = {
-    "esg_choice": ["refinitiv", "msci"],
-    "start_year": [2012, 2013, 2015, 2018, 2019],
-  
-    "no_simple_quantiles": [5,6,7,8,9,10],
+    "esg_choice": ["none"],
+    "start_year": [2012, 2018],
+    "no_simple_quantiles": [5,6,7,8,10],
     "drop_utilities": [True, False],
-   
-   
+    "drop_fin": [True, False],
+    "japan_year_adjustment_split_month_for_two_or_one": [3, 4, 6, 7, 9, 10]
 }
+
 
 
 def is_valid_combo(params: dict) -> bool:
