@@ -112,7 +112,69 @@ def esg_coverage_table(cov1, cov2, country="JPN"):
     return pd.DataFrame(
         [cov1, cov2],
         index=[
-            f"LC signal-active firm-years (raw, {country})",
-            "Post-filter sample (global_returns)",
+            f"LC signal-active firm-years ESG coverage (raw, {country})",
+            "Post-filter Investable Universe ESG coverage",
         ],
     )[PROVIDERS].round(1)
+
+
+# Raw provider source files (same paths the get_data.py merges read from).
+_SP_PATH = "./data/ESG/SP_ESG_20231231.csv"
+_RF_PATH = "./data/ESG/ESG Ratings/LSEG ESG Score.csv"
+_MSCI_PATH = "./data/ESG/ESG Ratings/MSCI ESG Updated.csv"
+_MSCI_SCORE_COLS = {
+    "industry": "industry_adjusted_score",
+    "weighted": "weighted_average_score",
+}
+
+
+def firms_with_esg_data_by_year(region_universe, *, msci_score_column="industry", isin_country_prefix="JP"):
+    """Number of REGION firms each provider rates (non-NaN score), per fiscal year.
+
+    Region scoping: S&P carries no country/ISIN, so it is matched on ``gvkey`` against
+    the firms present in ``region_universe`` (pass ``japan_universe`` for Japan).
+    MSCI/Refinitiv carry an ISIN, so they are scoped by ISIN country prefix
+    (``isin_country_prefix``, e.g. ``"JP"`` for Japan, ``"US"`` for the US).
+
+    Counts UNIQUE firms with a usable score per provider fiscal year, read straight from
+    the raw provider files. This is a provider data-AVAILABILITY table (how many regional
+    firms each agency rates) -- independent of the analysis sample and of ``esg_choice``.
+
+    Returns a DataFrame indexed by fiscal year (int) with columns
+    ``['MSCI', 'Refinitiv', 'S&P']``.
+    """
+    if msci_score_column not in _MSCI_SCORE_COLS:
+        raise ValueError(
+            f"msci_score_column must be one of {list(_MSCI_SCORE_COLS)}, got {msci_score_column!r}"
+        )
+
+    region_gvkeys = set(_norm_gvkey(region_universe["gvkey"]).dropna().tolist())
+
+    # --- S&P (matched on gvkey against the region universe) ---
+    sp = pd.read_csv(_SP_PATH).dropna(subset=["esg_sp"])
+    sp["_gv"] = _norm_gvkey(sp["gvkey"])
+    sp["year"] = sp["year"].astype(int)
+    sp = sp[sp["_gv"].isin(region_gvkeys)]
+    sp_y = sp.groupby("year")["_gv"].nunique()
+
+    # --- Refinitiv / LSEG (scoped by ISIN country prefix) ---
+    rf = pd.read_csv(_RF_PATH, dtype={"isin": str})
+    rf = rf[rf["fieldname"] == "ESGScore"].dropna(subset=["valuescore"])
+    rf["year"] = rf["year"].astype(int)
+    rf = rf[rf["isin"].fillna("").str.startswith(isin_country_prefix)]
+    rf_y = rf.groupby("year")["isin"].nunique()
+
+    # --- MSCI (scoped by issuer_isin country prefix) ---
+    raw_col = _MSCI_SCORE_COLS[msci_score_column]
+    ms = pd.read_csv(_MSCI_PATH, dtype={"issuer_isin": str}, low_memory=False)
+    ms["as_of_date"] = pd.to_datetime(ms["as_of_date"], format="%d/%m/%Y", errors="coerce")
+    ms[raw_col] = pd.to_numeric(ms[raw_col], errors="coerce")
+    ms = ms.dropna(subset=["issuer_isin", "as_of_date", raw_col])
+    ms["year"] = ms["as_of_date"].dt.year
+    ms = ms[ms["issuer_isin"].str.startswith(isin_country_prefix)]
+    ms_y = ms.groupby("year")["issuer_isin"].nunique()
+
+    out = pd.DataFrame({"MSCI": ms_y, "Refinitiv": rf_y, "S&P": sp_y})
+    out = out.sort_index().fillna(0).astype(int)
+    out.index.name = "fiscal year"
+    return out
