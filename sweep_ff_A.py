@@ -101,10 +101,12 @@ BASE = {
 SWEEP_GRID = {
     "esg_choice": ["none"],
     "start_year": [2012, 2018],
-    "no_simple_quantiles": [5,6,7,8,10],
-    "drop_utilities": [True, False],
+    "no_simple_quantiles": [5,6,7,10],
+    "mktcap_covered": [0.9,0.99],
+    "alpha_bound": [0.05],
     "drop_fin": [True, False],
-    "japan_year_adjustment_split_month_for_two_or_one": [3, 4, 6, 7, 9, 10]
+    "drop_utilities": [True,False],
+    "japan_year_adjustment_split_month_for_two_or_one": [3,6, 9]
 }
 
 
