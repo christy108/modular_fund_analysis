@@ -339,3 +339,126 @@ def prepare_univariate_sorting_inputs(
         fama_french=ff,
         res_suffix=suffix,
     )
+
+
+def prepare_esg_universe_sorting_inputs(
+    global_universe: pd.DataFrame,
+    gics_by_gvkey: pd.DataFrame,
+    fama_french: pd.DataFrame,
+    universe_signals: Mapping[str, str],
+    *,
+    industry_level: int = 0,
+    year_col: str = "last_year",
+    min_group_size: int = 5,
+) -> UnivariateSortingPrep:
+    """Level 2: univariate-sort inputs for an ESG signal on the FULL Compustat universe,
+    WITHOUT merging the LC dataset.
+
+    The Compustat universe carries no GICS, so ``gics_by_gvkey`` (from ``get_gics_by_gvkey``)
+    supplies the industry classification. ESG is standardized industry/currency/year-neutrally
+    within ``(year_col, curcdd, Industry)``, where ``Industry`` is derived from ``industry_level``
+    EXACTLY like the LC path: 0 -> ``map_sectors`` coarse buckets, 1 -> GICS sector, 2 -> GICS
+    industry group. Same machinery as the LC path, minus the LC intersection/merge and the
+    LC-derived ``rfyear``/category steps.
+
+    ``global_universe`` must be the POST-``process_global_universe`` frame (so ``tri``/``mktcap``
+    are already in the run's numeraire) and ``fama_french`` the already currency-aligned factor
+    set -- no FX conversion happens here. ``universe_signals`` should hold a single ESG column
+    (e.g. ``{"esg_msci": "esg_msci"}``). Returns the same ``UnivariateSortingPrep`` so all
+    downstream notebook cells work unchanged.
+    """
+    universe_signals = dict(universe_signals)
+    if not universe_signals:
+        raise ValueError(
+            "universe_signals is empty: analyse_esg_only/esg_full_universe require a provider "
+            "esg_choice (not 'none')."
+        )
+    if industry_level not in (0, 1, 2):
+        raise ValueError(
+            f"industry_level must be 0 (map_sectors), 1 (GICS sector), or 2 (GICS group), got {industry_level!r}"
+        )
+
+    signal_columns = list(universe_signals)
+    signal_names = dict(universe_signals)
+    cols_standardization = [year_col, "curcdd", "Industry"]
+
+    gu = global_universe.copy()
+    missing_sig = [c for c in signal_columns if c not in gu.columns]
+    if missing_sig:
+        raise ValueError(f"global_universe is missing ESG signal column(s): {missing_sig}")
+
+    # --- attach GICS (industry classification) by gvkey; universe has none of its own ---
+    gics = gics_by_gvkey.copy()
+    gu["gvkey"] = gu["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+    gics["gvkey"] = gics["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+    _all_gics = ("GICS_level_1", "GICS_level_2", "GICS_level_3", "GICS_level_4")
+    gic_cols = [c for c in _all_gics if c in gics.columns]
+    gu = gu.merge(gics[["gvkey", *gic_cols]].drop_duplicates("gvkey"), on="gvkey", how="left")
+
+    # --- derive the `Industry` standardization key from industry_level, mirroring the LC path ---
+    # 0 -> map_sectors coarse buckets; 1 -> GICS sector (named); 2 -> GICS industry group code.
+    from functions.data_functions.process_lc import map_sectors
+    _GICS_SECTOR_NAME = {
+        10: "Energy", 15: "Materials", 20: "Industrials", 25: "Consumer Discretionary",
+        30: "Consumer Staples", 35: "Health Care", 40: "Financials",
+        45: "Information Technology", 50: "Communication Services",
+        55: "Real Estate", 60: "Utilities",
+    }
+    _sector_name = pd.to_numeric(gu["GICS_level_1"], errors="coerce").map(_GICS_SECTOR_NAME)
+    if industry_level == 0:
+        gu["Industry"] = _sector_name.map(lambda x: map_sectors(x) if pd.notna(x) else np.nan)
+    elif industry_level == 1:
+        gu["Industry"] = _sector_name
+    else:  # industry_level == 2
+        gu["Industry"] = gu["GICS_level_2"]
+
+    # --- universe-native monthly returns (NO LC steps) ---
+    gu = add_gvkey_iid_sort_clean(gu)
+    gu = to_monthly_last_trading_date(gu)
+    gu = compute_monthly_returns_long(gu)
+
+    # --- drop rows missing any standardization key (incl. firms with no GICS) ---
+    n0 = len(gu)
+    gu = gu.dropna(subset=cols_standardization)
+    print(f"[prepare_esg_universe] dropped {n0 - len(gu)} rows missing {cols_standardization}")
+
+    # --- min-group guard: thin (year, currency, GICS) cells -> degenerate z-scores ---
+    sizes = gu.groupby(cols_standardization)["gvkey_iid"].transform("nunique")
+    n1 = len(gu)
+    gu = gu[sizes >= int(min_group_size)]
+    print(
+        f"[prepare_esg_universe] dropped {n1 - len(gu)} firm-months in groups < "
+        f"{min_group_size} names (grouping on {cols_standardization})"
+    )
+
+    # --- build pivots, align factors, mask, standardize (same as the LC path) ---
+    gu, global_returns, signals = dropna_std_cols_and_build_pivots(
+        gu, cols_standardization, signal_columns
+    )
+
+    _ff_dates = _fama_french_dates_as_timestamps(fama_french["date"].copy())
+    _ff_dates = _ff_dates[_ff_dates >= global_returns.index.min()].reset_index(drop=True)
+    print(
+        f"[prepare_esg_universe] FF rows={len(_ff_dates)} | returns rows={len(global_returns)}"
+    )
+    if len(_ff_dates) != len(global_returns):
+        raise ValueError(
+            "Fama-French dates do not match returns dates "
+            f"(FF rows={len(_ff_dates)}, returns rows={len(global_returns)})."
+        )
+    ff = align_fama_french_to_returns(fama_french, global_returns)
+
+    global_returns, signals = apply_cross_signal_nan_mask(global_returns, signals)
+    signals = standardize_all_signals(signals, gu, cols_standardization)
+    long_df = merge_signals_long(signals)
+    suffix = _res_suffix_from_returns_index(global_returns.index)
+
+    return UnivariateSortingPrep(
+        global_universe=gu,
+        global_returns=global_returns,
+        signals=signals,
+        signal_names=signal_names,
+        global_long_df=long_df,
+        fama_french=ff,
+        res_suffix=suffix,
+    )

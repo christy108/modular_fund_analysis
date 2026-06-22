@@ -874,6 +874,67 @@ def get_processed_index(file_path, signal_0_simple_quantiles):
     return MSCI
 
 
+def get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_data=True):
+    """Pull GICS classification (all 4 granularities) for every gvkey in the universe.
+
+    Mirrors the ``get_accounting_data`` WRDS idiom. Pulls ``gsector/ggroup/gind/gsubind``
+    from ``comp_na_daily_all.company`` (US) + ``comp_global_daily.g_company`` (global),
+    renames them coarsest->finest to ``GICS_level_1..4``, caches to ``./data/GICS/``, and
+    returns ONE current row per gvkey.
+
+    Used by the Level-2 "ESG on the full Compustat universe" path so the ESG signal can be
+    standardized industry-neutrally WITHOUT the LC dataset. NOT used by the LC pipeline.
+    """
+    import os
+    os.makedirs("./data/GICS", exist_ok=True)
+    path = f"./data/GICS/gics_comp_{region_analysis}_{end_year}.csv"
+    _rename = {
+        "gsector": "GICS_level_1",   # sector (coarsest)
+        "ggroup": "GICS_level_2",    # industry group
+        "gind": "GICS_level_3",      # industry
+        "gsubind": "GICS_level_4",   # sub-industry (finest)
+    }
+
+    if download_gics_data:
+        conn = wrds.Connection(wrds_username="cbruce1")
+        full_gvkeys = [
+            str.zfill(gvkey, 6)
+            for gvkey in global_universe["gvkey"].astype(float).astype(int).astype(str).unique()
+        ]
+        na_call = """
+            SELECT gvkey, gsector, ggroup, gind, gsubind
+            FROM comp_na_daily_all.company
+            WHERE gvkey IN %(gvkey_list)s
+        """
+        df_na = pd.DataFrame(conn.raw_sql(na_call, params={"gvkey_list": tuple(full_gvkeys)}))
+
+        global_call = """
+            SELECT gvkey, gsector, ggroup, gind, gsubind
+            FROM comp_global_daily.g_company
+            WHERE gvkey IN %(gvkey_list)s
+        """
+        df_g = pd.DataFrame(conn.raw_sql(global_call, params={"gvkey_list": tuple(full_gvkeys)}))
+
+        gics = pd.concat([df_na, df_g], ignore_index=True).rename(columns=_rename)
+        # The company table is one current classification per gvkey; de-dup defensively.
+        gics["gvkey"] = (
+            gics["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+        )
+        gics = gics.dropna(subset=["gvkey"]).drop_duplicates(subset=["gvkey"])
+
+        print("Downloaded Fresh GICS Data and Saving to disk!")
+        gics.to_csv(path, index=False)
+    else:
+        print("Read GICS CSV")
+        gics = pd.read_csv(path)
+
+    gics["gvkey"] = (
+        gics["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+    )
+    keep = ["gvkey"] + list(_rename.values())
+    return gics[[c for c in keep if c in gics.columns]]
+
+
 
 
 
