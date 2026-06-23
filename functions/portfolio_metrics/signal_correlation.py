@@ -1,14 +1,9 @@
-"""ESG-vs-signals return correlation diagnostic.
+"""Signal-value correlation diagnostic.
 
-Builds a rectangular correlation matrix of ALREADY-COMPUTED portfolio returns:
-
-  * rows  = each LC signal's High / Low / High-Low monthly return series
-  * cols  = the ESG signal's High / Low / High-Low series
-  * cells = Pearson correlation of the two monthly return series
-
-Reads ``signal_quantiles`` directly (Low = ``p_1``, High = ``p_{no_simple_quantiles}``,
-High-Low = High - Low) -- nothing is recomputed. Used at the end of Main.ipynb on the LC
-path (``esg_choice != "none"`` and ``esg_full_universe == False``).
+Correlation matrix between the standardized SIGNAL VALUES (not portfolio returns).
+Reads the already-computed long-format ``signal_df`` (``prep.global_long_df``), which has
+one column per signal (``signal_0..n`` plus the ESG column, e.g. ``esg_refinitive``) at the
+firm-month level. Nothing is recomputed. Used at the end of Main.ipynb.
 """
 
 from __future__ import annotations
@@ -19,69 +14,50 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def esg_signal_correlation(
-    signal_quantiles,
+def signal_correlation(
+    signal_df,
     signal_names,
-    no_simple_quantiles,
     *,
-    esg_key=None,
+    signal_cols=None,
+    method="pearson",
     save_path=None,
     csv_path=None,
-    title="ESG vs signals — return correlation",
+    title="Signal correlation (standardized values)",
     show=True,
 ):
-    """Rectangular correlation of already-computed portfolio returns (no recomputation).
+    """Correlation matrix between the standardized signal values in ``signal_df``.
 
     Parameters
     ----------
-    signal_quantiles : dict[str, pd.DataFrame]
-        Per-signal quantile-return panels (columns ``p_1..p_{no_simple_quantiles}``,
-        dates index). Keys are the LC signals (``signal_0..n``) plus the ESG column.
+    signal_df : pd.DataFrame
+        Long-format firm-month signals (``prep.global_long_df``): one column per signal
+        (``signal_0..n`` + the ESG column) plus ``date``/``gvkey_iid``.
     signal_names : Mapping[str, str]
-        Display names keyed by the same signal keys (for readable labels).
-    no_simple_quantiles : int
-        Number of quantiles, so High = ``p_{no_simple_quantiles}``, Low = ``p_1``.
-    esg_key : str, optional
-        The ESG signal key; auto-detected as the key starting with ``"esg"`` if omitted.
+        Signal key -> display name. Also selects/orders the signal columns to correlate.
+    signal_cols : list[str], optional
+        Explicit signal columns; defaults to the keys of ``signal_names`` present in ``signal_df``.
+    method : str
+        Correlation method passed to ``DataFrame.corr`` ("pearson"/"spearman"/"kendall").
     save_path, csv_path : path-like, optional
         If given, save the heatmap PNG / correlation CSV.
-    show : bool
-        Whether to ``plt.show()`` (else the figure is closed after saving).
 
     Returns
     -------
     pd.DataFrame
-        Rectangular correlation matrix (LC-signal series as rows, ESG series as columns).
+        Square correlation matrix, labelled with display names.
     """
-    hi, lo = f"p_{no_simple_quantiles}", "p_1"
+    if signal_cols is None:
+        signal_cols = [k for k in signal_names if k in signal_df.columns]
+    missing = [c for c in signal_cols if c not in signal_df.columns]
+    if missing:
+        raise ValueError(f"signal_df is missing signal columns: {missing}")
+    if not signal_cols:
+        raise ValueError("No signal columns found to correlate.")
 
-    if esg_key is None:
-        esg_keys = [k for k in signal_quantiles if str(k).startswith("esg")]
-        if not esg_keys:
-            raise ValueError(
-                "No ESG signal found in signal_quantiles (expected a key starting with 'esg'). "
-                "This diagnostic is for the LC path with esg_choice != 'none'."
-            )
-        esg_key = esg_keys[0]
-
-    lc_keys = [k for k in signal_quantiles if k != esg_key]
-
-    def _legs(key):
-        nm = signal_names.get(key, key)
-        df = signal_quantiles[key]
-        return {
-            f"High {nm}": df[hi],
-            f"Low {nm}": df[lo],
-            f"High-Low {nm}": df[hi] - df[lo],
-        }
-
-    rows: dict[str, pd.Series] = {}
-    for k in lc_keys:
-        rows.update(_legs(k))
-    cols = _legs(esg_key)
-
-    panel = pd.DataFrame({**rows, **cols})
-    corr = panel.corr().loc[list(rows), list(cols)]
+    corr = signal_df[signal_cols].corr(method=method)
+    labels = [signal_names.get(c, c) for c in signal_cols]
+    corr.index = labels
+    corr.columns = labels
 
     if csv_path is not None:
         csv_path = Path(csv_path)
@@ -89,21 +65,21 @@ def esg_signal_correlation(
         corr.to_csv(csv_path)
 
     # --- annotated heatmap (pure matplotlib; no seaborn dependency) ---
-    n_rows, n_cols = corr.shape
-    fig, ax = plt.subplots(figsize=(1.4 * n_cols + 3, 0.5 * n_rows + 2))
+    n = len(labels)
+    fig, ax = plt.subplots(figsize=(1.1 * n + 2, 1.1 * n + 2))
     im = ax.imshow(corr.values, vmin=-1, vmax=1, cmap="coolwarm", aspect="auto")
 
-    ax.set_xticks(range(n_cols))
-    ax.set_xticklabels(corr.columns, rotation=45, ha="right")
-    ax.set_yticks(range(n_rows))
-    ax.set_yticklabels(corr.index)
+    ax.set_xticks(range(n))
+    ax.set_xticklabels(labels, rotation=45, ha="right")
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(labels)
 
-    for i in range(n_rows):
-        for j in range(n_cols):
+    for i in range(n):
+        for j in range(n):
             v = corr.values[i, j]
             ax.text(
                 j, i, f"{v:.2f}", ha="center", va="center",
-                color="white" if abs(v) > 0.55 else "black", fontsize=8,
+                color="white" if abs(v) > 0.55 else "black", fontsize=9,
             )
 
     ax.set_title(title)
