@@ -350,6 +350,8 @@ def prepare_esg_universe_sorting_inputs(
     industry_level: int = 0,
     year_col: str = "last_year",
     min_group_size: int = 5,
+    drop_real_estate: bool = False,
+    drop_utilities: bool = False,
 ) -> UnivariateSortingPrep:
     """Level 2: univariate-sort inputs for an ESG signal on the FULL Compustat universe,
     WITHOUT merging the LC dataset.
@@ -405,6 +407,17 @@ def prepare_esg_universe_sorting_inputs(
         55: "Real Estate", 60: "Utilities",
     }
     _sector_name = pd.to_numeric(gu["GICS_level_1"], errors="coerce").map(_GICS_SECTOR_NAME)
+
+    # --- optional ESG-only sector drops, on the RAW GICS sector ---
+    # Must happen BEFORE map_sectors, which folds Real Estate into the "Financial" bucket
+    # (after that, Real Estate is indistinguishable from Financials).
+    if drop_real_estate:
+        _keep = _sector_name != "Real Estate"
+        gu, _sector_name = gu[_keep], _sector_name[_keep]
+    if drop_utilities:
+        _keep = _sector_name != "Utilities"
+        gu, _sector_name = gu[_keep], _sector_name[_keep]
+
     if industry_level == 0:
         gu["Industry"] = _sector_name.map(lambda x: map_sectors(x) if pd.notna(x) else np.nan)
     elif industry_level == 1:
@@ -436,17 +449,61 @@ def prepare_esg_universe_sorting_inputs(
         gu, cols_standardization, signal_columns
     )
 
-    _ff_dates = _fama_french_dates_as_timestamps(fama_french["date"].copy())
-    _ff_dates = _ff_dates[_ff_dates >= global_returns.index.min()].reset_index(drop=True)
+    # Align FF to returns by MONTH INTERSECTION. The cached universe can carry months
+    # outside the FF window (e.g. years before start_year that start_year did not trim),
+    # so we keep only the months present in BOTH, then index positionally.
+    ff = fama_french.copy()
+    ff["_per"] = _fama_french_dates_as_timestamps(ff["date"]).dt.to_period("M").values
+    _ret_per = global_returns.index.to_period("M")
+    _ff_periods = set(ff["_per"])
+    _keep = _ret_per.isin(_ff_periods)
+    n_ret0 = len(global_returns)
+    global_returns = global_returns.loc[_keep]
+    signals = {k: v.loc[_keep] for k, v in signals.items()}
+    _ret_per = global_returns.index.to_period("M")
+    ff = ff[ff["_per"].isin(set(_ret_per))].drop_duplicates("_per").sort_values("_per")
     print(
-        f"[prepare_esg_universe] FF rows={len(_ff_dates)} | returns rows={len(global_returns)}"
+        f"[prepare_esg_universe] kept {len(global_returns)}/{n_ret0} return months covered by FF "
+        f"| FF rows={len(ff)}"
     )
-    if len(_ff_dates) != len(global_returns):
+    if len(ff) != len(global_returns):
         raise ValueError(
-            "Fama-French dates do not match returns dates "
-            f"(FF rows={len(_ff_dates)}, returns rows={len(global_returns)})."
+            "Fama-French / returns month mismatch after intersection "
+            f"(FF rows={len(ff)}, returns rows={len(global_returns)})."
         )
-    ff = align_fama_french_to_returns(fama_french, global_returns)
+
+    # --- PROOF: the positional assignment below only aligns if, row-for-row, the
+    # FF month (sorted ascending by `_per`) equals the returns month at the SAME
+    # position. `ff` was sorted; `global_returns` was only boolean-masked, so this
+    # also catches a non-monotonic returns index that would silently misalign. ---
+    _ret_per_chk = global_returns.index.to_period("M")
+    _ff_per_chk = pd.PeriodIndex(ff["_per"].values, freq="M")
+    _matches = (_ret_per_chk == _ff_per_chk)
+    _proof = pd.DataFrame(
+        {"row": range(len(_ret_per_chk)),
+         "returns_month": _ret_per_chk.astype(str),
+         "ff_month": _ff_per_chk.astype(str),
+         "match": _matches},
+    )
+    print("[prepare_esg_universe] FF<->returns month alignment proof (positional):")
+    print(_proof.head(6).to_string(index=False))
+    print("   ... " if len(_proof) > 12 else "")
+    if len(_proof) > 12:
+        print(_proof.tail(6).to_string(index=False))
+    print(
+        f"   matched {int(_matches.sum())}/{len(_matches)} rows | "
+        f"returns index monotonic-increasing={global_returns.index.is_monotonic_increasing}"
+    )
+    if not _matches.all():
+        _bad = _proof.loc[~_matches]
+        raise ValueError(
+            "FF/returns month MISALIGNMENT at "
+            f"{len(_bad)} row(s); first offenders:\n{_bad.head(10).to_string(index=False)}"
+        )
+    print("   -> every FF row sits on the same calendar month as its returns row. OK")
+
+    ff.index = global_returns.index
+    ff = ff.drop(columns=["date", "_per"])
 
     global_returns, signals = apply_cross_signal_nan_mask(global_returns, signals)
     signals = standardize_all_signals(signals, gu, cols_standardization)
