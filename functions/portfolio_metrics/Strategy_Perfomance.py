@@ -313,3 +313,33 @@ class StrategyPerformance:
             plt.close(fig)
 
         return ax
+
+
+# Default palette used by plot_cumulative_returns (kept in sync so the long plot is unchanged).
+_CUMULATIVE_PALETTE = ["black", "#d62728", "#87CEEB", "#9467bd", "#ADD8E6", "#FFA500", "#008000"]
+
+
+def aligned_cumulative_colors(long_columns, spread_columns, palette=None):
+    """Colour each high-low spread to match its ``High <signal>`` leg in the long plot.
+
+    The long plot keeps the default per-column palette (its appearance is unchanged); each
+    ``High - Low <signal>`` / ``Low - High <signal>`` spread is then coloured the same as the
+    long plot's ``High <signal>`` line. Returns ``(long_colors, spread_colors)`` aligned to the
+    given column orders, so the same signal has the same colour across both plots.
+    """
+    palette = palette or _CUMULATIVE_PALETTE
+    long_columns = list(long_columns)
+    spread_columns = list(spread_columns)
+    long_color = {c: palette[i % len(palette)] for i, c in enumerate(long_columns)}
+
+    def _high_leg(spread):
+        name = spread
+        for p in ("High - Low ", "Low - High "):
+            name = name.replace(p, "")
+        return "High " + name
+
+    spread_colors = [
+        long_color.get(_high_leg(c), palette[i % len(palette)])
+        for i, c in enumerate(spread_columns)
+    ]
+    return list(long_color.values()), spread_colors

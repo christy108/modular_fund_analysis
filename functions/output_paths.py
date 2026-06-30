@@ -163,27 +163,57 @@ def output_images_other_dir(
 
 
 RUN_PARAM_NAMES = [
+    # --- core run ---
+    "golden_data",
     "region_analysis",
     "action_characterization",
-    "no_simple_quantiles",
-    "execute_3_filters",
-    "golden_data",
     "signal_denominator",
-    "esg_choice",
     "start_year",
     "end_year",
-    "fama_factor_region",
+    "no_simple_quantiles",
+    # --- factors / currency ---
     "ff_factors_number",
+    "fama_factor_region",
+    "fama_factors_currency",
+    "RF_JAPAN_PATH",
     "currency_filter",
     "convert_to_USD",
-    "drop_real_estate",
-    "use_alpha_bound",
-    "show_sector_portfolio",
-    "industry_level",
-    "min_available_fyears",
-    "top_x_by_industry_even_split",
+    "region_filter",
+    "execute_region_filters",
+    # --- ESG ---
+    "esg_choice",
+    "msci_score_column",
+    "esg_full_universe",
+    "download_gics_data",
+    "esg_min_group_size",
+    "drop_real_estate_Full_ESG",
+    "drop_utilities_Full_ESG",
+    "show_esg_corr_matricies",
+    "esg_corr_method",
+    "show_esg_coverage",
+    # --- thresholds / trimming ---
     "alpha_bound",
+    "use_alpha_bound",
     "mktcap_covered",
+    "add_accounting_data",
+    "industry_level",
+    "japan_year_adjustment_split_month_for_two_or_one",
+    # --- LC sample filters ---
+    "execute_3_filters",
+    "min_available_fyears",
+    "min_initatives_annual_reports",
+    "drop_suspicious_gvkeys",
+    "drop_real_estate",
+    "drop_fin",
+    "drop_utilities",
+    "drop_health_care",
+    "anlayse_fashion_only",
+    # --- sector / portfolios / display ---
+    "top_x_by_industry_even_split",
+    "show_sector_portfolio",
+    "show_sample_portfolio",
+    "plot_coverage",
+    "hml_directions",
 ]
 
 
