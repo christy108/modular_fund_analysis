@@ -343,3 +343,32 @@ def aligned_cumulative_colors(long_columns, spread_columns, palette=None):
         for i, c in enumerate(spread_columns)
     ]
     return list(long_color.values()), spread_colors
+
+
+def consistent_cumulative_colors(high_columns, low_columns, spread_columns, palette=None):
+    """One colour per SIGNAL across the three cumulative plots (High / Low / High-Low).
+
+    The High plot gets the default positional palette; every other column is coloured by
+    stripping its leg prefix ("Low ", "High - Low ", "Low - High ") and reusing the same
+    signal's High-leg colour. Benchmarks (Market/Sample) keep their High-plot colour too.
+    Returns (high_colors, low_colors, spread_colors) aligned to the given column orders.
+    """
+    palette = palette or _CUMULATIVE_PALETTE
+    high_columns = [str(c) for c in high_columns]
+    high_colors = [palette[i % len(palette)] for i in range(len(high_columns))]
+
+    by_signal = {}
+    for c, col in zip(high_columns, high_colors):
+        key = c[len("High "):] if c.startswith("High ") else c   # signal name, or benchmark label
+        by_signal[key] = col
+
+    def _colour(c, i):
+        s = str(c)
+        for p in ("High - Low ", "Low - High ", "Low ", "High "):   # longest prefixes first
+            if s.startswith(p):
+                return by_signal.get(s[len(p):], palette[i % len(palette)])
+        return by_signal.get(s, palette[i % len(palette)])          # benchmarks pass through
+
+    low_colors = [_colour(c, i) for i, c in enumerate(low_columns)]
+    spread_colors = [_colour(c, i) for i, c in enumerate(spread_columns)]
+    return high_colors, low_colors, spread_colors
