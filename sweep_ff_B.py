@@ -46,10 +46,10 @@ import papermill as pm
 # Unique per-script tag so two sweeps can run concurrently without clobbering
 # each other's outputs (separate OUT_DIR + prefixed run_id). Keep distinct across
 # copies of this script (e.g. "B" here, "A" in sweep_ff.py).
-SWEEP_TAG = "NA_CAN_Sweep_Behaviours"
+SWEEP_TAG = "US_Refinitiv_Quick_Test"
 REPO = Path(__file__).resolve().parent
 NB_IN = REPO / "Main.ipynb"
-OUT_DIR = REPO / "output" / f"SWEEP_{SWEEP_TAG}"
+OUT_DIR = REPO / "output" / "Sweeps" / f"SWEEP_{SWEEP_TAG}"
 RUN_NB_DIR = OUT_DIR / "executed_notebooks"
 PKL_DIR = OUT_DIR / "ff_pickles"
 KERNEL_NAME = "python3"
@@ -61,10 +61,10 @@ KERNEL_NAME = "python3"
 # --------------------------------------------------------------------------- #
 BASE = {
     "golden_data": "v_2C",
-    "region_analysis": "North_America_and_Canada",   # this sweep's region (injected; derived in Main.ipynb post-injection cell)
+    "region_analysis": "United_States",   # this sweep's region (injected; derived in Main.ipynb post-injection cell)
     "fama_factors_currency": "JPY",   # pinned: Japanese-investor numeraire (USD factors -> JPY)
     "action_characterization": "original_matteo",
-    "esg_choice": "none",
+    "esg_choice": "refinitiv",
     "start_year": 2012,
     "end_year": 2024,
     "no_simple_quantiles": 6,
@@ -100,11 +100,9 @@ BASE = {
 # --------------------------------------------------------------------------- #
 # --------------------------------------------------------------------------- #
 SWEEP_GRID = {
-    "start_year": [2012, 2015, 2018, 2019],
-    "no_simple_quantiles": [6, 7, 10],
-    "mktcap_covered": [0.9, 0.95],
+    "start_year": [2012, 2015, 2018],
+     "no_simple_quantiles": [6, 7],
     "alpha_bound": [0.05, 0.1],
-    "execute_3_filters": [True, False],
 }
 
 
