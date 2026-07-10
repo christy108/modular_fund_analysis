@@ -46,10 +46,10 @@ import papermill as pm
 # Unique per-script tag so two sweeps can run concurrently without clobbering
 # each other's outputs (separate OUT_DIR + prefixed run_id). Keep distinct across
 # copies of this script (e.g. "B" here, "A" in sweep_ff.py).
-SWEEP_TAG = "B"
+SWEEP_TAG = "US_Refinitiv_Quick_Test"
 REPO = Path(__file__).resolve().parent
 NB_IN = REPO / "Main.ipynb"
-OUT_DIR = REPO / "output" / f"SWEEP_{SWEEP_TAG}"
+OUT_DIR = REPO / "output" / "Sweeps" / f"SWEEP_{SWEEP_TAG}"
 RUN_NB_DIR = OUT_DIR / "executed_notebooks"
 PKL_DIR = OUT_DIR / "ff_pickles"
 KERNEL_NAME = "python3"
@@ -61,10 +61,10 @@ KERNEL_NAME = "python3"
 # --------------------------------------------------------------------------- #
 BASE = {
     "golden_data": "v_2C",
-    "region_analysis": "Japan",          # pinned (see module docstring)
+    "region_analysis": "United_States",   # this sweep's region (injected; derived in Main.ipynb post-injection cell)
     "fama_factors_currency": "JPY",   # pinned: Japanese-investor numeraire (USD factors -> JPY)
-    "action_characterization": "4_signals_new",
-    "esg_choice": "none",
+    "action_characterization": "original_matteo",
+    "esg_choice": "refinitiv",
     "start_year": 2012,
     "end_year": 2024,
     "no_simple_quantiles": 6,
@@ -98,16 +98,11 @@ BASE = {
 # SWEEP grid -- edit these lists to explore the space.
 # Keep it small first; the cartesian product grows fast.
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
 SWEEP_GRID = {
-    "esg_choice": ["refinitiv", "msci"],
-    "start_year": [2012, 2018],
+    "start_year": [2012, 2015, 2018],
+     "no_simple_quantiles": [6, 7],
     "alpha_bound": [0.05, 0.1],
-    "mktcap_covered": [0.95, 0.99],
-    "min_available_fyears": [1, 3],
-    "min_initatives_annual_reports": [0, 5],
-    "no_simple_quantiles": [6, 7, 10],
-    "japan_year_adjustment_split_month_for_two_or_one": [3, 6, 9],
-   
 }
 
 
@@ -175,20 +170,27 @@ def run_one(params: dict, run_id: str) -> dict | None:
     return flat
 
 
-def _write_xlsx(out_xlsx: Path, ff3_rows: list[dict], ff5_rows: list[dict]) -> bool:
-    """Rebuild the Excel workbook from accumulated rows. Returns True on success.
+def _alpha_cols(flat: dict, prefix: str) -> dict:
+    """Keep ONLY the alpha and p-value(alpha) entries for a given ff3__/ff5__ prefix."""
+    return {
+        k: v for k, v in flat.items()
+        if k.startswith(prefix) and (k.endswith("__alpha") or k.endswith("__p-value(alpha)"))
+    }
+
+
+def _write_combined_xlsx(out_xlsx: Path, rows: list[dict]) -> bool:
+    """Rebuild the combined (params + FF3/FF5 alpha & p-value) Excel file. Returns True on success.
 
     Never raises: if Excel is locked/open the sweep keeps going (the CSV
-    checkpoints remain the durable record).
+    checkpoint remains the durable record).
     """
     try:
         with pd.ExcelWriter(out_xlsx, engine="openpyxl") as xl:
-            pd.DataFrame(ff3_rows).to_excel(xl, sheet_name="FF3", index=False)
-            pd.DataFrame(ff5_rows).to_excel(xl, sheet_name="FF5", index=False)
+            pd.DataFrame(rows).to_excel(xl, sheet_name="alpha_pvalue", index=False)
         return True
     except Exception as exc:  # noqa: BLE001
         print(f"  !! could not write {out_xlsx.name} ({exc}); "
-              f"results are safe in the CSV checkpoints.", file=sys.stderr)
+              f"results are safe in the CSV checkpoint.", file=sys.stderr)
         return False
 
 
@@ -229,7 +231,7 @@ def main(argv=None) -> int:
         d.mkdir(parents=True, exist_ok=True)
 
     swept_keys = list(SWEEP_GRID.keys())
-    ff3_rows, ff5_rows = [], []
+    rows: list = []
     done: set = set()
     stamp = None
 
@@ -237,16 +239,13 @@ def main(argv=None) -> int:
     # new results append to the SAME csv/xlsx. Completed combos are matched on the
     # swept-parameter values (string-compared) so any failed/missing run is retried.
     if args.resume:
-        prev = sorted(OUT_DIR.glob("sweep_ff_*_ff3.csv"))
+        prev = sorted(OUT_DIR.glob("sweep_ff_*_alpha_pvalue_combined.csv"))
         if prev:
-            ff3_prev = prev[-1]
-            stamp = ff3_prev.name[len("sweep_ff_"):-len("_ff3.csv")]
-            ff5_prev = OUT_DIR / f"sweep_ff_{stamp}_ff5.csv"
-            ff3_rows = pd.read_csv(ff3_prev).to_dict("records")
-            if ff5_prev.exists():
-                ff5_rows = pd.read_csv(ff5_prev).to_dict("records")
-            done = {tuple(str(r[k]) for k in swept_keys) for r in ff3_rows}
-            print(f"resume: {len(done)} combo(s) already done in {ff3_prev.name}; skipping them.")
+            comb_prev = prev[-1]
+            stamp = comb_prev.name[len("sweep_ff_"):-len("_alpha_pvalue_combined.csv")]
+            rows = pd.read_csv(comb_prev).to_dict("records")
+            done = {tuple(str(r[k]) for k in swept_keys) for r in rows}
+            print(f"resume: {len(done)} combo(s) already done in {comb_prev.name}; skipping them.")
         else:
             print("resume: no existing checkpoint found; starting a fresh run.")
 
@@ -254,9 +253,10 @@ def main(argv=None) -> int:
     # crash-proof record); the xlsx is rebuilt every `--flush` runs and at the end.
     if stamp is None:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_xlsx = OUT_DIR / f"sweep_ff_{stamp}.xlsx"
-    ff3_csv = OUT_DIR / f"sweep_ff_{stamp}_ff3.csv"
-    ff5_csv = OUT_DIR / f"sweep_ff_{stamp}_ff5.csv"
+    # Single combined output: params + alpha & p-value(alpha) for FF3 and FF5 only.
+    # (Full betas / SMB / HML / RMW / CMA remain in the per-run pickles under ff_pickles/.)
+    combined_csv = OUT_DIR / f"sweep_ff_{stamp}_alpha_pvalue_combined.csv"
+    combined_xlsx = OUT_DIR / f"sweep_ff_{stamp}_alpha_pvalue_combined.xlsx"
 
     for i, params in enumerate(combos):
         run_id = f"{SWEEP_TAG}_{i:04d}"
@@ -275,27 +275,25 @@ def main(argv=None) -> int:
         # Common per-combo columns: every BASE/swept param + the full dict repr.
         meta = {**params, "run_id": run_id, "full_params": repr(params)}
 
-        ff3_row = {**meta, **{k: v for k, v in flat.items() if k.startswith("ff3__")}}
-        ff5_row = {**meta, **{k: v for k, v in flat.items() if k.startswith("ff5__")}}
-        ff3_rows.append(ff3_row)
-        ff5_rows.append(ff5_row)
+        # Keep ONLY alpha + p-value(alpha) per portfolio (FF3 & FF5), combined into one row.
+        row = {**meta, **_alpha_cols(flat, "ff3__"), **_alpha_cols(flat, "ff5__")}
+        rows.append(row)
 
-        # Durable checkpoint: append this run's rows to the CSVs right away.
-        _append_csv(ff3_csv, ff3_row)
-        _append_csv(ff5_csv, ff5_row)
+        # Durable checkpoint: append this combined row to the CSV right away.
+        _append_csv(combined_csv, row)
 
         # Periodically refresh the Excel workbook.
-        if args.flush > 0 and (len(ff3_rows) % args.flush == 0):
-            if _write_xlsx(out_xlsx, ff3_rows, ff5_rows):
-                print(f"  .. checkpoint: {len(ff3_rows)} rows -> {out_xlsx.name}")
+        if args.flush > 0 and (len(rows) % args.flush == 0):
+            if _write_combined_xlsx(combined_xlsx, rows):
+                print(f"  .. checkpoint: {len(rows)} rows -> {combined_xlsx.name}")
 
-    if not ff3_rows:
+    if not rows:
         print("No successful runs; nothing to write.", file=sys.stderr)
         return 1
 
-    _write_xlsx(out_xlsx, ff3_rows, ff5_rows)
-    print(f"\nWrote {len(ff3_rows)} row(s) to {out_xlsx}")
-    print(f"CSV checkpoints: {ff3_csv.name}, {ff5_csv.name}")
+    _write_combined_xlsx(combined_xlsx, rows)
+    print(f"\nWrote {len(rows)} row(s) to {combined_xlsx}")
+    print(f"CSV checkpoint: {combined_csv.name}")
     return 0
 
 

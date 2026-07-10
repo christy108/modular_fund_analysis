@@ -247,6 +247,8 @@ def prepare_univariate_sorting_inputs(
     cols_standardization: Sequence[str],
     *,
     apply_geo_filter: bool = False,
+    show_corr_matrices: bool = False,
+    corr_method: str = "pearson",
 ) -> UnivariateSortingPrep:
     """
     Build monthly panel, pivots, aligned factors, masked and z-scored signals, and long-format merge.
@@ -326,6 +328,19 @@ def prepare_univariate_sorting_inputs(
     ff = align_fama_french_to_returns(fama_french, global_returns)
 
     global_returns, signals = apply_cross_signal_nan_mask(global_returns, signals)
+
+    # NON-normalised ESG-vs-behavioural relationship, shown BEFORE standardization.
+    # Only when requested and an ESG signal is present (esg_choice != "none").
+    if show_corr_matrices and any(str(k).startswith("esg") for k in signals):
+        from functions.portfolio_metrics.signal_correlation import (
+            esg_signal_regressions_from_pivots, signal_correlation_matrix_from_pivots,
+        )
+        esg_signal_regressions_from_pivots(signals, signal_names, show=True)
+        signal_correlation_matrix_from_pivots(
+            signals, signal_names, method=corr_method,
+            title="Signal correlation matrix (non-normalised)", show=True,
+        )
+
     signals = standardize_all_signals(signals, gu, cols_standardization)
     long_df = merge_signals_long(signals)
     suffix = _res_suffix_from_returns_index(global_returns.index)
