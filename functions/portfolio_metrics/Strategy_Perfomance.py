@@ -37,13 +37,16 @@ class StrategyPerformance:
 
     HORIZON_COLUMNS = ["1m", "3m", "YTD", "1yr", "3yr", "5yr", "10yr", "Since launch"]
 
-    def __init__(self, portfolio_returns: pd.DataFrame, ff3_parts_df: pd.DataFrame | None = None):
+    def __init__(self, portfolio_returns: pd.DataFrame, ff3_parts_df: pd.DataFrame | None = None,
+                 excess_returns: pd.DataFrame | None = None):
         df = portfolio_returns.copy()
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
         df.sort_index(inplace=True)
 
         self.portfolio_returns = df
+        # Excess returns (r - rf); used ONLY for the Sharpe ratio. Other metrics use total returns.
+        self.excess_returns = excess_returns.reindex(df.index) if isinstance(excess_returns, pd.DataFrame) else None
         self.ff3_parts_df = ff3_parts_df.copy() if isinstance(ff3_parts_df, pd.DataFrame) else None
 
     def cumulative_performance_table(
@@ -151,6 +154,9 @@ class StrategyPerformance:
         if df_asof.empty:
             raise ValueError("No rows on or before as_of")
 
+        # Excess returns for the Sharpe numerator/denominator only (falls back to total returns if not provided).
+        excess_asof = self.excess_returns.loc[self.excess_returns.index <= end] if self.excess_returns is not None else None
+
         metrics = pd.DataFrame(
             index=df.columns,
             columns=["Sharpe", "VaR 1%", "Max Drawdown"],
@@ -162,8 +168,9 @@ class StrategyPerformance:
             if r.empty:
                 continue
 
-            std = float(r.std(ddof=1))
-            mean = float(r.mean())
+            er = excess_asof[col].dropna() if excess_asof is not None else r
+            std = float(er.std(ddof=1))
+            mean = float(er.mean())
             metrics.loc[col, "Sharpe"] = (
                 (mean / std) * float(np.sqrt(12)) if std != 0.0 else np.nan
             )
