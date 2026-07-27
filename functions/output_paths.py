@@ -209,6 +209,7 @@ RUN_PARAM_NAMES = [
     "show_sample_portfolio",
     "plot_coverage",
     "show_esg_coverage",
+    "include_all_signals_in_cum_risk_table",
     # --- Long-short spreads ---
     "hml_directions",
     # --- Region-derived (cell 3) ---

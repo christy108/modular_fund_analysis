@@ -202,7 +202,7 @@ class StrategyPerformance:
         if "Alpha" in metrics.columns:
             formatted["Alpha"] = metrics["Alpha"].map(lambda x: _format_num(x, dp=2))
         if "p-value(alpha)" in metrics.columns:
-            formatted["p-value(alpha)"] = metrics["p-value(alpha)"].map(lambda x: _format_num(x, dp=3))
+            formatted["p-value(alpha)"] = metrics["p-value(alpha)"].map(lambda x: _format_num(x, dp=2))
 
         path = Path(csv_path)
         path.parent.mkdir(parents=True, exist_ok=True)
