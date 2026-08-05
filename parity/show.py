@@ -33,22 +33,23 @@ def show(config: str, *, all_artifacts: bool = False, show_old: bool = False) ->
     present = sorted(p.stem for p in new_dir.glob("*.parquet"))
     names = present if all_artifacts else [n for n in HEADLINE if n in present]
 
-    print(f"\n{'#' * 70}\n# CONFIG: {config}\n{'#' * 70}")
+    print(f"\n{'#' * 78}\n# CONFIG: {config}   (NOTEBOOK vs PIPELINE, printed for your own eyes)\n{'#' * 78}")
     for name in names:
         new = pd.read_parquet(new_dir / f"{name}.parquet")
-        print(f"\n===== {name}  (pipeline output) =====")
-        print(new.to_string(index=False))
-
         old_path = old_dir / f"{name}.parquet"
+
+        print(f"\n{'=' * 78}\n===== {name} =====\n{'=' * 78}")
         if old_path.exists():
             old = pd.read_parquet(old_path)
+            print("\n----- (1) NOTEBOOK  Main.ipynb -----")
+            print(old.to_string(index=False))
+            print("\n----- (2) PIPELINE  pipeline.run -----")
+            print(new.to_string(index=False))
             ok, msg = _compare_frame(old, new)
-            print(f"  matches notebook (Main.ipynb): {'YES  ✓ identical' if ok else 'NO  ✗ ' + msg}")
-            if show_old and not ok:
-                print("  --- notebook version ---")
-                print(old.to_string(index=False))
+            print(f"\n>>> automated check: {'IDENTICAL ✓ (every cell equal)' if ok else 'DIFFERS ✗ ' + msg}")
         else:
-            print("  (no notebook oracle captured for this artifact)")
+            print("\n----- PIPELINE  pipeline.run  (no notebook oracle captured) -----")
+            print(new.to_string(index=False))
 
 
 if __name__ == "__main__":
