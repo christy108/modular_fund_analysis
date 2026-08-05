@@ -28,8 +28,8 @@ def _norm(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = [str(c) for c in df.columns]
     # First column is the row-key (metric/portfolio/date/RangeIndex); unify its name.
-    df = df.rename(columns={df.columns[0]: "key"}).copy()
-    df.loc[:, "key"] = df["key"].astype(str)
+    df = df.rename(columns={df.columns[0]: "key"})
+    df = df.assign(key=df["key"].astype(str))  # new column object -> no dtype/chained warning
     return df.sort_values("key", kind="stable").reset_index(drop=True)
 
 
