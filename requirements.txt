@@ -5,6 +5,12 @@
 # --- Core data / numerics ---
 pandas==2.2.3
 numpy==2.4.3
+polars==1.43.2               # node-boundary frames + hashing in the leonardo_nodes pipeline
+
+# --- Modular pipeline framework (install editable from the sibling repo) ---
+#   pip install -e ../leonardo-nodes
+# leonardo_nodes wraps the existing functions/ code as an auditable node pipeline
+# (pipeline/). Not on PyPI; pinned by the checked-out ../leonardo-nodes.
 
 # --- Econometrics (FF3/FF5 OLS in functions/portfolio_metrics/fama_french.py) ---
 statsmodels==0.14.6
