@@ -291,6 +291,9 @@ def prepare_univariate_sorting_inputs(
     gu = merge_lc_into_global_universe(gu, lc, category_columns, list(lc_signals.keys()))
     gu = add_gvkey_iid_sort_clean(gu)
     gu = to_monthly_last_trading_date(gu)
+
+
+    
     gu = compute_monthly_returns_long(gu)
     gu = normalize_category_shares(gu, category_columns)
     if apply_geo_filter:
