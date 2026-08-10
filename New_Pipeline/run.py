@@ -29,9 +29,16 @@ from New_Pipeline.experiments import EXPERIMENTS
 from New_Pipeline.registry import register_processes
 
 # Output-table nodes whose tidy polars frame is written straight to parquet.
-_TIDY = {"ff3_parts_df": "ff3_parts", "cumulative_table": "cumulative_table", "risk_table": "risk_table"}
+_TIDY = {"ff3_parts_df": "ff3_parts"}
 _BUNDLE_NODE = "build_constituents"
 _BUNDLE_KEYS = ["constituents_Industry", "constituents_loc", "holdings_over_time"]
+
+# performance_tables carries two tables in one tidy frame, columns prefixed
+# "<artifact>::<column>" (see nodes/08_performance_tables.py). Split them back out so the
+# on-disk artifacts — cumulative_table.parquet, risk_table.parquet — are unchanged.
+_SPLIT_NODE = "performance_tables"
+_SPLIT_KEY = "portfolio"
+_SPLIT_SEP = "::"
 
 
 def _export(outputs: dict, target: Path) -> list[str]:
@@ -45,6 +52,18 @@ def _export(outputs: dict, target: Path) -> list[str]:
         df = outputs.get(node)
         if isinstance(df, pl.DataFrame):
             df.write_parquet(target / f"{fname}.parquet")
+            written.append(fname)
+
+    split = outputs.get(_SPLIT_NODE)
+    if isinstance(split, pl.DataFrame):
+        prefixed = [c for c in split.columns if _SPLIT_SEP in c]
+        for fname in dict.fromkeys(c.split(_SPLIT_SEP, 1)[0] for c in prefixed):
+            cols = [c for c in prefixed if c.startswith(f"{fname}{_SPLIT_SEP}")]
+            # select() preserves column order; rows keep the frame's order.
+            sub = split.select([_SPLIT_KEY, *cols]).rename(
+                {c: c.split(_SPLIT_SEP, 1)[1] for c in cols}
+            )
+            sub.write_parquet(target / f"{fname}.parquet")
             written.append(fname)
 
     bundle = unpack_obj(outputs[_BUNDLE_NODE])

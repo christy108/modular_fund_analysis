@@ -146,8 +146,7 @@ flowchart LR
     build_portfolios["build_portfolios"]
     ff3_parts["ff3_parts"]
     rolling_alphas["rolling_alphas"]
-    cumulative_table["cumulative_table"]
-    risk_table["risk_table"]
+    performance_tables["performance_tables"]
     build_constituents["build_constituents"]
     esg_signal_corr["esg_signal_corr"]
     esg_coverage["esg_coverage"]
@@ -163,12 +162,11 @@ flowchart LR
     build_portfolios -->|port| build_constituents
     build_portfolios -->|port| ff3_parts
     build_portfolios -->|port| rolling_alphas
-    build_portfolios -->|port| cumulative_table
-    build_portfolios -->|port| risk_table
-    ff3_parts -->|ff3_parts_df| risk_table
+    build_portfolios -->|port| performance_tables
+    ff3_parts -->|ff3_parts_df| performance_tables
 ```
 
-Not drawn: every one of the 12 nodes also has an unconnected **`cfg`** port. Those are
+Not drawn: every one of the 11 nodes also has an unconnected **`cfg`** port. Those are
 external inputs, bound per Experiment to the same one-row config frame (see below).
 
 The `NN_` filename prefixes are a *reading* order. The real execution order comes from
@@ -177,7 +175,7 @@ The `NN_` filename prefixes are a *reading* order. The real execution order come
 ```
 load_signal_lc → build_global_universe → load_fama_french → prepare_panel →
 build_portfolios → esg_signal_corr → esg_coverage → build_constituents →
-ff3_parts → rolling_alphas → cumulative_table → risk_table
+ff3_parts → rolling_alphas → performance_tables
 ```
 
 ---
@@ -193,8 +191,7 @@ ff3_parts → rolling_alphas → cumulative_table → risk_table
 | 05 | [build_portfolios](nodes/05_build_portfolios.py) | `prep`, `cfg` → `out` | 31, 34, 36–39, 42, 43, 51 | Quantile portfolios `p_1..p_K` per signal, excess returns, Market row, High−Low spreads, and the include-all table inputs |
 | 06 | [ff3_parts](nodes/06_ff3_parts.py) | `port`, `cfg` → `out` | 48 | `ff3_parts_df`: FF3 OLS (HC1) alpha/betas/p-values/Adj. R² per portfolio, rounded to 2dp |
 | 07 | [rolling_alphas](nodes/07_rolling_alphas.py) | `port`, `cfg` → `out` | 43 | Rolling FF3 alphas at 40- and 24-month windows, long by `(date, label, window)` |
-| 08 | [cumulative_table](nodes/08_cumulative_table.py) | `port`, `cfg` → `out` | 51 | Horizon compound returns (1m, 3m, YTD, 1yr, 3yr, 5yr, 10yr, Since launch) as formatted % |
-| 09 | [risk_table](nodes/09_risk_table.py) | `port`, `ff3_parts_df`, `cfg` → `out` | 51 | Sharpe, VaR 1%, Max Drawdown + Alpha/p-value borrowed from `ff3_parts_df` |
+| 08 | [performance_tables](nodes/08_performance_tables.py) | `port`, `ff3_parts_df`, `cfg` → `out` | 51 | **Both** per-portfolio tables in one tidy frame: horizon compound returns (1m…Since launch) and Sharpe / VaR 1% / Max Drawdown + Alpha/p-value from `ff3_parts_df`. Split back into two parquets on export — see below |
 | 10 | [build_constituents](nodes/10_build_constituents.py) | `port`, `cfg` → `out` | 58, 59 (numeric parts) | Constituent counts by Industry and by `loc` over time, plus high-bucket holdings — the data behind the constituent plots |
 | 11 | [esg_signal_corr](nodes/11_esg_signal_corr.py) | `prep`, `cfg` → `out` | 52 | **Gated diagnostic**: ESG-on-signal regressions + correlation matrices |
 | 12 | [esg_coverage](nodes/12_esg_coverage.py) | `universe`, `lc`, `prep`, `cfg` → `out` | 63 | **Gated diagnostic**: % of firm-years with a non-NaN ESG score per provider per sample |
@@ -283,6 +280,18 @@ Plus the ESG diagnostic frames when those nodes are enabled. `runs/`,
 `parity/artifacts/` and `.leonardo_nodes_store/` are all gitignored — generated, not
 source.
 
+**One node, two artifacts.** `performance_tables` emits a single tidy frame whose columns
+are prefixed `cumulative_table::…` and `risk_table::…`; `_export` splits on `::` and writes
+the two parquets under their original names, preserving row and column order. That's why the
+merge of the former nodes 08 and 09 left the on-disk artifacts — and therefore the parity
+check — completely unchanged. `_SPLIT_SEP` in [run.py](run.py) and the `sep` literal in
+[nodes/08_performance_tables.py](nodes/08_performance_tables.py) are the two halves of that
+contract; keep them in sync.
+
+Carrying both tables in one *tidy* frame rather than a `pack_obj` bundle is deliberate: it
+keeps `RowCountViz` honest (`row_count: 10` for `base_none`, 13 for the ESG configs, 4 for
+`esg_full_universe`) instead of reporting `1` for a pickle cell.
+
 The manifest is the point of the whole exercise. An excerpt:
 
 ```
@@ -315,8 +324,9 @@ cells must satisfy `np.isclose(rtol=1e-9, atol=1e-12, equal_nan=True)`.
 [tests/test_parity.py](../tests/test_parity.py) has three layers:
 
 1. `test_boundary_roundtrip` — fast, no data: the boundary conversions are identities.
-2. `test_pipeline_validates_and_registers` — the DAG validates and all 13 processes
-   register (12 nodes; `prepare_panel` has 2).
+2. `test_pipeline_validates_and_registers` — the DAG validates and all processes register
+   (11 nodes and 12 processes here, since `prepare_panel` has 2; note this test currently
+   imports `pipeline`, which still has 12 nodes / 13 processes).
 3. `test_parity[<config>]` — per-config output equality against the frozen notebook
    oracle in `parity/artifacts/old/`. **Skipped** if artifacts are absent, so a green
    suite on a fresh checkout does not mean parity was checked — run the configs first.
@@ -348,7 +358,7 @@ fresh namespace. `prepare_lc_v1` inlines its return bundle for exactly this reas
 ### Add a node
 
 1. Create `nodes/NN_<name>.py` with `CONTRACT` / `@process` / `NODE`, in that order
-   (copy the shape of [09_risk_table.py](nodes/09_risk_table.py) — it's the smallest).
+   (copy the shape of [03_load_fama_french.py](nodes/03_load_fama_french.py) — it's the smallest).
 2. Add the module name to `_NODE_ORDER` in [registry.py](registry.py).
 3. Add its wires to `EDGES` in the same file. **Never** import one node from another.
 4. `python -m New_Pipeline.registry` — validate before you run anything.
@@ -423,7 +433,7 @@ New_Pipeline/
 
 ## Relationship to `pipeline/`
 
-`New_Pipeline/` is a full copy of [`pipeline/`](../pipeline/) — same 12 nodes, same
+`New_Pipeline/` is a full copy of [`pipeline/`](../pipeline/) — originally the same 12 nodes, same
 Contracts, same Processes — with every internal import rewritten so it is a genuinely
 independent package (`from New_Pipeline._common import store`, not `from pipeline…`).
 Change a node here and nothing in `pipeline/` moves.

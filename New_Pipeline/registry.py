@@ -3,7 +3,7 @@
 Nodes never reference their neighbours — all topology lives here (leonardo_nodes
 principle: Pipeline owns the edges). Import this module to get:
     CONTRACTS      : {name -> Contract}
-    NODE_MODULES   : the 13 node modules (each exposes CONTRACT + NODE + @process fns)
+    NODE_MODULES   : the 11 node modules (each exposes CONTRACT + NODE + @process fns)
     build_pipeline(): a validated Pipeline
     register_processes(): ingest every @process into the shared store
 """
@@ -28,8 +28,8 @@ _NODE_ORDER = [
     "05_build_portfolios",
     "06_ff3_parts",
     "07_rolling_alphas",
-    "08_cumulative_table",
-    "09_risk_table",
+    # 08 merges the former 08_cumulative_table + 09_risk_table; the 09 slot is retired.
+    "08_performance_tables",
     "10_build_constituents",
     "11_esg_signal_corr",
     "12_esg_coverage",
@@ -53,9 +53,8 @@ EDGES = [
     ("build_portfolios.out", "build_constituents.port"),
     ("build_portfolios.out", "ff3_parts.port"),
     ("build_portfolios.out", "rolling_alphas.port"),
-    ("build_portfolios.out", "cumulative_table.port"),
-    ("build_portfolios.out", "risk_table.port"),
-    ("ff3_parts.out", "risk_table.ff3_parts_df"),
+    ("build_portfolios.out", "performance_tables.port"),
+    ("ff3_parts.out", "performance_tables.ff3_parts_df"),
 ]
 
 
