@@ -28,8 +28,12 @@ from New_Pipeline._common import store
 from New_Pipeline.experiments import EXPERIMENTS
 from New_Pipeline.registry import register_processes
 
-# Output-table nodes whose tidy polars frame is written straight to parquet.
-_TIDY = {"ff3_parts_df": "ff3_parts"}
+# ff3_alphas carries the level FF3 table and the rolling alphas in one bundle. Both are
+# exported: {artifact name: (bundle key, index column for pd_to_pl)}. The index column
+# reproduces the pre-merge on-disk shape exactly ("metric" for the level table; the
+# rolling frame's RangeIndex is dropped, as before).
+_ALPHAS_NODE = "ff3_alphas"
+_ALPHAS_EXPORT = {"ff3_parts_df": ("ff3_parts_df", "metric"), "rolling_alphas": ("rolling_alphas", None)}
 _BUNDLE_NODE = "build_constituents"
 _BUNDLE_KEYS = ["constituents_Industry", "constituents_loc", "holdings_over_time"]
 
@@ -43,16 +47,19 @@ _SPLIT_SEP = "::"
 
 def _export(outputs: dict, target: Path) -> list[str]:
     """Write every output artifact under ``target``; return the artifact names."""
-    from New_Pipeline.boundary import PICKLE_COL, SENTINEL_COL, unpack_obj
+    from New_Pipeline.boundary import PICKLE_COL, SENTINEL_COL, pd_to_pl, unpack_obj
 
     target.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
 
-    for fname, node in _TIDY.items():
-        df = outputs.get(node)
-        if isinstance(df, pl.DataFrame):
-            df.write_parquet(target / f"{fname}.parquet")
-            written.append(fname)
+    alphas = outputs.get(_ALPHAS_NODE)
+    if alphas is not None:
+        bundle = unpack_obj(alphas)
+        for fname, (key, index_name) in _ALPHAS_EXPORT.items():
+            frame = bundle.get(key)
+            if frame is not None:
+                pd_to_pl(frame, index_name=index_name).write_parquet(target / f"{fname}.parquet")
+                written.append(fname)
 
     split = outputs.get(_SPLIT_NODE)
     if isinstance(split, pl.DataFrame):

@@ -3,7 +3,7 @@
 Nodes never reference their neighbours — all topology lives here (leonardo_nodes
 principle: Pipeline owns the edges). Import this module to get:
     CONTRACTS      : {name -> Contract}
-    NODE_MODULES   : the 11 node modules (each exposes CONTRACT + NODE + @process fns)
+    NODE_MODULES   : the 10 node modules (each exposes CONTRACT + NODE + @process fns)
     build_pipeline(): a validated Pipeline
     register_processes(): ingest every @process into the shared store
 """
@@ -11,29 +11,23 @@ principle: Pipeline owns the edges). Import this module to get:
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 
 from leonardo_nodes import Pipeline
 
 from New_Pipeline._common import store
 
-# Node modules are numbered by run order (nodes/NN_<name>.py). Filenames starting
+# Node modules are numbered by reading order (nodes/NN_<name>.py). Filenames starting
 # with a digit are not valid import identifiers, so they are loaded by string.
 # run_experiment computes the true execution order from the DAG (topological_order);
 # these numbers are just a readable reading order.
-_NODE_ORDER = [
-    "01_load_signal_lc",
-    "02_build_global_universe",
-    "03_load_fama_french",
-    "04_prepare_panel",
-    "05_build_portfolios",
-    "06_ff3_parts",
-    "07_rolling_alphas",
-    # 08 merges the former 08_cumulative_table + 09_risk_table; the 09 slot is retired.
-    "08_performance_tables",
-    "10_build_constituents",
-    "11_esg_signal_corr",
-    "12_esg_coverage",
-]
+#
+# Discovered from disk rather than hand-listed, so renaming or renumbering a node file
+# can never desync this list from the directory (which it silently did once).
+_NODES_DIR = Path(__file__).resolve().parent / "nodes"
+_NODE_ORDER = sorted(p.stem for p in _NODES_DIR.glob("[0-9][0-9]_*.py"))
+if not _NODE_ORDER:
+    raise RuntimeError(f"no node modules found in {_NODES_DIR}")
 NODE_MODULES = [importlib.import_module(f"New_Pipeline.nodes.{n}") for n in _NODE_ORDER]
 
 CONTRACTS = {m.CONTRACT.name: m.CONTRACT for m in NODE_MODULES}
@@ -51,10 +45,9 @@ EDGES = [
     ("build_global_universe.out", "esg_coverage.universe"),
     ("load_signal_lc.out", "esg_coverage.lc"),
     ("build_portfolios.out", "build_constituents.port"),
-    ("build_portfolios.out", "ff3_parts.port"),
-    ("build_portfolios.out", "rolling_alphas.port"),
+    ("build_portfolios.out", "ff3_alphas.port"),
     ("build_portfolios.out", "performance_tables.port"),
-    ("ff3_parts.out", "performance_tables.ff3_parts_df"),
+    ("ff3_alphas.out", "performance_tables.ff3_parts_df"),
 ]
 
 

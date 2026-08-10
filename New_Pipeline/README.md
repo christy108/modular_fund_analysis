@@ -144,8 +144,7 @@ flowchart LR
     load_fama_french["load_fama_french"]
     prepare_panel["prepare_panel"]
     build_portfolios["build_portfolios"]
-    ff3_parts["ff3_parts"]
-    rolling_alphas["rolling_alphas"]
+    ff3_alphas["ff3_alphas"]
     performance_tables["performance_tables"]
     build_constituents["build_constituents"]
     esg_signal_corr["esg_signal_corr"]
@@ -160,13 +159,12 @@ flowchart LR
     build_global_universe -->|universe| esg_coverage
     load_signal_lc -->|lc| esg_coverage
     build_portfolios -->|port| build_constituents
-    build_portfolios -->|port| ff3_parts
-    build_portfolios -->|port| rolling_alphas
+    build_portfolios -->|port| ff3_alphas
     build_portfolios -->|port| performance_tables
-    ff3_parts -->|ff3_parts_df| performance_tables
+    ff3_alphas -->|ff3_parts_df| performance_tables
 ```
 
-Not drawn: every one of the 11 nodes also has an unconnected **`cfg`** port. Those are
+Not drawn: every one of the 10 nodes also has an unconnected **`cfg`** port. Those are
 external inputs, bound per Experiment to the same one-row config frame (see below).
 
 The `NN_` filename prefixes are a *reading* order. The real execution order comes from
@@ -175,7 +173,7 @@ The `NN_` filename prefixes are a *reading* order. The real execution order come
 ```
 load_signal_lc → build_global_universe → load_fama_french → prepare_panel →
 build_portfolios → esg_signal_corr → esg_coverage → build_constituents →
-ff3_parts → rolling_alphas → performance_tables
+ff3_alphas → performance_tables
 ```
 
 ---
@@ -189,12 +187,11 @@ ff3_parts → rolling_alphas → performance_tables
 | 03 | [load_fama_french](nodes/03_load_fama_french.py) | `cfg` → `out` | 26 (factor part) | FF3 factors (`mktrf`, `smb`, `hml`, `rf`) for the configured region, with JPY conversion when configured |
 | 04 | [prepare_panel](nodes/04_prepare_panel.py) | `global_universe`, `lc`, `fama_french_raw`, `cfg` → `out` | 29 | The monthly sorting panel: returns aligned to universe, cross-signal NaN mask, z-scored signals, aligned factors. **Two Processes** — see below |
 | 05 | [build_portfolios](nodes/05_build_portfolios.py) | `prep`, `cfg` → `out` | 31, 34, 36–39, 42, 43, 51 | Quantile portfolios `p_1..p_K` per signal, excess returns, Market row, High−Low spreads, and the include-all table inputs |
-| 06 | [ff3_parts](nodes/06_ff3_parts.py) | `port`, `cfg` → `out` | 48 | `ff3_parts_df`: FF3 OLS (HC1) alpha/betas/p-values/Adj. R² per portfolio, rounded to 2dp |
-| 07 | [rolling_alphas](nodes/07_rolling_alphas.py) | `port`, `cfg` → `out` | 43 | Rolling FF3 alphas at 40- and 24-month windows, long by `(date, label, window)` |
-| 08 | [performance_tables](nodes/08_performance_tables.py) | `port`, `ff3_parts_df`, `cfg` → `out` | 51 | **Both** per-portfolio tables in one tidy frame: horizon compound returns (1m…Since launch) and Sharpe / VaR 1% / Max Drawdown + Alpha/p-value from `ff3_parts_df`. Split back into two parquets on export — see below |
-| 10 | [build_constituents](nodes/10_build_constituents.py) | `port`, `cfg` → `out` | 58, 59 (numeric parts) | Constituent counts by Industry and by `loc` over time, plus high-bucket holdings — the data behind the constituent plots |
-| 11 | [esg_signal_corr](nodes/11_esg_signal_corr.py) | `prep`, `cfg` → `out` | 52 | **Gated diagnostic**: ESG-on-signal regressions + correlation matrices |
-| 12 | [esg_coverage](nodes/12_esg_coverage.py) | `universe`, `lc`, `prep`, `cfg` → `out` | 63 | **Gated diagnostic**: % of firm-years with a non-NaN ESG score per provider per sample |
+| 06 | [ff3_alphas](nodes/06_ff3_alphas.py) | `port`, `cfg` → `out` | 48, 43 | **Both** FF3 alpha views in one bundle: the level table (`ff3_parts_df` — alpha/betas/p-values/Adj. R², 2dp) and the rolling alphas at the 40- and 24-month windows, long by `(date, label, window)`. Exported as two parquets |
+| 07 | [performance_tables](nodes/07_performance_tables.py) | `port`, `ff3_parts_df`, `cfg` → `out` | 51 | **Both** per-portfolio tables in one tidy frame: horizon compound returns (1m…Since launch) and Sharpe / VaR 1% / Max Drawdown + Alpha/p-value from `ff3_parts_df`. Split back into two parquets on export — see below |
+| 08 | [build_constituents](nodes/08_build_constituents.py) | `port`, `cfg` → `out` | 58, 59 (numeric parts) | Constituent counts by Industry and by `loc` over time, plus high-bucket holdings — the data behind the constituent plots |
+| 09 | [esg_signal_corr](nodes/09_esg_signal_corr.py) | `prep`, `cfg` → `out` | 52 | **Gated diagnostic**: ESG-on-signal regressions + correlation matrices |
+| 10 | [esg_coverage](nodes/10_esg_coverage.py) | `universe`, `lc`, `prep`, `cfg` → `out` | 63 | **Gated diagnostic**: % of firm-years with a non-NaN ESG score per provider per sample |
 
 **`prepare_panel` is the one node with two interchangeable Processes**, and it is the
 clearest example of what Contracts buy you — same contract, two implementations, the
@@ -268,7 +265,8 @@ Every `python -m New_Pipeline.run <config>` writes to **two** places
 ```
 runs/<UTC-timestamp>_<config>/      NEW folder per run, never overwritten
     risk_table.parquet, cumulative_table.parquet, ff3_parts_df.parquet,
-    constituents_Industry.parquet, constituents_loc.parquet, holdings_over_time.parquet
+    rolling_alphas.parquet, constituents_Industry.parquet, constituents_loc.parquet,
+    holdings_over_time.parquet
     manifest.json                   structured, for machines
     manifest.md                     narrative, for humans
 
@@ -285,12 +283,40 @@ are prefixed `cumulative_table::…` and `risk_table::…`; `_export` splits on 
 the two parquets under their original names, preserving row and column order. That's why the
 merge of the former nodes 08 and 09 left the on-disk artifacts — and therefore the parity
 check — completely unchanged. `_SPLIT_SEP` in [run.py](run.py) and the `sep` literal in
-[nodes/08_performance_tables.py](nodes/08_performance_tables.py) are the two halves of that
+[nodes/07_performance_tables.py](nodes/07_performance_tables.py) are the two halves of that
 contract; keep them in sync.
 
 Carrying both tables in one *tidy* frame rather than a `pack_obj` bundle is deliberate: it
 keeps `RowCountViz` honest (`row_count: 10` for `base_none`, 13 for the ESG configs, 4 for
 `esg_full_universe`) instead of reporting `1` for a pickle cell.
+
+**`ff3_alphas` does the same for two frames that share no key.** The level FF3 table (9 rows
+× portfolios) and the rolling alphas (~1000 rows, long) can't be joined, so they travel as a
+pickle bundle — which would normally make the audit report `1`. Instead the Contract declares
+two **custom statistics**, so the manifest and dashboard still show both:
+
+```
+### Node `ff3_alphas` — OK
+- audits: `{'bars:ff3_rows': 9, 'bars:rolling_rows': 994}`
+```
+
+That's the general escape hatch for any node whose output is a bundle: pass
+`custom={"<token>": callable}` to a VizSpec (see the two module-level helpers in
+[nodes/06_ff3_alphas.py](nodes/06_ff3_alphas.py)). The callable runs in the live process and
+is not archived, so keep it a thin measurement — it is not part of `contract_version`.
+
+Both frames are exported, so alpha and its rolling history can be read side by side:
+
+```python
+ff3  = pd.read_parquet("…/ff3_parts_df.parquet").set_index("metric")
+roll = pd.read_parquet("…/rolling_alphas.parquet")   # date, alpha, label, window
+ff3.loc["alpha"]                                     # level alpha per portfolio
+roll[roll["label"] == "High transformation"]         # its rolling history
+```
+
+Note `rolling_alphas.parquet` is newly exported and has **no frozen notebook oracle**, so
+`parity.compare` reports it as present only on the new side. It is verified run-to-run, not
+against `Main.ipynb`.
 
 The manifest is the point of the whole exercise. An excerpt:
 
@@ -325,7 +351,7 @@ cells must satisfy `np.isclose(rtol=1e-9, atol=1e-12, equal_nan=True)`.
 
 1. `test_boundary_roundtrip` — fast, no data: the boundary conversions are identities.
 2. `test_pipeline_validates_and_registers` — the DAG validates and all processes register
-   (11 nodes and 12 processes here, since `prepare_panel` has 2; note this test currently
+   (10 nodes and 11 processes here, since `prepare_panel` has 2; note this test currently
    imports `pipeline`, which still has 12 nodes / 13 processes).
 3. `test_parity[<config>]` — per-config output equality against the frozen notebook
    oracle in `parity/artifacts/old/`. **Skipped** if artifacts are absent, so a green

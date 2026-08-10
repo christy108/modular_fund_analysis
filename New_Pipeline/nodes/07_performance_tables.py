@@ -47,14 +47,14 @@ def performance_tables_v1(port, ff3_parts_df, cfg):
     import pandas as pd
 
     from functions.portfolio_metrics.Strategy_Perfomance import StrategyPerformance
-    from New_Pipeline.boundary import pd_to_pl, pl_to_pd, unpack_obj
+    from New_Pipeline.boundary import pd_to_pl, unpack_obj
 
     P = unpack_obj(port)
     table_returns = P["table_returns"]
     table_excess = P["table_excess"]
 
-    # Restore ff3_parts_df (metric-indexed) from the tidy upstream frame.
-    ff3 = pl_to_pd(ff3_parts_df, index="metric")
+    # ff3_alphas carries both the level table and the rolling alphas; take the level one.
+    ff3 = unpack_obj(ff3_parts_df)["ff3_parts_df"]
 
     # ONE StrategyPerformance for both tables. cumulative_performance_table never reads
     # self.ff3_parts_df (only performance_risk_metrics_table does), so passing ff3 here
