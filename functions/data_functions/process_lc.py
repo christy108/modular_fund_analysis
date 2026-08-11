@@ -111,6 +111,33 @@ def filter_sum_activities_by_fiscal_year_quantiles(
     return lc[(lc[activities_col] > lower) & (lc[activities_col] < upper)].copy()
 
 
+def winsorize_sum_activities_by_fiscal_year_quantiles(
+    lc: pd.DataFrame,
+    lower_exclude: float,
+    upper_exclude: float,
+    *,
+    activities_col: str = "sum_activities",
+    year_col: str = "rfyear",
+) -> pd.DataFrame:
+    """
+    Same per-`year_col` quantile bounds as `filter_sum_activities_by_fiscal_year_quantiles`,
+    but CAP `activities_col` at the bounds instead of dropping rows: every row is kept,
+    values below the bottom `lower_exclude` quantile or above the top `upper_exclude`
+    quantile are pulled in to the boundary (standard winsorization).
+    lower_exclude, upper_exclude in [0, 1); require lower_exclude + upper_exclude < 1.
+    """
+    if not 0 <= lower_exclude < 1 or not 0 <= upper_exclude < 1:
+        raise ValueError("lower_exclude and upper_exclude must be in [0, 1).")
+    if lower_exclude + upper_exclude >= 1:
+        raise ValueError("lower_exclude + upper_exclude must be < 1.")
+    lc = lc.copy()
+    g = lc.groupby(year_col)[activities_col]
+    lower = g.transform(lambda x: x.quantile(lower_exclude))
+    upper = g.transform(lambda x: x.quantile(1 - upper_exclude))
+    lc[activities_col] = lc[activities_col].clip(lower=lower, upper=upper)
+    return lc
+
+
 
 def map_sectors(x):
     # Skip Industrials, Health Care, Utilities

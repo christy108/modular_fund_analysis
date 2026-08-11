@@ -239,7 +239,12 @@ number of stocks in the portfolio over time (``BundleSeriesViz``).""",
                          custom={"ff3_rows": _ff3_rows}),
         BarComparisonViz(statistic="rolling_rows", title="Rolling-alpha rows",
                          custom={"rolling_rows": _rolling_rows}),
-        BundleTableViz(_ff3_table, title="Fama-French 3-factor table", n=50),
+        # Explicit keys: BundleTableViz's default key collapses to the literal "table:"
+        # for every instance (it always passes columns=[] to SampleTableViz), so
+        # multiple unkeyed BundleTableViz on one Contract silently collide in the
+        # dashboard's per-node audit_stats dict — only the last one computed survives
+        # and gets shown under every colliding widget.
+        BundleTableViz(_ff3_table, title="Fama-French 3-factor table", n=50, key="table:ff3_parts_df"),
         BundleMultiSeriesViz(_rolling_plot(40), title="Rolling alpha — 40-month window",
                              key="lines:rolling_alpha_40"),
         BundleMultiSeriesViz(_rolling_plot(24), title="Rolling alpha — 24-month window",
@@ -248,8 +253,8 @@ number of stocks in the portfolio over time (``BundleSeriesViz``).""",
                              key="lines:cumulative_long"),
         BundleMultiSeriesViz(_spread_cumulative_series, title="Cumulative returns — High-Low spreads",
                              key="lines:cumulative_spreads"),
-        BundleTableViz(_cumulative_table, title="Cumulative returns (%)"),
-        BundleTableViz(_risk_table, title="Risk metrics"),
+        BundleTableViz(_cumulative_table, title="Cumulative returns (%)", key="table:cumulative_table"),
+        BundleTableViz(_risk_table, title="Risk metrics", key="table:risk_table"),
         BundleSeriesViz(_stocks_over_time, title="Stocks in portfolio over time"),
         # Per-bucket constituent widgets — all collapsed by default so the page
         # stays scannable; expand the ones you care about.

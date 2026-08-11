@@ -55,6 +55,8 @@ def build_cfg(**overrides) -> dict:
         download_gics_data=False,
         signal_denominator="Sum_All_Signals",
         alpha_bound=0.1,
+        winsorize_outliers=False,
+        winsorize_bound=0.1,
         mktcap_covered=0.95,
         add_accounting_data=False,
         industry_level=0,
@@ -76,6 +78,17 @@ def build_cfg(**overrides) -> dict:
         include_all_signals_in_cum_risk_table=True,
     )
     c.update(overrides)
+
+    # ---- outlier-control methods are mutually exclusive -------------------- #
+    # use_alpha_bound (drop rows at cfg.alpha_bound) and winsorize_outliers (cap
+    # values at cfg.winsorize_bound, a separate number) are two distinct methods,
+    # never combined. Callers switching to winsorize must explicitly turn the other
+    # off — no silent precedence.
+    if c["use_alpha_bound"] and c["winsorize_outliers"]:
+        raise ValueError(
+            "use_alpha_bound and winsorize_outliers cannot both be True — pass "
+            "use_alpha_bound=False when enabling winsorize_outliers."
+        )
 
     # ---- cell 2: esg_choice end_year override (order matters; applied after
     #      overrides so esg_choice takes effect, matching the notebook) ------ #
@@ -260,6 +273,16 @@ def show_corr():
     )
 
 
+def base_winsorized():
+    """Same as base_none, but sum_activities outliers are capped (winsorized) per fiscal
+    year at cfg.winsorize_bound instead of dropped at cfg.alpha_bound — a separate method
+    with its own bound, never combined with use_alpha_bound. Compare against base_none to
+    see the effect of trimming vs capping on sample size and downstream signal/return stats."""
+    return make_experiment(
+        "base_winsorized", build_cfg(use_alpha_bound=False, winsorize_outliers=True, winsorize_bound=0.1)
+    )
+
+
 EXPERIMENTS = {
     "base_none": base_none,
     "esg_refinitiv": esg_refinitiv,
@@ -267,4 +290,5 @@ EXPERIMENTS = {
     "esg_snp": esg_snp,
     "esg_full_universe": esg_full_universe,
     "show_corr": show_corr,
+    "base_winsorized": base_winsorized,
 }

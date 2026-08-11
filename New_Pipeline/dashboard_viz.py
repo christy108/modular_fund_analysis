@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from leonardo_nodes.viz import DashboardComponent, LineChartViz, SampleTableViz
+from leonardo_nodes.viz import DashboardComponent, HeatmapViz, LineChartViz, SampleTableViz
 
 
 class BundleTableViz(SampleTableViz):
@@ -57,6 +57,50 @@ class BundleTableViz(SampleTableViz):
         return DashboardComponent(
             kind="table", title=self.title, data=gathered, options={"columns": cols}
         )
+
+
+class BundleHeatmapViz(HeatmapViz):
+    """Colour-coded (diverging blue/white/red) heatmap pulled from a node's pickle-bundle
+    output — e.g. a correlation matrix.
+
+    ``extract(bundle_dict) -> pandas.DataFrame``, a SQUARE frame: one non-numeric column
+    holding the row/column labels (e.g. from ``.reset_index(names=...)``, auto-detected
+    unless ``row_label_col`` is given) plus one numeric column per label, in the same order.
+    """
+
+    def __init__(
+        self,
+        extract: Callable[[dict], Any],
+        *,
+        title: str,
+        row_label_col: str | None = None,
+        zmin: float = -1.0,
+        zmax: float = 1.0,
+        zmid: float = 0.0,
+        key: str | None = None,
+    ):
+        super().__init__(title=title, zmin=zmin, zmax=zmax, zmid=zmid, key=key)
+        self._extract = extract
+        self._row_label_col = row_label_col
+
+    def compute(self, output: Any) -> Any:
+        import pandas as pd
+
+        from New_Pipeline.boundary import unpack_obj
+
+        df = self._extract(unpack_obj(output))
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return {"labels": [], "z": []}
+
+        row_col = self._row_label_col
+        if row_col is None:
+            non_numeric = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
+            row_col = non_numeric[0] if non_numeric else df.columns[0]
+
+        labels = [str(v) for v in df[row_col]]
+        value_cols = [c for c in df.columns if c != row_col]
+        z = [[None if pd.isna(v) else float(v) for v in row] for row in df[value_cols].to_numpy()]
+        return {"labels": labels, "z": z}
 
 
 class BundleMultiSeriesViz(LineChartViz):
