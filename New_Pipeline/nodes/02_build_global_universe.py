@@ -9,7 +9,6 @@ per-region universes + fx_rates (needed by the ESG-coverage diagnostic later).
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -23,10 +22,11 @@ Mandatory measures (enforced by schema / audits):
 - one row per gvkey-month over the configured window, with a return and market-cap column
 - the ESG column reflects exactly the provider named in cfg (or the neutral constant)
 
-Surfaces: universe row count (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
+``RowCountViz`` would always report 1 and add no information).""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
-    audits=[RowCountViz(title="Global universe rows")],
+    audits=[],
 )
 
 

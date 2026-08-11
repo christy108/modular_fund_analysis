@@ -35,19 +35,19 @@ CONTRACTS = {m.CONTRACT.name: m.CONTRACT for m in NODE_MODULES}
 # Edges: "src_node.out" -> "dst_node.dst_port". `cfg` ports are intentionally left
 # unconnected — they are external inputs bound per Experiment. prepare_panel already
 # returns aligned factors, so there is no separate align node.
+# build_analyse_portfolios (05) folds the former build_portfolios (05), ff3_alphas (06),
+# performance_tables (07), and build_constituents (08) into one node — all portfolio-level
+# analytics live there. Only the diagnostic nodes (esg_signal_corr, esg_coverage) remain as
+# separate stages downstream of prepare_panel.
 EDGES = [
     ("load_signal_lc.out", "prepare_panel.lc"),
     ("build_global_universe.out", "prepare_panel.global_universe"),
     ("load_fama_french.out", "prepare_panel.fama_french_raw"),
-    ("prepare_panel.out", "build_portfolios.prep"),
+    ("prepare_panel.out", "build_analyse_portfolios.prep"),
     ("prepare_panel.out", "esg_signal_corr.prep"),
     ("prepare_panel.out", "esg_coverage.prep"),
     ("build_global_universe.out", "esg_coverage.universe"),
     ("load_signal_lc.out", "esg_coverage.lc"),
-    ("build_portfolios.out", "build_constituents.port"),
-    ("build_portfolios.out", "ff3_alphas.port"),
-    ("build_portfolios.out", "performance_tables.port"),
-    ("ff3_alphas.out", "performance_tables.ff3_parts_df"),
 ]
 
 

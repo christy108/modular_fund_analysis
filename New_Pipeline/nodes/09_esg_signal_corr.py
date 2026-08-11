@@ -8,7 +8,6 @@ implementation lands in task #6 (ESG variants); base_none is always gated off.
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -21,10 +20,11 @@ scales. Gated by cfg.show_esg_corr_matricies; returns a sentinel frame when off.
 Mandatory measures (enforced by schema / audits):
 - when enabled, output carries coefficient/SE/p per behavioural signal at each scale
 
-Surfaces: (diagnostic) row count (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle (or a sentinel when gated off), not a
+tidy frame; a plain ``RowCountViz`` would always report 1 and add no information).""",
     input_schema={"prep": open_schema(), "cfg": cfg_schema()},
     output_schema=open_schema(),
-    audits=[RowCountViz(title="ESG corr diagnostic rows")],
+    audits=[],
 )
 
 

@@ -9,7 +9,6 @@ show_esg_coverage), and the prepared returns/universe (from prepare_panel).
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -22,7 +21,8 @@ year. Gated by cfg.show_esg_coverage; returns a sentinel frame when off.
 Mandatory measures (enforced by schema / audits):
 - when enabled, coverage fractions are in [0, 1] per provider per sample
 
-Surfaces: (diagnostic) row count (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle (or a sentinel when gated off), not a
+tidy frame; a plain ``RowCountViz`` would always report 1 and add no information).""",
     input_schema={
         "universe": open_schema(),
         "lc": open_schema(),
@@ -30,7 +30,7 @@ Surfaces: (diagnostic) row count (``RowCountViz``).""",
         "cfg": cfg_schema(),
     },
     output_schema=open_schema(),
-    audits=[RowCountViz(title="ESG coverage diagnostic rows")],
+    audits=[],
 )
 
 

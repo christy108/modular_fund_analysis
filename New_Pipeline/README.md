@@ -187,7 +187,7 @@ ff3_alphas → performance_tables
 | 03 | [load_fama_french](nodes/03_load_fama_french.py) | `cfg` → `out` | 26 (factor part) | FF3 factors (`mktrf`, `smb`, `hml`, `rf`) for the configured region, with JPY conversion when configured |
 | 04 | [prepare_panel](nodes/04_prepare_panel.py) | `global_universe`, `lc`, `fama_french_raw`, `cfg` → `out` | 29 | The monthly sorting panel: returns aligned to universe, cross-signal NaN mask, z-scored signals, aligned factors. **Two Processes** — see below |
 | 05 | [build_portfolios](nodes/05_build_portfolios.py) | `prep`, `cfg` → `out` | 31, 34, 36–39, 42, 43, 51 | Quantile portfolios `p_1..p_K` per signal, excess returns, Market row, High−Low spreads, and the include-all table inputs |
-| 06 | [ff3_alphas](nodes/06_ff3_alphas.py) | `port`, `cfg` → `out` | 48, 43 | **Both** FF3 alpha views in one bundle: the level table (`ff3_parts_df` — alpha/betas/p-values/Adj. R², 2dp) and the rolling alphas at the 40- and 24-month windows, long by `(date, label, window)`. Exported as two parquets |
+| 06 | [ff3_alphas](nodes/06_ff3_alphas.py) | `port`, `cfg` → `out` | 48, 43 | **Both** FF3 alpha views in one bundle: the level table (`ff3_parts_df` — alpha/betas/p-values/Adj. R², 2dp) and the rolling alphas at the 40- and 24-month windows. The level table is exported to parquet; the rolling alphas are a **plot only** |
 | 07 | [performance_tables](nodes/07_performance_tables.py) | `port`, `ff3_parts_df`, `cfg` → `out` | 51 | **Both** per-portfolio tables in one tidy frame: horizon compound returns (1m…Since launch) and Sharpe / VaR 1% / Max Drawdown + Alpha/p-value from `ff3_parts_df`. Split back into two parquets on export — see below |
 | 08 | [build_constituents](nodes/08_build_constituents.py) | `port`, `cfg` → `out` | 58, 59 (numeric parts) | Constituent counts by Industry and by `loc` over time, plus high-bucket holdings — the data behind the constituent plots |
 | 09 | [esg_signal_corr](nodes/09_esg_signal_corr.py) | `prep`, `cfg` → `out` | 52 | **Gated diagnostic**: ESG-on-signal regressions + correlation matrices |
@@ -265,8 +265,7 @@ Every `python -m New_Pipeline.run <config>` writes to **two** places
 ```
 runs/<UTC-timestamp>_<config>/      NEW folder per run, never overwritten
     risk_table.parquet, cumulative_table.parquet, ff3_parts_df.parquet,
-    rolling_alphas.parquet, constituents_Industry.parquet, constituents_loc.parquet,
-    holdings_over_time.parquet
+    constituents_Industry.parquet, constituents_loc.parquet, holdings_over_time.parquet
     manifest.json                   structured, for machines
     manifest.md                     narrative, for humans
 
@@ -305,18 +304,18 @@ That's the general escape hatch for any node whose output is a bundle: pass
 [nodes/06_ff3_alphas.py](nodes/06_ff3_alphas.py)). The callable runs in the live process and
 is not archived, so keep it a thin measurement — it is not part of `contract_version`.
 
-Both frames are exported, so alpha and its rolling history can be read side by side:
+The level FF3 table is exported to `ff3_parts_df.parquet`. The rolling alphas are **not
+tabulated to disk** — they are a plot, surfaced on the dashboard by two
+`BundleMultiSeriesViz` audits (one per window), each drawing one line per portfolio:
 
-```python
-ff3  = pd.read_parquet("…/ff3_parts_df.parquet").set_index("metric")
-roll = pd.read_parquet("…/rolling_alphas.parquet")   # date, alpha, label, window
-ff3.loc["alpha"]                                     # level alpha per portfolio
-roll[roll["label"] == "High transformation"]         # its rolling history
+```bash
+python -m New_Pipeline.dashboard base_none            # rolling-alpha charts under ff3_alphas
+python -m New_Pipeline.dashboard base_none esg_snp    # same charts, one subplot per config
 ```
 
-Note `rolling_alphas.parquet` is newly exported and has **no frozen notebook oracle**, so
-`parity.compare` reports it as present only on the new side. It is verified run-to-run, not
-against `Main.ipynb`.
+`BundleMultiSeriesViz` (in [dashboard_viz.py](dashboard_viz.py)) sets
+`options["multi_series"]`, which is what makes `Dashboard._lines_figure` draw one subplot per
+config with all portfolio lines overlaid and a stable colour per portfolio across subplots.
 
 The manifest is the point of the whole exercise. An excerpt:
 

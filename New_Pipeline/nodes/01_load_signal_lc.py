@@ -9,7 +9,6 @@ functions/data_functions/process_lc.py unchanged. Output is carried losslessly
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -22,12 +21,13 @@ Dataset version, filters and thresholds are read from cfg; the algorithm is left
 
 Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with the behavioural signal columns present
-- rows only drop via the declared filters (row loss surfaced by ``RowCountViz``)
+- rows only drop via the declared filters
 
-Surfaces: rows kept after cleaning (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
+``RowCountViz`` would always report 1 and add no information).""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
-    audits=[RowCountViz(title="LC rows kept after cleaning")],
+    audits=[],
 )
 
 

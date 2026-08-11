@@ -10,7 +10,6 @@ Output is a lossless (pickle) bundle of the prep results consumed downstream.
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -25,7 +24,8 @@ Mandatory measures (enforced by schema / audits):
 - output bundles returns + standardised signals + aligned factors + the modified universe
 - return dates and signal dates are aligned by the prepare routine
 
-Surfaces: prepared-signal block count (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
+``RowCountViz`` would always report 1 and add no information).""",
     input_schema={
         "global_universe": open_schema(),
         "lc": open_schema(),
@@ -33,7 +33,7 @@ Surfaces: prepared-signal block count (``RowCountViz``).""",
         "cfg": cfg_schema(),
     },
     output_schema=open_schema(),
-    audits=[RowCountViz(title="Prepared panel bundle")],
+    audits=[],
 )
 
 

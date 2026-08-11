@@ -8,7 +8,6 @@ Carried losslessly (pickle) since prepare consumes the raw pandas factor frame.
 from __future__ import annotations
 
 from leonardo_nodes import Contract, Node, process
-from leonardo_nodes.viz import RowCountViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 
@@ -20,10 +19,11 @@ in cfg, applying the JPY-numeraire conversion when configured (Japan + JPY). FF5
 Mandatory measures (enforced by schema / audits):
 - monthly factor rows with mktrf, smb, hml, rf present for the configured region
 
-Surfaces: factor month count (``RowCountViz``).""",
+Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
+``RowCountViz`` would always report 1 and add no information).""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
-    audits=[RowCountViz(title="Fama-French factor months")],
+    audits=[],
 )
 
 

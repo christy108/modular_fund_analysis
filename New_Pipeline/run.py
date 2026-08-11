@@ -21,28 +21,25 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import polars as pl
-
 from leonardo_nodes import run_experiment
 from New_Pipeline._common import store
 from New_Pipeline.experiments import EXPERIMENTS
 from New_Pipeline.registry import register_processes
 
-# ff3_alphas carries the level FF3 table and the rolling alphas in one bundle. Both are
-# exported: {artifact name: (bundle key, index column for pd_to_pl)}. The index column
-# reproduces the pre-merge on-disk shape exactly ("metric" for the level table; the
-# rolling frame's RangeIndex is dropped, as before).
-_ALPHAS_NODE = "ff3_alphas"
-_ALPHAS_EXPORT = {"ff3_parts_df": ("ff3_parts_df", "metric"), "rolling_alphas": ("rolling_alphas", None)}
-_BUNDLE_NODE = "build_constituents"
-_BUNDLE_KEYS = ["constituents_Industry", "constituents_loc", "holdings_over_time"]
-
-# performance_tables carries two tables in one tidy frame, columns prefixed
-# "<artifact>::<column>" (see nodes/08_performance_tables.py). Split them back out so the
-# on-disk artifacts — cumulative_table.parquet, risk_table.parquet — are unchanged.
-_SPLIT_NODE = "performance_tables"
-_SPLIT_KEY = "portfolio"
-_SPLIT_SEP = "::"
+# The merged build_analyse_portfolios node is the SINGLE source of every parity artifact
+# (ff3_parts_df / cumulative_table / risk_table / constituents_* / holdings_over_time).
+# We split them out of its pickle bundle to preserve the on-disk artifact layout used by
+# parity.compare / parity.show — no numbers change, only where they come from.
+_MERGED_NODE = "build_analyse_portfolios"
+# {bundle key: index-column name for pd_to_pl, or None for a plain .to_parquet()}
+_MERGED_EXPORTS = {
+    "ff3_parts_df": "metric",
+    "cumulative_table": "portfolio",
+    "risk_table": "portfolio",
+    "constituents_Industry": None,
+    "constituents_loc": None,
+    "holdings_over_time": None,
+}
 
 
 def _export(outputs: dict, target: Path) -> list[str]:
@@ -52,32 +49,18 @@ def _export(outputs: dict, target: Path) -> list[str]:
     target.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
 
-    alphas = outputs.get(_ALPHAS_NODE)
-    if alphas is not None:
-        bundle = unpack_obj(alphas)
-        for fname, (key, index_name) in _ALPHAS_EXPORT.items():
-            frame = bundle.get(key)
-            if frame is not None:
+    merged = outputs.get(_MERGED_NODE)
+    if merged is not None:
+        bundle = unpack_obj(merged)
+        for fname, index_name in _MERGED_EXPORTS.items():
+            frame = bundle.get(fname)
+            if frame is None:
+                continue
+            if index_name is None:
+                frame.to_parquet(target / f"{fname}.parquet")
+            else:
                 pd_to_pl(frame, index_name=index_name).write_parquet(target / f"{fname}.parquet")
-                written.append(fname)
-
-    split = outputs.get(_SPLIT_NODE)
-    if isinstance(split, pl.DataFrame):
-        prefixed = [c for c in split.columns if _SPLIT_SEP in c]
-        for fname in dict.fromkeys(c.split(_SPLIT_SEP, 1)[0] for c in prefixed):
-            cols = [c for c in prefixed if c.startswith(f"{fname}{_SPLIT_SEP}")]
-            # select() preserves column order; rows keep the frame's order.
-            sub = split.select([_SPLIT_KEY, *cols]).rename(
-                {c: c.split(_SPLIT_SEP, 1)[1] for c in cols}
-            )
-            sub.write_parquet(target / f"{fname}.parquet")
             written.append(fname)
-
-    bundle = unpack_obj(outputs[_BUNDLE_NODE])
-    for k in _BUNDLE_KEYS:
-        if bundle.get(k) is not None:
-            bundle[k].to_parquet(target / f"{k}.parquet")
-            written.append(k)
 
     for node in ("esg_signal_corr", "esg_coverage"):
         df = outputs.get(node)

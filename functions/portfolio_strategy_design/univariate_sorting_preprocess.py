@@ -293,7 +293,7 @@ def prepare_univariate_sorting_inputs(
     gu = to_monthly_last_trading_date(gu)
 
 
-    
+    6
     gu = compute_monthly_returns_long(gu)
     gu = normalize_category_shares(gu, category_columns)
     if apply_geo_filter:
