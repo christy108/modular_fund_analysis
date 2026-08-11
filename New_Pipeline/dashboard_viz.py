@@ -14,7 +14,13 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from leonardo_nodes.viz import DashboardComponent, HeatmapViz, LineChartViz, SampleTableViz
+from leonardo_nodes.viz import (
+    DashboardComponent,
+    DualAxisViz,
+    HeatmapViz,
+    LineChartViz,
+    SampleTableViz,
+)
 
 
 class BundleTableViz(SampleTableViz):
@@ -57,6 +63,67 @@ class BundleTableViz(SampleTableViz):
         return DashboardComponent(
             kind="table", title=self.title, data=gathered, options={"columns": cols}
         )
+
+
+class BundleDualAxisViz(DualAxisViz):
+    """Two series on separate y-axes, pulled from a node's pickle-bundle output — for pairs
+    whose scales differ by orders of magnitude (e.g. unique firms vs total initiatives).
+
+    ``extract(bundle_dict) -> pandas.DataFrame`` carrying ``x_col``, ``left_col`` and
+    ``right_col``. Returns an empty payload when the frame is missing or empty (e.g. the
+    ESG-universe path, which produces no LC-derived table), so the widget renders blank
+    rather than erroring.
+    """
+
+    def __init__(
+        self,
+        extract: Callable[[dict], Any],
+        *,
+        title: str,
+        x_col: str,
+        left_col: str,
+        right_col: str,
+        left_label: str | None = None,
+        right_label: str | None = None,
+        x_label: str | None = None,
+        key: str | None = None,
+    ):
+        super().__init__(
+            title=title,
+            left_label=left_label or left_col,
+            right_label=right_label or right_col,
+            x_label=x_label or x_col,
+            key=key,
+        )
+        self._extract = extract
+        self._x_col = x_col
+        self._left_col = left_col
+        self._right_col = right_col
+
+    def compute(self, output: Any) -> Any:
+        import pandas as pd
+
+        from New_Pipeline.boundary import unpack_obj
+
+        df = self._extract(unpack_obj(output))
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return {"points": []}
+
+        missing = [c for c in (self._x_col, self._left_col, self._right_col) if c not in df.columns]
+        if missing:
+            return {"points": [], "error": f"missing columns: {missing}"}
+
+        df = df.sort_values(self._x_col)
+        return {
+            "points": [
+                {
+                    "x": str(row[self._x_col]),
+                    "left": None if pd.isna(row[self._left_col]) else float(row[self._left_col]),
+                    "right": None if pd.isna(row[self._right_col]) else float(row[self._right_col]),
+                }
+                for _, row in df.iterrows()
+            ]
+        }
 
 
 class BundleHeatmapViz(HeatmapViz):

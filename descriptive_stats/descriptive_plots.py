@@ -2,9 +2,16 @@
 Descriptive plots for the GOLDEN (LC) sustainability-initiative dataset.
 
 Each function takes the `lc` DataFrame (with `signal_0..signal_n` already added the
-same way as in Main.ipynb) and returns ``(fig, data)``:
-  * ``fig``  - the matplotlib figure, optionally saved to ``save_path``
-  * ``data`` - the underlying numeric table, optionally written to ``excel_path``
+same way as in Main.ipynb) and returns ``(fig, data, stats)``:
+  * ``fig``   - the matplotlib figure, optionally saved to ``save_path``
+  * ``data``  - the underlying numeric table, optionally written to ``excel_path``
+  * ``stats`` - sample descriptives (unique gvkeys / gvkey-year observations / total
+    initiatives) for the rows that plot actually used, also drawn as a caption on the
+    figure and written to a ``descriptives`` sheet alongside ``data``
+
+``stats`` describes each plot's EFFECTIVE sample, which is not always the frame passed in:
+``plot_signal_shares_by_sector`` drops rows with a missing sector and applies ``min_obs``,
+so its counts come out below the other two.
 
 Plots
 -----
@@ -48,8 +55,62 @@ def _colors_for(labels: list[str]) -> list[str]:
     ]
 
 
-def _save(fig, data: pd.DataFrame, save_path, excel_path, sheet_name: str) -> None:
-    """Write the figure and/or the numeric table to disk."""
+# --------------------------------------------------------------------------- #
+# Sample descriptives (shared by every plot)
+# --------------------------------------------------------------------------- #
+def sample_descriptives(
+    df: pd.DataFrame,
+    *,
+    year_col: str = "rfyear",
+    gvkey_col: str = "gvkey",
+    initiatives_col: str = "n_predicted_initiatives",
+) -> pd.DataFrame:
+    """One-row frame: unique gvkeys, unique gvkey-year observations, total initiatives.
+
+    ``gvkey_year_obs`` counts DISTINCT ``(gvkey, year)`` pairs rather than rows, so it stays
+    correct if the frame ever carries duplicate firm-years. Today the two agree (LC holds one
+    row per firm-year), which is why the plots show ``unique_companies ==
+    firm_year_observations`` in every year.
+    """
+    return pd.DataFrame([{
+        "unique_gvkeys": df[gvkey_col].nunique(),
+        "gvkey_year_obs": len(df[[gvkey_col, year_col]].drop_duplicates()),
+        "total_initiatives": int(df[initiatives_col].sum()),
+    }])
+
+
+def _descriptives_caption(stats: pd.DataFrame) -> str:
+    """Single-line figure caption summarising the sample the plot was built on."""
+    row = stats.iloc[0]
+    return (
+        f"Unique firms: {row['unique_gvkeys']:,}    |    "
+        f"Firm-year observations: {row['gvkey_year_obs']:,}    |    "
+        f"Total initiatives: {row['total_initiatives']:,}"
+    )
+
+
+def _add_caption(fig, stats: pd.DataFrame) -> None:
+    """Reserve a strip at the bottom of the figure and write the descriptives caption there.
+
+    Called after the plot's own ``tight_layout()``; ``bbox_inches="tight"`` at save time picks
+    the text up even when the inline preview crops it.
+    """
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
+    fig.text(
+        0.5, 0.012, _descriptives_caption(stats),
+        ha="center", va="bottom", fontsize=9, color="#444444",
+    )
+
+
+def _save(
+    fig,
+    data: pd.DataFrame,
+    save_path,
+    excel_path,
+    sheet_name: str,
+    stats: pd.DataFrame | None = None,
+) -> None:
+    """Write the figure and/or the numeric table (plus descriptives) to disk."""
     if save_path is not None:
         out = Path(save_path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -58,7 +119,11 @@ def _save(fig, data: pd.DataFrame, save_path, excel_path, sheet_name: str) -> No
     if excel_path is not None:
         out = Path(excel_path)
         out.parent.mkdir(parents=True, exist_ok=True)
-        data.to_excel(out, sheet_name=sheet_name)
+        # ExcelWriter (not data.to_excel) so the descriptives land in the same workbook.
+        with pd.ExcelWriter(out) as xl:
+            data.to_excel(xl, sheet_name=sheet_name)
+            if stats is not None:
+                stats.to_excel(xl, sheet_name="descriptives", index=False)
         print(f"[data] saved {out}")
 
 
@@ -87,18 +152,29 @@ def plot_firms_and_initiatives(
         )
         .sort_index()
     )
+    # Effective sample = the whole frame; this plot drops nothing.
+    stats = sample_descriptives(
+        lc, year_col=year_col, gvkey_col=gvkey_col, initiatives_col=initiatives_col
+    )
 
     fig, ax_left = plt.subplots(figsize=figsize)
     ax_right = ax_left.twinx()
 
+    # Plot against evenly-spaced positions, not the year values themselves (the other two
+    # plots are categorical too). On an unfiltered frame a single corrupt year — the raw
+    # Golden file contains an rfyear of 203 — would otherwise stretch the axis over
+    # centuries and squash every real year into one unreadable spike. For a contiguous
+    # run of years this renders identically to plotting the values.
+    positions = list(range(len(data.index)))
+
     c_left, c_right = "#2E5FA3", "#C0392B"
     ax_left.plot(
-        data.index, data["unique_companies"],
+        positions, data["unique_companies"],
         marker="o", markersize=5, linewidth=2.2, color=c_left,
         label="Unique Companies (left)",
     )
     ax_right.plot(
-        data.index, data["total_initiatives"],
+        positions, data["total_initiatives"],
         marker="o", markersize=5, linewidth=2.2, color=c_right, linestyle="--",
         label="Total Initiatives (right)",
     )
@@ -108,7 +184,7 @@ def plot_firms_and_initiatives(
     ax_right.set_ylabel("Total Initiatives", color=c_right, fontweight="bold")
     ax_left.tick_params(axis="y", labelcolor=c_left)
     ax_right.tick_params(axis="y", labelcolor=c_right)
-    ax_left.set_xticks(list(data.index))
+    ax_left.set_xticks(positions)
     ax_left.set_xticklabels([str(y) for y in data.index], rotation=45)
     ax_left.grid(True, axis="y", alpha=0.3)
     ax_left.set_axisbelow(True)
@@ -120,10 +196,11 @@ def plot_firms_and_initiatives(
         loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2, frameon=False,
     )
     fig.tight_layout()
+    _add_caption(fig, stats)
 
-    _save(fig, data, save_path, excel_path, "firms_and_initiatives")
+    _save(fig, data, save_path, excel_path, "firms_and_initiatives", stats)
     plt.show() if show else plt.close(fig)
-    return fig, data
+    return fig, data, stats
 
 
 # --------------------------------------------------------------------------- #
@@ -134,6 +211,8 @@ def plot_signal_shares_over_time(
     signal_names: dict[str, str],
     *,
     year_col: str = "rfyear",
+    gvkey_col: str = "gvkey",
+    initiatives_col: str = "n_predicted_initiatives",
     title: str | None = None,
     save_path: str | Path | None = None,
     excel_path: str | Path | None = None,
@@ -152,6 +231,13 @@ def plot_signal_shares_over_time(
     """
     cols = _signal_columns(lc, signal_names)
     labels = [signal_names[c] for c in cols]
+
+    # groupby().mean() skips NaN, so rows with no signal (sum_activities == 0 -> 0/0)
+    # contribute to nothing plotted. Count the rows that actually reach the bars.
+    stats = sample_descriptives(
+        lc.dropna(subset=cols),
+        year_col=year_col, gvkey_col=gvkey_col, initiatives_col=initiatives_col,
+    )
 
     data = lc.groupby(year_col)[cols].mean().sort_index() * 100.0
     data.columns = labels
@@ -207,10 +293,11 @@ def plot_signal_shares_over_time(
         ncol=len(labels), frameon=False,
     )
     fig.tight_layout()
+    _add_caption(fig, stats)
 
-    _save(fig, data, save_path, excel_path, "signal_shares_over_time")
+    _save(fig, data, save_path, excel_path, "signal_shares_over_time", stats)
     plt.show() if show else plt.close(fig)
-    return fig, data
+    return fig, data, stats
 
 
 # --------------------------------------------------------------------------- #
@@ -221,6 +308,9 @@ def plot_signal_shares_by_sector(
     signal_names: dict[str, str],
     *,
     sector_col: str = "GICS_level_1",
+    year_col: str = "rfyear",
+    gvkey_col: str = "gvkey",
+    initiatives_col: str = "n_predicted_initiatives",
     title: str | None = None,
     save_path: str | Path | None = None,
     excel_path: str | Path | None = None,
@@ -241,6 +331,14 @@ def plot_signal_shares_by_sector(
     df = lc.dropna(subset=[sector_col])
     counts = df.groupby(sector_col)[cols[0]].size()
     keep = counts[counts >= min_obs].index
+
+    # This plot's sample is genuinely smaller than the frame it was handed: rows with no
+    # sector are dropped above, sectors below min_obs are excluded, and groupby().mean()
+    # skips rows with no signal. Count what actually reaches the bars.
+    stats = sample_descriptives(
+        df[df[sector_col].isin(keep)].dropna(subset=cols),
+        year_col=year_col, gvkey_col=gvkey_col, initiatives_col=initiatives_col,
+    )
 
     data = df[df[sector_col].isin(keep)].groupby(sector_col)[cols].mean() * 100.0
     data.columns = labels
@@ -279,7 +377,8 @@ def plot_signal_shares_by_sector(
         ncol=len(labels), frameon=False,
     )
     fig.tight_layout()
+    _add_caption(fig, stats)
 
-    _save(fig, data, save_path, excel_path, "signal_shares_by_sector")
+    _save(fig, data, save_path, excel_path, "signal_shares_by_sector", stats)
     plt.show() if show else plt.close(fig)
-    return fig, data
+    return fig, data, stats
