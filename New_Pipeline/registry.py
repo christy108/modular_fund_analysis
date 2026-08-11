@@ -3,7 +3,7 @@
 Nodes never reference their neighbours — all topology lives here (leonardo_nodes
 principle: Pipeline owns the edges). Import this module to get:
     CONTRACTS      : {name -> Contract}
-    NODE_MODULES   : the 10 node modules (each exposes CONTRACT + NODE + @process fns)
+    NODE_MODULES   : the 9 node modules (each exposes CONTRACT + NODE + @process fns)
     build_pipeline(): a validated Pipeline
     register_processes(): ingest every @process into the shared store
 """
@@ -35,19 +35,34 @@ CONTRACTS = {m.CONTRACT.name: m.CONTRACT for m in NODE_MODULES}
 # Edges: "src_node.out" -> "dst_node.dst_port". `cfg` ports are intentionally left
 # unconnected — they are external inputs bound per Experiment. prepare_panel already
 # returns aligned factors, so there is no separate align node.
-# build_analyse_portfolios (05) folds the former build_portfolios (05), ff3_alphas (06),
-# performance_tables (07), and build_constituents (08) into one node — all portfolio-level
-# analytics live there. Only the diagnostic nodes (esg_signal_corr, esg_coverage) remain as
-# separate stages downstream of prepare_panel.
+#
+# process_lc (01) + derive_signals (02) are the former load_signal_lc split into two:
+# process_lc handles cells 4/14/15 (load + filter + industry map), derive_signals cells
+# 16/18/21 (category aggregation + winsor + signal_i ratio). esg_coverage still reads
+# from process_lc because it needs lc_raw_for_coverage, which is snapshotted during
+# process_lc BEFORE the sample filters — not the signal-bearing frame.
+#
+# load_universes (03) + merge_esg_provider (04) are the former build_global_universe
+# split into two: load_universes does the raw ingestion (identical across every ESG
+# config), and merge_esg_provider carries FOUR interchangeable Processes (esg_none /
+# refinitiv / msci / snp) picked by Experiment.process_selection — one per ESG choice,
+# rather than an if/elif inside a single process.
+#
+# build_analyse_portfolios (07) folds the former build_portfolios, ff3_alphas,
+# performance_tables, and build_constituents into one node — all portfolio-level
+# analytics live there. Only the diagnostic nodes (esg_signal_corr, esg_coverage) remain
+# as separate stages downstream of prepare_panel.
 EDGES = [
-    ("load_signal_lc.out", "prepare_panel.lc"),
-    ("build_global_universe.out", "prepare_panel.global_universe"),
+    ("process_lc.out", "derive_signals.lc"),
+    ("derive_signals.out", "prepare_panel.lc"),
+    ("load_universes.out", "merge_esg_provider.universes"),
+    ("merge_esg_provider.out", "prepare_panel.global_universe"),
     ("load_fama_french.out", "prepare_panel.fama_french_raw"),
     ("prepare_panel.out", "build_analyse_portfolios.prep"),
     ("prepare_panel.out", "esg_signal_corr.prep"),
     ("prepare_panel.out", "esg_coverage.prep"),
-    ("build_global_universe.out", "esg_coverage.universe"),
-    ("load_signal_lc.out", "esg_coverage.lc"),
+    ("merge_esg_provider.out", "esg_coverage.universe"),
+    ("process_lc.out", "esg_coverage.lc"),
 ]
 
 

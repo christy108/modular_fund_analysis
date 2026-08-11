@@ -17,6 +17,13 @@ import json
 
 import polars as pl
 
+_ESG_TAG = {
+    "none": "esg_none@v1",
+    "refinitiv": "esg_refinitiv@v1",
+    "msci": "esg_msci@v1",
+    "s&p": "esg_snp@v1",
+}
+
 
 # --------------------------------------------------------------------------- #
 # Config derivation (mirrors Main.ipynb cells 2, 8, 11)
@@ -206,10 +213,14 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
     if prepare_tag is None:
         prepare_tag = "prepare_esg_universe@v1" if cfg.get("esg_full_universe") else "prepare_lc@v1"
 
+
+
     selection = {}
     for m_name, contract_name in [(n.name, n.contract.name) for n in pipe.topological_order()]:
         if m_name == "prepare_panel":
             selection[m_name] = prepare_tag
+        elif m_name == "merge_esg_provider":
+            selection[m_name] = _ESG_TAG[cfg["esg_choice"]]
         else:
             selection[m_name] = f"{contract_name}@v1"
 

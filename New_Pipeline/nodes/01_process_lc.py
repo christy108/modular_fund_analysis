@@ -1,9 +1,16 @@
-"""Load & clean the Local Content (LC) panel and derive behavioural signals.
+"""Load and clean the Local Content (LC) panel — data-ingestion + sample selection.
 
-Node `load_signal_lc`: Contract + Process + Node, read top-to-bottom.
-Reproduces Main.ipynb cells 4, 14, 15, 16, 18, 21 verbatim, reusing
-functions/data_functions/process_lc.py unchanged. Output is carried losslessly
-(pickle) because the LC table is a wide, mixed-dtype plumbing frame.
+Node `process_lc`: reproduces Main.ipynb cells 4, 14, 15 verbatim, reusing
+functions/data_functions/process_lc.py unchanged. This is the first of two nodes
+that used to be one (``load_signal_lc``); the paired second node
+(``derive_signals``) handles cell 16, 18, 21 — category aggregation, winsor
+alpha-trim, and the ``signal_i`` ratio. Splitting the two makes each concern
+independently auditable and lets signal-construction methodology be A/B'd
+without touching data-loading logic.
+
+Output is a lossless (pickle) bundle carrying the cleaned LC panel plus, when
+gated by ``cfg.show_esg_coverage``, a raw-post-``process_lc`` snapshot used only
+by the ``esg_coverage`` diagnostic. When the gate is off, that snapshot is None.
 """
 
 from __future__ import annotations
@@ -13,14 +20,16 @@ from leonardo_nodes import Contract, Node, process
 from New_Pipeline._common import cfg_schema, open_schema, store
 
 CONTRACT = Contract(
-    name="load_signal_lc",
-    intent="""Load the Golden LC panel and turn it into a firm-fiscal-year table carrying the
-behavioural signals (advocacy/preparation/transformation) used for sorting: apply the sample
-filters, industry mapping and the winsor alpha-trim, then set signal_i = sum_with_i / sum_activities.
-Dataset version, filters and thresholds are read from cfg; the algorithm is left to the Process.
+    name="process_lc",
+    intent="""Load the Golden LC panel and produce an analysis-ready firm-fiscal-year table:
+apply the configured sample filters (min-fyears / suspicious gvkeys / min-initiatives),
+map industries, and drop by industry / region as configured. Dataset version, filter
+thresholds, industry level, and region are read from cfg. The signal columns
+(sum_with_*, sum_activities, signal_i) are NOT computed here — they belong to the
+paired ``derive_signals`` node.
 
 Mandatory measures (enforced by schema / audits):
-- one row per surviving gvkey-fiscal-year with the behavioural signal columns present
+- one row per surviving gvkey-fiscal-year with GICS + Industry columns present
 - rows only drop via the declared filters
 
 Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
@@ -31,8 +40,8 @@ Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plai
 )
 
 
-@process(tag="load_signal_lc@v1", contract="load_signal_lc", author="refactor")
-def load_signal_lc_v1(cfg):
+@process(tag="process_lc@v1", contract="process_lc", author="refactor")
+def process_lc_v1(cfg):
     import json
     import os
     from pathlib import Path
@@ -41,7 +50,6 @@ def load_signal_lc_v1(cfg):
 
     from functions.data_functions.process_lc import (
         add_available_fyears,
-        filter_sum_activities_by_fiscal_year_quantiles,
         map_sectors,
         process_lc,
     )
@@ -127,45 +135,11 @@ def load_signal_lc_v1(cfg):
         if C["region_analysis"] == "United_States":
             lc = lc[lc["loc"] == "USA"]
 
-    # ---- cell 16: category aggregation ----------------------------------- #
-    categories_dict = C["categories_dict"]  # {category_col: group_int}
-    for key, value in categories_dict.items():
-        if f"sum_with_{value}" in lc.columns:
-            lc[f"sum_with_{value}"] += lc[key]
-        else:
-            lc[f"sum_with_{value}"] = lc[key].values
-
-    if C["signal_denominator"] == "Sum_All_Signals":
-        lc["sum_activities"] = lc.loc[:, list(categories_dict.keys())].sum(axis=1)
-    elif C["signal_denominator"] == "Sum_All_Initiatives":
-        lc["sum_activities"] = lc["n_predicted_initiatives"]
-
-    print(lc["sum_activities"].describe())
-
-    # ---- cell 18: winsor alpha-trim -------------------------------------- #
-    if C["use_alpha_bound"]:
-        lc = filter_sum_activities_by_fiscal_year_quantiles(
-            lc, lower_exclude=(C["alpha_bound"] / 2), upper_exclude=(C["alpha_bound"] / 2)
-        )
-    else:
-        lower_exclude = 0.2 * 2
-        upper_exclude = 0.05 * 2
-        lc = filter_sum_activities_by_fiscal_year_quantiles(
-            lc, lower_exclude=(lower_exclude / 2), upper_exclude=(upper_exclude / 2)
-        )
-
-    print(lc["sum_activities"].describe())
-
-    # ---- cell 21: signal_i ----------------------------------------------- #
-    max_category = max(int(v) for v in categories_dict.values())
-    for i in range(max_category + 1):
-        lc[f"signal_{i}"] = lc[f"sum_with_{i}"] / lc["sum_activities"]
-
     return pack_obj({"lc": lc, "lc_raw_for_coverage": lc_raw_for_coverage})
 
 
 NODE = Node(
-    name="load_signal_lc",
+    name="process_lc",
     contract=CONTRACT,
     store=store,
     inputs=("cfg",),
