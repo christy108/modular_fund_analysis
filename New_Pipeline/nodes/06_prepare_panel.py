@@ -93,6 +93,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_univariate_sorting_inputs,
     )
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -101,7 +102,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     ff = unpack_obj(fama_french_raw)["fama_french"]
 
     # cell 26 tail: ensure gvkey is 6 digits for merging (idempotent).
-    lc_df["gvkey"] = lc_df["gvkey"].astype(str).str.zfill(6)
+    lc_df["gvkey"] = normalise_gvkeys(lc_df["gvkey"])
 
     prep = prepare_univariate_sorting_inputs(
         global_universe=guniv,

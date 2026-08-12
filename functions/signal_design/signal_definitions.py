@@ -166,3 +166,6 @@ def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_
             "SREC: customers": 3,
             }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
+
+
+

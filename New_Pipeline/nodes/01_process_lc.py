@@ -53,6 +53,7 @@ def process_lc_v1(cfg):
         map_sectors,
         process_lc,
     )
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj
 
     C = json.loads(cfg["json"][0])
@@ -90,8 +91,8 @@ def process_lc_v1(cfg):
             lc_suspicious = pd.read_csv(golden_location / "lc_gvkey_suspicious.csv")
             print("Number of suspicious: ", lc_suspicious.shape[0])
             print(lc_suspicious["suspicious_flag"].value_counts())
-            lc_suspicious["original_gvkey"] = lc_suspicious["original_gvkey"].astype(str).str.zfill(6)
-            lc["gvkey"] = lc["gvkey"].astype(str).str.zfill(6)
+            lc_suspicious["original_gvkey"] = normalise_gvkeys(lc_suspicious["original_gvkey"])
+            lc["gvkey"] = normalise_gvkeys(lc["gvkey"])
             print("Number of suspicious that are NAN: ", lc_suspicious["suspicious_flag"].isna().sum())
             print("unique gvkeys: ", lc["gvkey"].nunique(), "Unique gvkeys in suspicious: ", lc_suspicious["original_gvkey"].nunique())
             lc = lc.merge(

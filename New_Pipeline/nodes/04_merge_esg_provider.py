@@ -56,6 +56,7 @@ def esg_none_v1(universes, cfg):
     import json
 
     from functions.data_functions.process_data import process_global_universe
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -76,7 +77,7 @@ def esg_none_v1(universes, cfg):
     )
     print("columns with year")
     print([c for c in global_universe.columns if c == "year" or c.startswith("year_")])
-    global_universe["gvkey"] = global_universe["gvkey"].astype(str).str.zfill(6)
+    global_universe["gvkey"] = normalise_gvkeys(global_universe["gvkey"])
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
@@ -95,6 +96,7 @@ def esg_refinitiv_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_refinitive_snp_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -113,7 +115,7 @@ def esg_refinitiv_v1(universes, cfg):
     )
     print("columns with year")
     print([c for c in global_universe.columns if c == "year" or c.startswith("year_")])
-    global_universe["gvkey"] = global_universe["gvkey"].astype(str).str.zfill(6)
+    global_universe["gvkey"] = normalise_gvkeys(global_universe["gvkey"])
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
@@ -136,6 +138,7 @@ def esg_msci_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_msci_esg_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -155,7 +158,7 @@ def esg_msci_v1(universes, cfg):
     )
     print("columns with year")
     print([c for c in global_universe.columns if c == "year" or c.startswith("year_")])
-    global_universe["gvkey"] = global_universe["gvkey"].astype(str).str.zfill(6)
+    global_universe["gvkey"] = normalise_gvkeys(global_universe["gvkey"])
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
@@ -174,6 +177,7 @@ def esg_snp_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_snp_esg_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
+    from New_Pipeline._common import normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -192,7 +196,7 @@ def esg_snp_v1(universes, cfg):
     )
     print("columns with year")
     print([c for c in global_universe.columns if c == "year" or c.startswith("year_")])
-    global_universe["gvkey"] = global_universe["gvkey"].astype(str).str.zfill(6)
+    global_universe["gvkey"] = normalise_gvkeys(global_universe["gvkey"])
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
