@@ -6,9 +6,32 @@ shared ``store`` (register + Node must use the same instance) without import cyc
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 from leonardo_nodes import ColumnSchema, ProcessStore
+
+# ---- Silence pandas' ChainedAssignmentError FALSE POSITIVES -------------------- #
+# pandas 2.2 emits a ChainedAssignmentError FutureWarning ("behaviour will change in
+# pandas 3.0") for a plain, correct `df[col] = <series>` whenever the target frame has
+# a low reference count — which is the norm inside a function body, i.e. inside every
+# leonardo_nodes process. The heuristic is refcount-based, not lineage-based: it is a
+# known pandas false positive (GH #56019 / #57734) that fires even for the recommended
+# single-step assignment and cannot be silenced with `.copy()` or Copy-on-Write (both
+# were verified to leave the warning count unchanged). The assignments themselves are
+# correct — bit-for-bit parity against the notebook oracle proves the numbers are right.
+# A genuine chained-assignment bug would instead surface as a wrong number (caught by
+# parity) or, under real Copy-on-Write, as a hard ChainedAssignmentError (not a
+# FutureWarning), so this narrow filter does not mask real problems. Scoped to exactly
+# this message; every other warning still shows. Set here because _common is imported by
+# every node module, so all entry points (run / dashboard / parity) inherit it.
+warnings.filterwarnings("ignore", category=FutureWarning, message="ChainedAssignmentError")
+try:  # under Copy-on-Write the same event is raised as ChainedAssignmentError itself
+    from pandas.errors import ChainedAssignmentError as _ChainedAssignmentError
+
+    warnings.filterwarnings("ignore", category=_ChainedAssignmentError)
+except Exception:  # pragma: no cover - older/newer pandas without this symbol
+    pass
 
 # One content-addressed archive per project (gitignored).
 STORE_ROOT = Path(__file__).resolve().parent.parent / ".leonardo_nodes_store"

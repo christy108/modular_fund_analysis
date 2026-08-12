@@ -76,6 +76,10 @@ def process_lc_v1(cfg):
     # ---- cell 14: process_lc + 3-filter block + drop real estate --------- #
     lc = process_lc(lc, C["start_year"], C["end_year"])
 
+    #This can later be toggled - it dosent always need to be loaded
+    # lc_materiality = pd.read_excel("Matched_SASB_GOLDEN_long_matchings_vZERO_FirmYear.xlxs", sheet = )
+
+
     lc_raw_for_coverage = None
     if C["show_esg_coverage"]:
         lc_raw_for_coverage = lc.copy()
