@@ -31,8 +31,8 @@ from New_Pipeline.dashboard_viz import BundleHeatmapViz, BundleTableViz
 
 def _sum_activities_outlier_stats(bundle):
     """describe() stats for sum_activities, one row per stat, one column per stage
-    (before_outlier_control vs after_alpha_bound_filter/after_winsorize, depending on
-    cfg.winsorize_outliers) — read left-to-right as a before/after comparison."""
+    (before_alpha_bound vs after_alpha_bound) — read left-to-right as a before/after
+    comparison of the alpha-bound trim."""
     return bundle["sum_activities_outlier_stats"]
 
 
@@ -50,20 +50,16 @@ CONTRACT = Contract(
     name="derive_signals",
     intent="""Turn the cleaned LC panel into a behavioural-signal panel: aggregate the raw category
 columns into ``sum_with_<i>``, pick the ``sum_activities`` denominator (Sum_All_Signals vs
-Sum_All_Initiatives), apply a per-fiscal-year outlier control to ``sum_activities``, then set
-``signal_i = sum_with_i / sum_activities`` for each category group i. The outlier control is one of
-two mutually-exclusive methods (never both — build_cfg() and the process both refuse the combination):
-DROP rows outside ``cfg.alpha_bound`` when ``cfg.use_alpha_bound=True`` (default, notebook-identical),
-or CAP values at ``cfg.winsorize_bound`` (its own independent number, not derived from alpha_bound)
-when ``cfg.winsorize_outliers=True`` — same sample size every config, no attrition. Which categories
-map to which group, the denominator, and both trim bounds are read from cfg. Sample selection and
-industry mapping are NOT redone here — they belong to the upstream ``process_lc`` node.
+Sum_All_Initiatives), winsor-trim ``sum_activities`` per fiscal year, then set
+``signal_i = sum_with_i / sum_activities`` for each category group i. Which categories map to which
+group, the denominator, and the trim bound are read from cfg. Sample selection and industry mapping
+are NOT redone here — they belong to the upstream ``process_lc`` node.
 
 Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with the behavioural signal columns present
 - rows only drop via the declared winsor trim
 
-Surfaces: sum_activities summary stats, before vs after the alpha-bound outlier control side by
+Surfaces: sum_activities summary stats, before vs after the alpha-bound trim side by
 side as columns (``BundleTableViz``); per-signal summary statistics compared side by side
 (``BundleTableViz``); the signal correlation matrix as a diverging blue/white/red heatmap
 (``BundleHeatmapViz``). All three stack/subplot across experiments — the two tables via the
@@ -78,7 +74,7 @@ colour scale — when comparing multiple configs.""",
         # collide in the dashboard's per-node audit_stats dict — only the last one
         # computed survives and gets shown under all the matching widgets.
         BundleTableViz(_sum_activities_outlier_stats,
-                       title="sum_activities — before vs after outlier control",
+                       title="sum_activities — before vs after alpha-bound trim",
                        key="table:sum_activities_outlier_stats"),
         BundleTableViz(_signal_summary_stats, title="Signal summary statistics",
                        key="table:signal_summary_stats"),
@@ -96,7 +92,6 @@ def derive_signals_v1(lc, cfg):
 
     from functions.data_functions.process_lc import (
         filter_sum_activities_by_fiscal_year_quantiles,
-        winsorize_sum_activities_by_fiscal_year_quantiles,
     )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
@@ -119,46 +114,29 @@ def derive_signals_v1(lc, cfg):
 
     print(lc_df["sum_activities"].describe())
 
-    # ---- audit: sum_activities BEFORE outlier control ---------------------- #
+    # ---- audit: sum_activities BEFORE the alpha-bound trim ------------------ #
     desc_before = lc_df["sum_activities"].describe()
     # (stage_name, describe() Series) pairs, in display order — the final table gets
     # one column per stage, built at the end once every stage has been captured.
-    outlier_stages = [("before_outlier_control", desc_before)]
+    outlier_stages = [("before_alpha_bound", desc_before)]
 
-    # ---- cell 18: per-year outlier control on sum_activities ---------------- #
-    # Two entirely separate methods, both rfyear-grouped-quantile-based, but never
-    # combined: `use_alpha_bound` (DROP rows outside cfg.alpha_bound, notebook-identical)
-    # vs `winsorize_outliers` (CAP values at cfg.winsorize_bound — its own number, not
-    # derived from alpha_bound). build_cfg() already refuses to set both True; re-check
-    # here too since cfg is data a caller could hand-build without going through it.
-    winsorize_outliers = C.get("winsorize_outliers", False)
-    if C["use_alpha_bound"] and winsorize_outliers:
-        raise ValueError(
-            "cfg.use_alpha_bound and cfg.winsorize_outliers are separate outlier-control "
-            "methods (drop vs cap) and cannot both be True."
-        )
-
-    if winsorize_outliers:
-        wb = C["winsorize_bound"]
-        lc_df = winsorize_sum_activities_by_fiscal_year_quantiles(
-            lc_df, lower_exclude=wb / 2, upper_exclude=wb / 2
-        )
-        after_stage_name = "after_winsorize"
-    else:
-        if C["use_alpha_bound"]:
-            lower_exclude, upper_exclude = C["alpha_bound"] / 2, C["alpha_bound"] / 2
-        else:
-            lower_exclude, upper_exclude = 0.2, 0.05
+    # ---- cell 18: winsor alpha-trim -------------------------------------- #
+    if C["use_alpha_bound"]:
         lc_df = filter_sum_activities_by_fiscal_year_quantiles(
-            lc_df, lower_exclude=lower_exclude, upper_exclude=upper_exclude
+            lc_df, lower_exclude=(C["alpha_bound"] / 2), upper_exclude=(C["alpha_bound"] / 2)
         )
-        after_stage_name = "after_alpha_bound_filter"
+    else:
+        lower_exclude = 0.2 * 2
+        upper_exclude = 0.05 * 2
+        lc_df = filter_sum_activities_by_fiscal_year_quantiles(
+            lc_df, lower_exclude=(lower_exclude / 2), upper_exclude=(upper_exclude / 2)
+        )
 
     print(lc_df["sum_activities"].describe())
 
-    # ---- audit: sum_activities AFTER outlier control ------------------------ #
+    # ---- audit: sum_activities AFTER the alpha-bound trim ------------------- #
     desc_after = lc_df["sum_activities"].describe()
-    outlier_stages.append((after_stage_name, desc_after))
+    outlier_stages.append(("after_alpha_bound", desc_after))
 
     # Wide table: one row per stat, one column per stage (in the order captured above).
     # describe() always emits the same stat index (count/mean/std/min/25%/50%/75%/max)

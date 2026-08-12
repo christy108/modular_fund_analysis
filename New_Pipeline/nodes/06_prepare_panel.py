@@ -127,7 +127,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
 
     # n_predicted_initiatives is never merged into the universe (the merge list is fixed
     # at univariate_sorting_preprocess._LC_MERGE_FIXED), so recover it from the lc input.
-    # sum_activities is NOT a substitute — node 02 quantile-filters/winsorizes it.
+    # sum_activities is NOT a substitute — node 02 quantile-filters it.
     lc_fy = lc_df.drop_duplicates(subset=["gvkey", "rfyear"])
     if len(lc_fy) != len(lc_df):
         print(f"[prepare_panel] WARNING: lc had {len(lc_df) - len(lc_fy)} duplicate (gvkey, rfyear) rows")
