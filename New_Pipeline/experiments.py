@@ -57,6 +57,7 @@ def build_cfg(**overrides) -> dict:
         alpha_bound=0.1,
         mktcap_covered=0.95,
         add_accounting_data=False,
+        add_materiality=False,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
         execute_3_filters=True,
@@ -85,6 +86,11 @@ def build_cfg(**overrides) -> dict:
         c["end_year"] = 2024
     if c["esg_choice"] == "s&p":
         c["end_year"] = 2022
+    if c["add_materiality"]:
+        # The SASB materiality workbook only covers rfyear <= 2022; without this cap
+        # the inner-merged sample falls short of the configured end_year and the
+        # returns panel comes up short of the Fama-French date range downstream.
+        c["end_year"] = min(c["end_year"], 2022)
 
     # ---- cell 2: region if/elif block ------------------------------------- #
     region = c["region_analysis"]
@@ -260,6 +266,12 @@ def show_corr():
     )
 
 
+def base_materiality():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality", build_cfg(add_materiality=True))
+
+
 EXPERIMENTS = {
     "base_none": base_none,
     "esg_refinitiv": esg_refinitiv,
@@ -267,4 +279,5 @@ EXPERIMENTS = {
     "esg_snp": esg_snp,
     "esg_full_universe": esg_full_universe,
     "show_corr": show_corr,
+    "base_materiality": base_materiality,
 }

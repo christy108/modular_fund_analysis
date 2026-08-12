@@ -18,6 +18,23 @@ from __future__ import annotations
 from leonardo_nodes import Contract, Node, process
 
 from New_Pipeline._common import cfg_schema, open_schema, store
+from New_Pipeline.dashboard_viz import BundleDualAxisViz, BundleTableViz
+
+
+# ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
+
+def _sample_descriptives(bundle):
+    """One row: unique gvkeys, unique gvkey-year observations, and total initiatives in
+    the sample that survives this node (after all filters, and the materiality merge if
+    that flag is on)."""
+    return bundle.get("sample_descriptives")
+
+
+def _firms_and_initiatives(bundle):
+    """Per-fiscal-year unique companies / firm-year observations / total initiatives for
+    the sample that survives this node."""
+    return bundle.get("firms_and_initiatives")
+
 
 CONTRACT = Contract(
     name="process_lc",
@@ -32,11 +49,23 @@ Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with GICS + Industry columns present
 - rows only drop via the declared filters
 
-Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
-``RowCountViz`` would always report 1 and add no information).""",
+Surfaces: descriptives of the sample that survives this node — unique gvkeys, unique
+gvkey-year observations, total initiatives (``BundleTableViz``); and unique companies
+against total initiatives over time on separate y-axes (``BundleDualAxisViz``).""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
-    audits=[],
+    audits=[
+        BundleTableViz(_sample_descriptives, title="Final sample descriptives",
+                       key="table:sample_descriptives"),
+        BundleDualAxisViz(
+            _firms_and_initiatives,
+            title="Unique companies and total initiatives over time",
+            x_col="rfyear", left_col="unique_companies", right_col="total_initiatives",
+            left_label="Unique companies", right_label="Total initiatives",
+            x_label="Fiscal year",
+            key="dual_axis:firms_and_initiatives",
+        ),
+    ],
 )
 
 
@@ -75,10 +104,6 @@ def process_lc_v1(cfg):
 
     # ---- cell 14: process_lc + 3-filter block + drop real estate --------- #
     lc = process_lc(lc, C["start_year"], C["end_year"])
-
-    #This can later be toggled - it dosent always need to be loaded
-    # lc_materiality = pd.read_excel("Matched_SASB_GOLDEN_long_matchings_vZERO_FirmYear.xlxs", sheet = )
-
 
     lc_raw_for_coverage = None
     if C["show_esg_coverage"]:
@@ -140,7 +165,46 @@ def process_lc_v1(cfg):
         if C["region_analysis"] == "United_States":
             lc = lc[lc["loc"] == "USA"]
 
-    return pack_obj({"lc": lc, "lc_raw_for_coverage": lc_raw_for_coverage})
+    # ---- optional: inner-merge SASB materiality counts onto lc ----------- #
+    # Gated (default off): the inner join filters lc to firm-years present in the
+    # materiality workbook, so it changes the sample and must stay off for base_none
+    # parity. Runs last, once (gvkey, rfyear) are final.
+    if C["add_materiality"]:
+        from functions.data_functions.process_materiality import add_materiality_to_lc
+
+        lc = add_materiality_to_lc(lc)
+        print("Before Adding Materiality", lc.shape)
+
+    # ---- audit: descriptives of the sample that survives this node ------------------ #
+    # No universe-intersection step exists here (that's node 06) — lc itself is the
+    # surviving sample. Dedupe on (gvkey, rfyear) defensively: multiple report_type rows
+    # can share a firm-fiscal-year.
+    lc_dedup = lc.drop_duplicates(subset=["gvkey", "rfyear"])
+    if len(lc_dedup) != len(lc):
+        print(f"[process_lc] WARNING: lc had {len(lc) - len(lc_dedup)} duplicate (gvkey, rfyear) rows")
+
+    sample_descriptives = pd.DataFrame([{
+        "unique_gvkeys": lc_dedup["gvkey"].nunique(),
+        "gvkey_year_obs": len(lc_dedup),
+        "total_initiatives": int(lc_dedup["n_predicted_initiatives"].sum()),
+    }])
+    firms_and_initiatives = (
+        lc_dedup.groupby("rfyear")
+        .agg(
+            unique_companies=("gvkey", "nunique"),
+            firm_year_observations=("gvkey", "size"),
+            total_initiatives=("n_predicted_initiatives", "sum"),
+        )
+        .sort_index()
+        .reset_index()
+    )
+
+    return pack_obj({
+        "lc": lc,
+        "lc_raw_for_coverage": lc_raw_for_coverage,
+        "sample_descriptives": sample_descriptives,
+        "firms_and_initiatives": firms_and_initiatives,
+    })
 
 
 NODE = Node(
