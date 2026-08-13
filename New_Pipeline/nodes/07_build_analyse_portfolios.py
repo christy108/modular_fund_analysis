@@ -213,8 +213,9 @@ portfolio's excess return on mktrf/smb/hml (Low/High per signal in insertion ord
 rounded to 2dp) and the rolling FF3 alphas at both configured windows (40 and 24). Build the horizon
 compound returns (1m, 3m, YTD, 1yr, 3yr, 5yr, 10yr, Since launch) and the risk metrics (Sharpe on
 excess returns, VaR 1%, Max Drawdown), attaching Alpha + p-value(alpha) from the level FF3 table for
-matching columns. Derive, for the pinned sort key (signal_2, or the ESG column under
-esg_full_universe), the constituent counts by category over time plus the high-bucket holdings.
+matching columns. Derive, for the pinned sort key (the last signal in cfg.lc_signals insertion
+order, or the ESG column under esg_full_universe), the constituent counts by category over time
+plus the high-bucket holdings.
 
 Which signals/legs are analysed (and any ESG leg) comes from cfg; how the tables are built is left
 to the Process. cumulative_table and risk_table are formatted exactly as the notebook's tables.
@@ -458,7 +459,13 @@ def build_analyse_portfolios_v1(prep, cfg):
     print(cumulative.head())
 
     # ---- cells 58 & 59: constituents + holdings-over-time --------------- #
-    key = next(iter(C["universe_signals"])) if esg_full_universe else "signal_2"
+    # Pinned sort key: the ESG column under esg_full_universe, else the LAST lc signal
+    # in cfg.lc_signals insertion order (signal_2 for the 3-signal original_matteo
+    # characterization it was originally written for — but not every characterization
+    # has 3+ signals, e.g. Material_Immaterial_only has only signal_0/signal_1, so this
+    # must be derived rather than hardcoded). Matches base_analysis_selection's own
+    # "reversed(lc_signals)" convention just above, whose first element is this same key.
+    key = next(iter(C["universe_signals"])) if esg_full_universe else list(lc_signals)[-1]
     pc2 = PortfolioConstituents(
         signal_quantile_constituents[key], global_universe, portfolio_type="univariate_split"
     )

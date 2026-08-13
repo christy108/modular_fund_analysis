@@ -299,7 +299,15 @@ def show_corr():
 def base_materiality():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "material_4_Behavioural_Signals"))
+    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
+
+def base_materiality_4_Signals():
+    # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
+    return make_experiment("base_materiality_4_Signals", build_cfg(add_materiality=True, action_characterization = "material_4_Behavioural_Signals"))
+
+def base_immateriality_4_Signals():
+    # base_materiality, but with the 4-signal "immaterial" behavioural-signal characterization.
+    return make_experiment("base_immateriality_4_Signals", build_cfg(add_materiality=True, action_characterization = "immaterial_4_Behavioural_Signals"))
 
 
 EXPERIMENTS = {
@@ -310,4 +318,6 @@ EXPERIMENTS = {
     "esg_full_universe": esg_full_universe,
     "show_corr": show_corr,
     "base_materiality": base_materiality,
+    "base_materiality_4_Signals": base_materiality_4_Signals,
+    "base_immateriality_4_Signals": base_immateriality_4_Signals,
 }
