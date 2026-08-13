@@ -86,12 +86,7 @@ def build_cfg(**overrides) -> dict:
         c["end_year"] = 2024
     if c["esg_choice"] == "s&p":
         c["end_year"] = 2022
-    if c["add_materiality"]:
-        # The SASB materiality workbook only covers rfyear <= 2022; without this cap
-        # the inner-merged sample falls short of the configured end_year and the
-        # returns panel comes up short of the Fama-French date range downstream.
-        c["end_year"] = min(c["end_year"], 2022)
-
+   
     # ---- cell 2: region if/elif block ------------------------------------- #
     region = c["region_analysis"]
     c["fama_factor_region"] = "Developed"

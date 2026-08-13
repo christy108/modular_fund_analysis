@@ -172,8 +172,9 @@ def process_lc_v1(cfg):
     if C["add_materiality"]:
         from functions.data_functions.process_materiality import add_materiality_to_lc
 
-        lc = add_materiality_to_lc(lc)
         print("Before Adding Materiality", lc.shape)
+        lc = add_materiality_to_lc(lc)
+        print("After Adding Materiality", lc.shape)
 
     # ---- audit: descriptives of the sample that survives this node ------------------ #
     # No universe-intersection step exists here (that's node 06) — lc itself is the
