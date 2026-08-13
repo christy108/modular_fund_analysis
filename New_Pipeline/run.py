@@ -17,6 +17,8 @@ tools always see the most recent one.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,12 +84,25 @@ def run(name: str, out_dir: str | None = None):
     register_processes()
     exp = EXPERIMENTS[name]()
 
-    # External bindings are prebuilt pl.DataFrames (the cfg frames) — pass through.
-    manifest, outputs = run_experiment(exp, resolve_input=lambda b: b, store=store, verify=False)
-
-    # 1. Per-run archive (never overwritten): tables + immutable manifest.
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = Path("runs") / f"{ts}_{name}"
+
+    # Node processes (and the functions/ code they call) print a lot of intermediate
+    # diagnostics — shape-before/after on every filter, value_counts/describe dumps, and
+    # an uncapped FF/returns date-alignment table (~100 lines by itself). None of that is
+    # useful on every run and it floods anything capturing this command's output.
+    # Capture it instead of streaming it, and persist it next to the run's other archived
+    # artifacts — written even on failure, so a crash's last prints aren't lost.
+    # External bindings are prebuilt pl.DataFrames (the cfg frames) — pass through.
+    debug_buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(debug_buf):
+            manifest, outputs = run_experiment(exp, resolve_input=lambda b: b, store=store, verify=False)
+    finally:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "debug_prints.log").write_text(debug_buf.getvalue())
+
+    # 1. Per-run archive (never overwritten): tables + immutable manifest.
     written = _export(outputs, run_dir)
     manifest.save(str(run_dir / "manifest"))  # manifest.json + manifest.md
 
@@ -98,6 +113,7 @@ def run(name: str, out_dir: str | None = None):
     print(f"[run] {name}: {len(written)} artifacts")
     print(f"[run] archived (kept)     -> {run_dir}/   (+ manifest.json/.md)")
     print(f"[run] latest (overwrites) -> {latest}/")
+    print(f"[run] debug prints        -> {run_dir}/debug_prints.log")
     print(f"[run] view it:  python -m parity.show {name}")
     return manifest, outputs
 

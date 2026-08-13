@@ -268,6 +268,9 @@ runs/<UTC-timestamp>_<config>/      NEW folder per run, never overwritten
     constituents_Industry.parquet, constituents_loc.parquet, holdings_over_time.parquet
     manifest.json                   structured, for machines
     manifest.md                     narrative, for humans
+    debug_prints.log                every print() the nodes + functions/ emitted this run
+                                     (captured, not streamed to the console — written even
+                                     if the run raises partway through)
 
 parity/artifacts/new/<config>/      "latest" snapshot, OVERWRITTEN each run
                                     (this is what parity.compare / parity.show read)

@@ -163,3 +163,8 @@ collapses to the same literal string) — always pass an explicit `key=`.
   another package runs alongside `New_Pipeline/`), both write to the same `parity/artifacts/new/<config>/`
   path since it's relative to repo root, not the package. Use `--out` on `New_Pipeline.run` to keep
   snapshots apart if this ever matters again.
+- **Node/`functions/` diagnostic `print()`s never reach the console.** `New_Pipeline/run.py`
+  captures all stdout during `run_experiment(...)` (the single call site — `dashboard.py` reuses
+  `run.run()`, so this covers it too) and writes it to `runs/<ts>_<config>/debug_prints.log`
+  instead, even on failure. If you need to see what a node printed (shapes, `value_counts`, the
+  FF/returns date-alignment table), read that file rather than expecting it on screen.
