@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from leonardo_nodes.viz import (
+    ColoredTableViz,
     DashboardComponent,
     DualAxisViz,
     HeatmapViz,
@@ -63,6 +64,62 @@ class BundleTableViz(SampleTableViz):
         return DashboardComponent(
             kind="table", title=self.title, data=gathered, options={"columns": cols}
         )
+
+
+class BundleColoredTableViz(ColoredTableViz):
+    """Render a pandas table pulled from a node's pickle-bundle output, rows tinted by
+    the value of ``color_col`` — for tables whose rows fall into a handful of groups
+    (e.g. raw signal-input columns grouped by which signal they feed) where the grouping
+    should be visible at a glance rather than only readable off a text column.
+
+    ``extract(bundle_dict) -> pandas.DataFrame`` containing ``color_col``. ``compute``
+    mirrors ``BundleTableViz`` exactly (unpack -> coerce to DataFrame -> reset a
+    non-trivial index -> stringify columns/datetimes -> records); ``render`` adds the
+    same union-of-columns discovery on top of the framework's ``ColoredTableViz.render``.
+    """
+
+    def __init__(
+        self,
+        extract: Callable[[dict], Any],
+        *,
+        title: str,
+        color_col: str,
+        n: int = 200,
+        palette: list[str] | None = None,
+        key: str | None = None,
+    ):
+        super().__init__(title=title, color_col=color_col, palette=palette, key=key)
+        self._extract = extract
+        self.n = n
+
+    def compute(self, output: Any) -> Any:
+        import pandas as pd
+
+        from New_Pipeline.boundary import unpack_obj
+
+        df = self._extract(unpack_obj(output))
+        if not isinstance(df, pd.DataFrame):
+            df = pd.DataFrame(df)
+        df = df.copy()
+        if not isinstance(df.index, pd.RangeIndex):
+            df = df.reset_index()
+        df.columns = [str(c) for c in df.columns]
+        for col in df.columns:  # JSON-safe cells (datetimes -> str)
+            if str(df[col].dtype).startswith("datetime"):
+                df[col] = df[col].astype(str)
+        return {"rows": df.head(self.n).to_dict("records")}
+
+    def render(self, gathered: dict) -> DashboardComponent:
+        # Columns = union of keys seen across configs, first-seen order (same discovery
+        # BundleTableViz uses, since columns vary by config/action_characterization).
+        cols: list[str] = []
+        for payload in gathered.values():
+            for row in (payload or {}).get("rows", []):
+                for k in row:
+                    if k not in cols:
+                        cols.append(k)
+        self.columns = cols
+        return super().render(gathered)
 
 
 class BundleDualAxisViz(DualAxisViz):

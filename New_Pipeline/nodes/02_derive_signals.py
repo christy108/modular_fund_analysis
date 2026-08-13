@@ -13,10 +13,10 @@ methodologies (denominator, alpha-trim, category groupings, additional signal
 transforms) without touching the data-ingestion node — the LC input is unchanged.
 
 Output is a lossless (pickle) bundle: ``{lc, lc_raw_for_coverage, sum_activities_outlier_stats,
-signal_summary_stats, signal_correlation_matrix}`` — the last three are diagnostic tables only
-(no effect on ``lc`` or downstream nodes), added purely so the dashboard can audit the signal
-construction across experiments; same ``lc`` shape as before plus the signal columns, so
-downstream (``prepare_panel``) keeps a single lc port.
+signal_summary_stats, signal_correlation_matrix, category_column_stats}`` — the last four are
+diagnostic tables only (no effect on ``lc`` or downstream nodes), added purely so the dashboard can
+audit the signal construction across experiments; same ``lc`` shape as before plus the signal
+columns, so downstream (``prepare_panel``) keeps a single lc port.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from __future__ import annotations
 from leonardo_nodes import Contract, Node, process
 
 from New_Pipeline._common import cfg_schema, open_schema, store
-from New_Pipeline.dashboard_viz import BundleHeatmapViz, BundleTableViz
+from New_Pipeline.dashboard_viz import BundleColoredTableViz, BundleHeatmapViz, BundleTableViz
 
 
 # ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
@@ -46,6 +46,12 @@ def _signal_correlation_matrix(bundle):
     return bundle["signal_correlation_matrix"]
 
 
+def _category_column_stats(bundle):
+    """describe() stats for each raw category column that feeds a signal's sum_with_i
+    aggregation — one row per column, tinted by which signal it belongs to."""
+    return bundle["category_column_stats"]
+
+
 CONTRACT = Contract(
     name="derive_signals",
     intent="""Turn the cleaned LC panel into a behavioural-signal panel: aggregate the raw category
@@ -62,7 +68,9 @@ Mandatory measures (enforced by schema / audits):
 Surfaces: sum_activities summary stats, before vs after the alpha-bound trim side by
 side as columns (``BundleTableViz``); per-signal summary statistics compared side by side
 (``BundleTableViz``); the signal correlation matrix as a diverging blue/white/red heatmap
-(``BundleHeatmapViz``). All three stack/subplot across experiments — the two tables via the
+(``BundleHeatmapViz``); and descriptive statistics for each raw category column that feeds a
+signal's aggregation, one row per column, tinted by which signal it belongs to
+(``BundleColoredTableViz``). All four stack/subplot across experiments — the tables via the
 dashboard's per-config ``experiment`` column, the heatmap via one subplot per config sharing a
 colour scale — when comparing multiple configs.""",
     input_schema={"lc": open_schema(), "cfg": cfg_schema()},
@@ -80,6 +88,10 @@ colour scale — when comparing multiple configs.""",
                        key="table:signal_summary_stats"),
         BundleHeatmapViz(_signal_correlation_matrix, title="Signal correlation matrix",
                          key="heatmap:signal_correlation_matrix"),
+        BundleColoredTableViz(_category_column_stats,
+                              title="Category column descriptive statistics (per signal)",
+                              color_col="signal",
+                              key="colored_table:category_column_stats"),
     ],
 )
 
@@ -170,6 +182,16 @@ def derive_signals_v1(lc, cfg):
         .reset_index(names="signal")
     )
 
+    # ---- audit: per-raw-column stats, grouped/tinted by which signal they feed ------ #
+    category_cols = list(categories_dict.keys())
+    category_column_stats = lc_df[category_cols].describe().T.reset_index(names="column")
+    category_column_stats.insert(0, "signal", category_column_stats["column"].map(
+        lambda c: signal_label.get(f"signal_{categories_dict[c]}", str(categories_dict[c]))
+    ))
+    # Sort by signal so same-tint rows are contiguous (stable within a signal, so the
+    # categories_dict declaration order is preserved inside each block).
+    category_column_stats = category_column_stats.sort_values("signal", kind="stable").reset_index(drop=True)
+
     # Carry lc_raw_for_coverage forward untouched so esg_coverage can still read
     # from this node if the topology is later rewired to consume derive_signals'
     # output. Today only process_lc feeds esg_coverage — see registry.EDGES.
@@ -179,6 +201,7 @@ def derive_signals_v1(lc, cfg):
         "sum_activities_outlier_stats": sum_activities_outlier_stats,
         "signal_summary_stats": signal_summary_stats,
         "signal_correlation_matrix": signal_correlation_matrix,
+        "category_column_stats": category_column_stats,
     })
 
 

@@ -40,21 +40,21 @@ def material_4_Behavioural_Signals(signal_0_name="Material__advocacy", signal_1_
 signal_2_name="Material__upskilling", signal_3_name="Material__innovation"):
     return{
 
-    "Material__advocacy": 0, 
-    "Material__adaptation": 1, 
-    "Material__upskilling":2,
-    "Material__innovation": 3,
+    "material__advocacy": 0, 
+    "material__adaptation": 1, 
+    "material__upskilling":2,
+    "material__innovation": 3,
 
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
 
-def immaterial_3_Matteo_Signals(signal_0_name="Material__Advocacy", signal_1_name= "Material__Preparation", 
+def material_3_Matteo_Signals(signal_0_name="Material__Advocacy", signal_1_name= "Material__Preparation", 
 signal_2_name="Material__Transformation"):
     return{
 
-    "Material__advocacy": 0, 
-    "Material__preparation": 1, 
-    "Material__transformation": 2,
+    "material__advocacy": 0, 
+    "material__preparation": 1, 
+    "material__transformation": 2,
 
     }, signal_0_name, signal_1_name, signal_2_name
 

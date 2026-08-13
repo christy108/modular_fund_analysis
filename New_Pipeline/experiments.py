@@ -127,6 +127,14 @@ def build_cfg(**overrides) -> dict:
         dict_all_SDG_1D_prosperity_into_people,
     )
 
+
+    from functions.signal_design.signal_definitions_materiality import (
+        Materiality_Signals,
+        immaterial_4_Behavioural_Signals,
+        immaterial_3_Matteo_Signals,
+        material_4_Behavioural_Signals,
+        material_3_Matteo_Signals,)
+
     ac = c["action_characterization"]
     if ac == "original_matteo":
         categories_dict, s0, s1, s2 = dict_2d_actions_stakeholders_original_matteo()
@@ -137,12 +145,39 @@ def build_cfg(**overrides) -> dict:
     elif ac == "4_stakeholder_new":
         categories_dict, s0, s1, s2, s3 = dict_4_stakeholder_signals_Pre_Nikkei()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+
     elif ac == "dict_all_SDG_1D":
         categories_dict, s0, s1, s2 = dict_all_SDG_1D()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
     elif ac == "dict_all_SDG_1D_prosperity_into_people":
         categories_dict, s0, s1 = dict_all_SDG_1D_prosperity_into_people()
         lc_signals = {"signal_0": s0, "signal_1": s1}
+
+    #Materiality
+    elif ac == "Material_Immaterial_only":
+        categories_dict, s0, s1 = Materiality_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1}
+
+    elif ac == "immaterial_4_Behavioural_Signals":
+        categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+    
+    elif ac == "material_4_Behavioural_Signals":
+        categories_dict, s0, s1, s2, s3 = material_4_Behavioural_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+    
+    
+    elif ac == "immaterial_3_Matteo_Signals":
+        categories_dict, s0, s1, s2 = immaterial_3_Matteo_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
+    
+ 
+    elif ac == "material_3_Matteo_Signals":
+        categories_dict, s0, s1, s2 = material_3_Matteo_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
+    
+
+
     else:
         raise ValueError(f"unknown action_characterization {ac!r}")
 
@@ -264,7 +299,7 @@ def show_corr():
 def base_materiality():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality", build_cfg(add_materiality=True))
+    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "material_4_Behavioural_Signals"))
 
 
 EXPERIMENTS = {
