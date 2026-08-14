@@ -56,10 +56,14 @@ CONTRACT = Contract(
     name="derive_signals",
     intent="""Turn the cleaned LC panel into a behavioural-signal panel: aggregate the raw category
 columns into ``sum_with_<i>``, pick the ``sum_activities`` denominator (Sum_All_Signals vs
-Sum_All_Initiatives), winsor-trim ``sum_activities`` per fiscal year, then set
-``signal_i = sum_with_i / sum_activities`` for each category group i. Which categories map to which
-group, the denominator, and the trim bound are read from cfg. Sample selection and industry mapping
-are NOT redone here — they belong to the upstream ``process_lc`` node.
+Sum_All_Initiatives), winsor-trim ``sum_activities`` per fiscal year, then set ``signal_i`` for
+each category group i: under ``signal_type="weights"`` (default) that is the share
+``sum_with_i / sum_activities``; under ``signal_type="counts"`` it is the raw level
+``sum_with_i`` — the group's total initiative count, with sum_activities still driving the trim
+but no longer dividing (and the signal's display name suffixed ``_counts``). Which categories map
+to which group, the denominator, the trim bound, and the signal_type are read from cfg. Sample
+selection and industry mapping are NOT redone here — they belong to the upstream ``process_lc``
+node.
 
 Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with the behavioural signal columns present
@@ -108,6 +112,7 @@ def derive_signals_v1(lc, cfg):
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
+    signal_type = C.get("signal_type", "weights")   # backwards-compat default
     L = unpack_obj(lc)
     lc_df = L["lc"]
 
@@ -161,7 +166,13 @@ def derive_signals_v1(lc, cfg):
     max_category = max(int(v) for v in categories_dict.values())
     signal_cols = [f"signal_{i}" for i in range(max_category + 1)]
     for i in range(max_category + 1):
-        lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"] / lc_df["sum_activities"]
+        if signal_type == "counts":
+            # Level, not share: the signal IS the group's total initiative count.
+            # sum_activities is still computed above — it drives the cell-18 alpha-bound
+            # trim — it just doesn't divide anything here.
+            lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"]
+        else:
+            lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"] / lc_df["sum_activities"]
 
     # Human-readable label per signal column (e.g. "signal_2" -> "transformation"), from
     # cfg.lc_signals — the same {column: name} mapping used to name portfolios downstream

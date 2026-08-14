@@ -54,6 +54,8 @@ def build_cfg(**overrides) -> dict:
         drop_utilities_Full_ESG=True,
         download_gics_data=False,
         signal_denominator="Sum_All_Signals",
+        signal_type="weights",    # "weights": signal_i = sum_with_i / sum_activities
+                                   # "counts":  signal_i = sum_with_i (raw initiative total, no denominator)
         alpha_bound=0.1,
         mktcap_covered=0.95,
         add_accounting_data=False,
@@ -180,6 +182,17 @@ def build_cfg(**overrides) -> dict:
 
     else:
         raise ValueError(f"unknown action_characterization {ac!r}")
+
+    # Tag the flavour onto the human-readable signal names so weights- and counts-based runs
+    # are distinguishable in portfolio labels and audit tables ("transformation" vs
+    # "transformation_counts"). Only "counts" is suffixed: the bare name has always meant
+    # weights, and it is compared as an exact string in the cumulative_table/risk_table
+    # parity artifacts — suffixing it too would fail base_none parity on labels alone.
+    signal_type = c["signal_type"]
+    if signal_type not in ("weights", "counts"):
+        raise ValueError(f"unknown signal_type {signal_type!r}")
+    if signal_type == "counts":
+        lc_signals = {k: f"{v}_counts" for k, v in lc_signals.items()}
 
     if c["esg_full_universe"]:
         if c["esg_choice"] == "none":
@@ -310,6 +323,22 @@ def base_immateriality_4_Signals():
     return make_experiment("base_immateriality_4_Signals", build_cfg(add_materiality=True, action_characterization = "immaterial_4_Behavioural_Signals"))
 
 
+def base_none_counts():
+    # base_none, but each signal is the raw total-initiative count for its group
+    # rather than that group's share of sum_activities.
+    return make_experiment("base_none_counts", build_cfg(signal_type="counts"))
+
+
+def base_materiality_counts():
+    # base_materiality (2-signal Material_Immaterial_only), counts version.
+    return make_experiment(
+        "base_materiality_counts",
+        build_cfg(add_materiality=True,
+                  action_characterization="Material_Immaterial_only",
+                  signal_type="counts"),
+    )
+
+
 EXPERIMENTS = {
     "base_none": base_none,
     "esg_refinitiv": esg_refinitiv,
@@ -320,4 +349,6 @@ EXPERIMENTS = {
     "base_materiality": base_materiality,
     "base_materiality_4_Signals": base_materiality_4_Signals,
     "base_immateriality_4_Signals": base_immateriality_4_Signals,
+    "base_none_counts": base_none_counts,
+    "base_materiality_counts": base_materiality_counts,
 }
