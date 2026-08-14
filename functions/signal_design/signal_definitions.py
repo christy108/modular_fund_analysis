@@ -87,7 +87,7 @@ def dict_2d_actions_stakeholders_original_matteo(signal_0_name="advocacy", signa
 
 
 
-
+#
 # Sectors, then Stakeholders (alphas)
 def dict_all_SDG_1D_prosperity_into_people(signal_0_name="people plus prosperity", signal_1_name="planet"):
     """
