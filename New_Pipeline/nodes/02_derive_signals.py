@@ -84,7 +84,29 @@ side as columns (``BundleTableViz``); per-signal summary statistics compared sid
 signal's aggregation, one row per column, tinted by which signal it belongs to
 (``BundleColoredTableViz``). All four stack/subplot across experiments — the tables via the
 dashboard's per-config ``experiment`` column, the heatmap via one subplot per config sharing a
-colour scale — when comparing multiple configs.""",
+colour scale — when comparing multiple configs.
+
+Also surfaces a signal-sparsity table (``BundleTableViz``), one row per signal, sorted worst
+first. It answers "can this signal actually be sorted into quantiles?", which describe() cannot:
+a signal that is exactly zero for most firm-years still reports an ordinary mean and max, but
+its zero mass all ties at the bottom, so the low bucket swells and the high bucket is drawn
+from whatever thin non-zero tail remains. Every count is over the WHOLE post-trim panel — all
+fiscal years pooled, not a single year. Columns:
+- ``n_firm_years`` — rows in the panel (gvkey x fiscal-year observations), identical for every
+  signal; the denominator for the counts below.
+- ``n_zero`` / ``pct_zero`` — observations where the signal is exactly 0.
+- ``n_nonzero`` — observations with any activity in this signal's categories.
+- ``n_firms_nonzero`` — DISTINCT firms non-zero at least once, pooled over ALL years. An upper
+  bound on availability, not a portfolio size: those firms need not coexist in any one year, so
+  the count available to sort in a given formation year is lower.
+- ``quantiles_of_pure_zero`` — how many of the ``no_simple_quantiles`` buckets the zero mass
+  alone fills. At 7 quantiles, a signal 6/7 zero leaves ONE bucket able to hold a non-zero
+  value; the rest are pure ties and the sort is meaningless.
+- ``mean_if_nonzero`` / ``median_if_nonzero`` — centre CONDITIONAL on being non-zero, so a
+  healthy non-zero side is distinguishable from a signal that is merely small everywhere.
+- ``max`` — largest observed signal value.
+- ``total_initiatives`` — raw ``sum_with_i`` summed over the panel: total initiatives feeding
+  this signal, before any denominator.""",
     input_schema={"lc": open_schema(), "cfg": cfg_schema()},
     output_schema=open_schema(),
     audits=[
