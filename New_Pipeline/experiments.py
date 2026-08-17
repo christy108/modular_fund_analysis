@@ -60,6 +60,7 @@ def build_cfg(**overrides) -> dict:
         mktcap_covered=0.95,
         add_accounting_data=False,
         add_materiality=False,
+        materiality_version=1,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
         execute_3_filters=True,

@@ -46,7 +46,7 @@ def load_materiality(materiality_location=None, *, version):
     rfyear) defensively (the file is already one row per firm-fiscal-year).
     """
 
-    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_matching_{version}.csv"
+    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_matching_v{version}.csv"
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
     df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS].drop_duplicates(subset=["gvkey", "rfyear"])
@@ -73,4 +73,4 @@ def merge_materiality_into_lc(lc, lc_materiality):
 
 def add_materiality_to_lc(lc, version):
     """One-call convenience: load the materiality file and inner-merge it onto lc."""
-    return merge_materiality_into_lc(lc, load_materiality(version))
+    return merge_materiality_into_lc(lc, load_materiality(version=version))

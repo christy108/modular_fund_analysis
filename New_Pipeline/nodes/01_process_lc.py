@@ -173,7 +173,7 @@ def process_lc_v1(cfg):
         from functions.data_functions.process_materiality import add_materiality_to_lc
 
         print("Before Adding Materiality", lc.shape)
-        lc = add_materiality_to_lc(lc, version)
+        lc = add_materiality_to_lc(lc, C["materiality_version"])
         print("After Adding Materiality", lc.shape)
 
     # ---- audit: descriptives of the sample that survives this node ------------------ #
