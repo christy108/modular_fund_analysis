@@ -24,7 +24,7 @@ import pandas as pd
 MATERIALITY_COLUMNS = [
     f"{grp}__{act}"
     for grp in ("immaterial", "material", "unmapped")
-    for act in ("adaptation", "advocacy", "innovation", "upskilling", "total")
+    for act in ("adaptation", "advocacy_new_def", "innovation", "upskilling", "total")
 ]
 
 
@@ -46,7 +46,7 @@ def load_materiality(materiality_location=None, *, version):
     rfyear) defensively (the file is already one row per firm-fiscal-year).
     """
 
-    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_matching_v{version}.csv"
+    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_17SDGs_matching_v{version}.csv"
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
     df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS].drop_duplicates(subset=["gvkey", "rfyear"])
