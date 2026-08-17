@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-MATERIALITY_FILE = "Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_matching_v1.csv"
+
 
 # The 15 count columns to bring onto LC. The file's other columns (company name,
 # GICS_level_1/2/3, loc, MacroRegion, conml) already exist in LC and are dropped here to
@@ -38,13 +38,15 @@ def _default_location():
     )
 
 
-def load_materiality(materiality_location=None, *, filename=MATERIALITY_FILE):
+def load_materiality(materiality_location=None, *, version):
     """Read the SASB materiality file; return the join keys plus the 15 count columns.
 
     The keys are normalised to LC's formats so a later merge actually matches: gvkey
     zero-padded to 6 chars, rfyear as pandas nullable ``Int64``. Deduped on (gvkey,
     rfyear) defensively (the file is already one row per firm-fiscal-year).
     """
+
+    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_matching_{version}.csv"
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
     df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS].drop_duplicates(subset=["gvkey", "rfyear"])
@@ -69,6 +71,6 @@ def merge_materiality_into_lc(lc, lc_materiality):
     return lc
 
 
-def add_materiality_to_lc(lc, materiality_location=None):
+def add_materiality_to_lc(lc, version):
     """One-call convenience: load the materiality file and inner-merge it onto lc."""
-    return merge_materiality_into_lc(lc, load_materiality(materiality_location))
+    return merge_materiality_into_lc(lc, load_materiality(version))
