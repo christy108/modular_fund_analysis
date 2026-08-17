@@ -27,6 +27,15 @@ MATERIALITY_COLUMNS = [
     for act in ("adaptation", "advocacy_new_def", "innovation", "upskilling", "total")
 ]
 
+# Per-SDG breakdown of the three __total__ columns, feeding the SDG-level signal designs in
+# functions/signal_design/signal_definitions_materiality.py. Only the v2 (17-SDG) file carries
+# these, so they are selected opportunistically below rather than required — v1 loads unchanged.
+MATERIALITY_SDG_COLUMNS = [
+    f"{grp}__total__SDG_{n}"
+    for grp in ("immaterial", "material", "unmapped")
+    for n in range(1, 18)
+]
+
 
 def _default_location():
     """Directory holding the materiality file; overridable via MATERIALITY_LOCATION."""
@@ -49,7 +58,8 @@ def load_materiality(materiality_location=None, *, version):
     filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_17SDGs_matching_v{version}.csv"
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
-    df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS].drop_duplicates(subset=["gvkey", "rfyear"])
+    sdg_columns = [c for c in MATERIALITY_SDG_COLUMNS if c in df.columns]
+    df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS + sdg_columns].drop_duplicates(subset=["gvkey", "rfyear"])
     df["gvkey"] = df["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)   # match lc's gvkey format (CSV stores gvkey as float, e.g. 1004.0)
     df["rfyear"] = df["rfyear"].astype("Int64")          # match lc's nullable-Int64 rfyear
     return df

@@ -52,6 +52,14 @@ def _category_column_stats(bundle):
     return bundle["category_column_stats"]
 
 
+def _signal_sparsity(bundle):
+    """Per signal: how much of the panel is exactly zero, and how thin the non-zero side
+    is. describe() alone hides this — a signal can look healthy on mean/std while being
+    zero for 99% of firm-years, which makes a quantile sort collapse into ties and leaves
+    the top bucket empty or near-empty."""
+    return bundle["signal_sparsity"]
+
+
 CONTRACT = Contract(
     name="derive_signals",
     intent="""Turn the cleaned LC panel into a behavioural-signal panel: aggregate the raw category
@@ -96,6 +104,9 @@ colour scale — when comparing multiple configs.""",
                               title="Category column descriptive statistics (per signal)",
                               color_col="signal",
                               key="colored_table:category_column_stats"),
+        BundleTableViz(_signal_sparsity,
+                       title="Signal sparsity — zero share and non-zero support",
+                       key="table:signal_sparsity"),
     ],
 )
 
@@ -203,6 +214,39 @@ def derive_signals_v1(lc, cfg):
     # categories_dict declaration order is preserved inside each block).
     category_column_stats = category_column_stats.sort_values("signal", kind="stable").reset_index(drop=True)
 
+    # ---- audit: signal sparsity ---------------------------------------------------- #
+    # Why a signal can be un-sortable: a quantile sort needs the values to be spread out,
+    # and a signal that is exactly zero for most firm-years cannot be. The zero mass all
+    # ties at the bottom, so the low bucket swells and the high bucket is drawn from
+    # whatever thin non-zero tail is left — occasionally nothing at all. describe() does
+    # not show this directly (a 99%-zero signal still reports a mean and a max), so the
+    # share of exact zeros, the count and firm-coverage of the non-zero side, and how
+    # many quantiles the zero mass alone would swallow are computed here.
+    K_q = int(C["no_simple_quantiles"])
+    n_rows = len(lc_df)
+    firm_col = "gvkey" if "gvkey" in lc_df.columns else None
+    sparsity_rows = []
+    for col in signal_cols:
+        s = lc_df[col]
+        nz = s[s != 0]
+        raw = lc_df[f"sum_with_{int(col.rsplit('_', 1)[1])}"]
+        sparsity_rows.append({
+            "signal": signal_label.get(col, col),
+            "n_firm_years": n_rows,
+            "n_zero": int((s == 0).sum()),
+            "pct_zero": round(float((s == 0).mean()) * 100, 1),
+            "n_nonzero": int(len(nz)),
+            "n_firms_nonzero": int(lc_df.loc[s != 0, firm_col].nunique()) if firm_col else -1,
+            "quantiles_of_pure_zero": int((s == 0).mean() * K_q),
+            "mean_if_nonzero": round(float(nz.mean()), 4) if len(nz) else 0.0,
+            "median_if_nonzero": round(float(nz.median()), 4) if len(nz) else 0.0,
+            "max": round(float(s.max()), 4),
+            "total_initiatives": int(raw.sum()),
+        })
+    signal_sparsity = (
+        pd.DataFrame(sparsity_rows).sort_values("pct_zero", ascending=False).reset_index(drop=True)
+    )
+
     # Carry lc_raw_for_coverage forward untouched so esg_coverage can still read
     # from this node if the topology is later rewired to consume derive_signals'
     # output. Today only process_lc feeds esg_coverage — see registry.EDGES.
@@ -213,6 +257,7 @@ def derive_signals_v1(lc, cfg):
         "signal_summary_stats": signal_summary_stats,
         "signal_correlation_matrix": signal_correlation_matrix,
         "category_column_stats": category_column_stats,
+        "signal_sparsity": signal_sparsity,
     })
 
 

@@ -128,11 +128,17 @@ def build_cfg(**overrides) -> dict:
         dict_4_stakeholder_signals_Pre_Nikkei,
         dict_all_SDG_1D,
         dict_all_SDG_1D_prosperity_into_people,
+        dict_SDG_3_groups_people_planet_prosperity,
+        dict_SDG_5_groups_brackets,
+        dict_SDG_Climate_Natural_Capital_vs_All_SDGS,
     )
 
 
     from functions.signal_design.signal_definitions_materiality import (
         Materiality_Signals,
+        Materiality_Signals_3_groups_people_planet_prosperity_SDG,
+        Materiality_Signals_5_groups_SDG_brackets,
+        Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
         immaterial_4_Behavioural_Signals,
         immaterial_3_Matteo_Signals,
         material_4_Behavioural_Signals,
@@ -156,6 +162,22 @@ def build_cfg(**overrides) -> dict:
         categories_dict, s0, s1 = dict_all_SDG_1D_prosperity_into_people()
         lc_signals = {"signal_0": s0, "signal_1": s1}
 
+    # Plain-SDG splits (no material/immaterial dimension): these key on the LC columns
+    # 'SDG: 1'..'SDG: 17' directly, so unlike their materiality twins below they need
+    # neither add_materiality nor the SASB workbook. Variable signal count, so unpack by
+    # star — the group dicts in signal_definitions.py can be re-cut.
+    elif ac == "SDG_3_groups_people_planet_prosperity":
+        categories_dict, *names = dict_SDG_3_groups_people_planet_prosperity()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "SDG_5_groups_brackets":
+        categories_dict, *names = dict_SDG_5_groups_brackets()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "SDG_Climate_Natural_Capital_vs_All_SDGS":
+        categories_dict, *names = dict_SDG_Climate_Natural_Capital_vs_All_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
     #Materiality
     elif ac == "Material_Immaterial_only":
         categories_dict, s0, s1 = Materiality_Signals()
@@ -178,8 +200,21 @@ def build_cfg(**overrides) -> dict:
     elif ac == "material_3_Matteo_Signals":
         categories_dict, s0, s1, s2 = material_3_Matteo_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
-    
 
+    # SDG-level materiality splits. These return a variable number of signals (one
+    # material + one immaterial per SDG group), so unpack by star rather than by
+    # position — the group dicts in signal_definitions_materiality.py can grow.
+    elif ac == "Materiality_3_groups_people_planet_prosperity_SDG":
+        categories_dict, *names = Materiality_Signals_3_groups_people_planet_prosperity_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "Materiality_5_groups_SDG_brackets":
+        categories_dict, *names = Materiality_Signals_5_groups_SDG_brackets()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "Materiality_Climate_Natural_Capital_vs_All_SDGS":
+        categories_dict, *names = Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     else:
         raise ValueError(f"unknown action_characterization {ac!r}")
@@ -365,6 +400,78 @@ def base_materiality_counts():
     )
 
 
+# ---- SDG-level materiality splits ---------------------------------------- #
+# All three need add_materiality=True (the signal columns are the per-SDG __total__
+# breakdowns the SASB merge brings in) and materiality_version=2 (only the v2 workbook
+# carries them). Each has a weights and a counts variant, as with the 4-signal designs.
+def _sdg_materiality(name: str, ac: str, **overrides):
+    return make_experiment(
+        name,
+        build_cfg(add_materiality=True, materiality_version=2,
+                  action_characterization=ac, **overrides),
+    )
+
+
+def base_materiality_3_groups_ppp():
+    # 6 signals: material/immaterial x People, Prosperity, Planet.
+    return _sdg_materiality("base_materiality_3_groups_ppp",
+                            "Materiality_3_groups_people_planet_prosperity_SDG")
+
+
+def base_materiality_3_groups_ppp_counts():
+    return _sdg_materiality("base_materiality_3_groups_ppp_counts",
+                            "Materiality_3_groups_people_planet_prosperity_SDG",
+                            signal_type="counts")
+
+
+def base_materiality_5_groups_brackets():
+    # 10 signals: material/immaterial x the five SDG brackets.
+    return _sdg_materiality("base_materiality_5_groups_brackets",
+                            "Materiality_5_groups_SDG_brackets")
+
+
+def base_materiality_5_groups_brackets_counts():
+    return _sdg_materiality("base_materiality_5_groups_brackets_counts",
+                            "Materiality_5_groups_SDG_brackets",
+                            signal_type="counts")
+
+
+def base_materiality_climate_vs_each_sdg():
+    # 30 signals: material/immaterial x (Climate & Natural Capital, then each of the
+    # 14 non-climate SDGs on its own).
+    return _sdg_materiality("base_materiality_climate_vs_each_sdg",
+                            "Materiality_Climate_Natural_Capital_vs_All_SDGS")
+
+
+def base_materiality_climate_vs_each_sdg_counts():
+    return _sdg_materiality("base_materiality_climate_vs_each_sdg_counts",
+                            "Materiality_Climate_Natural_Capital_vs_All_SDGS",
+                            signal_type="counts")
+
+
+# ---- plain-SDG splits (no materiality) ----------------------------------- #
+# Same three group cuts as the SDG-level materiality experiments above, but on the raw
+# 'SDG: N' LC columns, so no add_materiality / materiality_version is needed and the
+# sample is the unrestricted base_none sample. Weights only — no counts variants.
+def _sdg_only(name: str, ac: str, **overrides):
+    return make_experiment(name, build_cfg(action_characterization=ac, **overrides))
+
+
+def sdg_3_groups_ppp():
+    # 3 signals: People, Prosperity, Planet.
+    return _sdg_only("sdg_3_groups_ppp", "SDG_3_groups_people_planet_prosperity")
+
+
+def sdg_5_groups_brackets():
+    # 5 signals: one per SDG bracket.
+    return _sdg_only("sdg_5_groups_brackets", "SDG_5_groups_brackets")
+
+
+def sdg_climate_vs_each_sdg():
+    # 15 signals: Climate & Natural Capital, then each of the 14 non-climate SDGs alone.
+    return _sdg_only("sdg_climate_vs_each_sdg", "SDG_Climate_Natural_Capital_vs_All_SDGS")
+
+
 EXPERIMENTS = {
     "base_none": base_none,
     "base_none_counts": base_none_counts,
@@ -384,6 +491,17 @@ EXPERIMENTS = {
     "base_materiality_4_Signals_counts":base_materiality_4_Signals_counts,
   
     "base_materiality_counts": base_materiality_counts,
+
+    "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
+    "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
+    "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
+    "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
+    "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
+    "base_materiality_climate_vs_each_sdg_counts": base_materiality_climate_vs_each_sdg_counts,
+
+    "sdg_3_groups_ppp": sdg_3_groups_ppp,
+    "sdg_5_groups_brackets": sdg_5_groups_brackets,
+    "sdg_climate_vs_each_sdg": sdg_climate_vs_each_sdg,
 
 
 

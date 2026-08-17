@@ -163,12 +163,13 @@ def _bucket_sector_share_series(bucket_label: str):
 # Order = descending signal index, High before Low.
 #
 # _MAX_SIGNAL_WIDGETS must cover the widest action_characterization in
-# experiments.build_cfg, currently 4 signals (signal_0..signal_3: the *_4_Behavioural_Signals
-# and 4_signals_new / 4_stakeholder_new characterizations). The per-bucket data is computed
-# for EVERY signal present (see the `for _sig in signal_quantile_constituents` loop below),
-# so a value too low here doesn't crash — it silently omits that signal's widgets. Bump it
-# when a characterization with more signals is added.
-_MAX_SIGNAL_WIDGETS = 4
+# experiments.build_cfg, currently 30 signals (signal_0..signal_29: the
+# Materiality_Climate_Natural_Capital_vs_All_SDGS characterization — material/immaterial x
+# (Climate & Natural Capital + each remaining SDG individually)). The per-bucket data is computed for EVERY signal present (see the
+# `for _sig in signal_quantile_constituents` loop below), so a value too low here doesn't
+# crash — it silently omits that signal's widgets. Bump it when a characterization with
+# more signals is added.
+_MAX_SIGNAL_WIDGETS = 30
 _BUCKET_KEYS = [
     *[(_b, f"signal_{_i}")
       for _i in reversed(range(_MAX_SIGNAL_WIDGETS))
