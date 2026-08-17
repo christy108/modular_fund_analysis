@@ -286,6 +286,12 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 def base_none():
     return make_experiment("base_none", build_cfg())
 
+def base_none_counts():
+    # base_none, but each signal is the raw total-initiative count for its group
+    # rather than that group's share of sum_activities.
+    return make_experiment("base_none_counts", build_cfg(signal_type="counts"))
+ 
+
 
 def esg_refinitiv():
     return make_experiment("esg_refinitiv", build_cfg(esg_choice="refinitiv"))
@@ -314,6 +320,11 @@ def base_materiality():
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
+def base_4_signals():
+    # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
+    return make_experiment("4_signals_new", build_cfg(add_materiality=True, action_characterization = "4_signals_new"))
+
+
 def base_materiality_4_Signals():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
     return make_experiment("base_materiality_4_Signals", build_cfg(add_materiality=True, action_characterization = "material_4_Behavioural_Signals"))
@@ -322,11 +333,14 @@ def base_immateriality_4_Signals():
     # base_materiality, but with the 4-signal "immaterial" behavioural-signal characterization.
     return make_experiment("base_immateriality_4_Signals", build_cfg(add_materiality=True, action_characterization = "immaterial_4_Behavioural_Signals"))
 
+def base_materiality_4_Signals_counts():
+    # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
+    return make_experiment("base_materiality_4_Signals_counts", build_cfg(add_materiality=True, action_characterization = "material_4_Behavioural_Signals", signal_type="counts"))
 
-def base_none_counts():
-    # base_none, but each signal is the raw total-initiative count for its group
-    # rather than that group's share of sum_activities.
-    return make_experiment("base_none_counts", build_cfg(signal_type="counts"))
+def base_immateriality_4_Signals_counts():
+    # base_materiality, but with the 4-signal "immaterial" behavioural-signal characterization.
+    return make_experiment("base_immateriality_4_Signals_counts", build_cfg(add_materiality=True, action_characterization = "immaterial_4_Behavioural_Signals", signal_type="counts"))
+
 
 
 def base_materiality_counts():
@@ -347,8 +361,12 @@ EXPERIMENTS = {
     "esg_full_universe": esg_full_universe,
     "show_corr": show_corr,
     "base_materiality": base_materiality,
+     "4_signals_new": base_4_signals,
     "base_materiality_4_Signals": base_materiality_4_Signals,
     "base_immateriality_4_Signals": base_immateriality_4_Signals,
+    "base_immateriality_4_Signals_counts": base_immateriality_4_Signals_counts,
+    "base_materiality_4_Signals_counts":base_materiality_4_Signals_counts,
     "base_none_counts": base_none_counts,
     "base_materiality_counts": base_materiality_counts,
+   
 }

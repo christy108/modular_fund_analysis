@@ -159,11 +159,20 @@ def _bucket_sector_share_series(bucket_label: str):
 
 
 # Buckets we generate widgets for. Deliberately over-broad — an unused bucket just
-# renders an empty (collapsible) chart. Order = signal-insertion, High before Low.
+# renders an empty (collapsible) chart, because the extractors .get() their bundle key.
+# Order = descending signal index, High before Low.
+#
+# _MAX_SIGNAL_WIDGETS must cover the widest action_characterization in
+# experiments.build_cfg, currently 4 signals (signal_0..signal_3: the *_4_Behavioural_Signals
+# and 4_signals_new / 4_stakeholder_new characterizations). The per-bucket data is computed
+# for EVERY signal present (see the `for _sig in signal_quantile_constituents` loop below),
+# so a value too low here doesn't crash — it silently omits that signal's widgets. Bump it
+# when a characterization with more signals is added.
+_MAX_SIGNAL_WIDGETS = 4
 _BUCKET_KEYS = [
-    ("high", "signal_2"), ("low", "signal_2"),
-    ("high", "signal_1"), ("low", "signal_1"),
-    ("high", "signal_0"), ("low", "signal_0"),
+    *[(_b, f"signal_{_i}")
+      for _i in reversed(range(_MAX_SIGNAL_WIDGETS))
+      for _b in ("high", "low")],
     ("high", "esg_refinitive"), ("low", "esg_refinitive"),
     ("high", "esg_msci"), ("low", "esg_msci"),
     ("high", "esg_sp"), ("low", "esg_sp"),

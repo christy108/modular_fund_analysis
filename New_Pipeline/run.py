@@ -106,12 +106,24 @@ def run(name: str, out_dir: str | None = None):
     written = _export(outputs, run_dir)
     manifest.save(str(run_dir / "manifest"))  # manifest.json + manifest.md
 
+    # Static snapshot of the audit dashboard for this one run — the same
+    # intent-text + widget tables + mermaid DAG that `New_Pipeline.dashboard --markdown`
+    # prints, just captured to a file instead of stdout so it's reopenable later without
+    # re-running anything (not interactive/live — a frozen text snapshot of this run).
+    from leonardo_nodes import Dashboard
+
+    from New_Pipeline.registry import build_pipeline
+
+    dash = Dashboard(manifests={name: manifest}, pipeline=build_pipeline()).build()
+    dashboard_md = dash.to_markdown() + "\n\n```mermaid\n" + dash.pipeline_graph_mermaid() + "\n```\n"
+    (run_dir / "dashboard.md").write_text(dashboard_md)
+
     # 2. "Latest" snapshot for parity.compare / parity.show (overwritten each run).
     latest = Path(out_dir) if out_dir else Path("parity/artifacts/new") / name
     _export(outputs, latest)
 
     print(f"[run] {name}: {len(written)} artifacts")
-    print(f"[run] archived (kept)     -> {run_dir}/   (+ manifest.json/.md)")
+    print(f"[run] archived (kept)     -> {run_dir}/   (+ manifest.json/.md, dashboard.md)")
     print(f"[run] latest (overwrites) -> {latest}/")
     print(f"[run] debug prints        -> {run_dir}/debug_prints.log")
     print(f"[run] view it:  python -m parity.show {name}")
