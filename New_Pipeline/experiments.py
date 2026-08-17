@@ -60,7 +60,7 @@ def build_cfg(**overrides) -> dict:
         mktcap_covered=0.95,
         add_accounting_data=False,
         add_materiality=False,
-        materiality_version=1,
+        materiality_version=2,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
         execute_3_filters=True,
@@ -321,6 +321,17 @@ def base_materiality():
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
+
+def base_materiality_v1():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_v1", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", materiality_version = 1))
+
+
+
+
+
+
 def base_4_signals():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
     return make_experiment("4_signals_new", build_cfg(add_materiality=True, action_characterization = "4_signals_new"))
@@ -356,18 +367,26 @@ def base_materiality_counts():
 
 EXPERIMENTS = {
     "base_none": base_none,
+    "base_none_counts": base_none_counts,
     "esg_refinitiv": esg_refinitiv,
     "esg_msci": esg_msci,
     "esg_snp": esg_snp,
     "esg_full_universe": esg_full_universe,
     "show_corr": show_corr,
+
+
     "base_materiality": base_materiality,
+    "base_materiality_v1":base_materiality_v1,
      "4_signals_new": base_4_signals,
     "base_materiality_4_Signals": base_materiality_4_Signals,
     "base_immateriality_4_Signals": base_immateriality_4_Signals,
     "base_immateriality_4_Signals_counts": base_immateriality_4_Signals_counts,
     "base_materiality_4_Signals_counts":base_materiality_4_Signals_counts,
-    "base_none_counts": base_none_counts,
+  
     "base_materiality_counts": base_materiality_counts,
+
+
+
+
    
 }
