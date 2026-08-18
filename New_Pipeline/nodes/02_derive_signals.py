@@ -128,7 +128,31 @@ fiscal years pooled, not a single year. Columns:
                               key="colored_table:category_column_stats"),
         BundleTableViz(_signal_sparsity,
                        title="Signal sparsity — zero share and non-zero support",
-                       key="table:signal_sparsity"),
+                       key="table:signal_sparsity",
+                       description=(
+                           "One row per signal, sorted worst-first by `pct_zero`. A signal that is "
+                           "mostly exact zeros cannot be quantile-sorted: the zero mass ties at the "
+                           "bottom, so the low bucket swells and the high bucket is drawn from "
+                           "whatever thin non-zero tail remains.\n\n"
+                           "- **signal** — human-readable signal name (from `cfg.lc_signals`).\n"
+                           "- **n_firm_years** — rows in the panel after the alpha-bound trim; the "
+                           "denominator for every count here, identical across signals.\n"
+                           "- **n_zero** / **pct_zero** — firm-years where the signal is *exactly* "
+                           "zero, as a count and as a % of `n_firm_years`.\n"
+                           "- **n_nonzero** — firm-years with a non-zero value; the rows that carry "
+                           "all the sorting information (`n_firm_years - n_zero`).\n"
+                           "- **n_firms_nonzero** — *distinct gvkeys* behind `n_nonzero`. Much "
+                           "smaller than `n_nonzero` means the non-zero side is a few firms repeated "
+                           "over years, not broad coverage.\n"
+                           "- **quantiles_of_pure_zero** — how many of the "
+                           "`cfg.no_simple_quantiles` buckets the zero mass alone would fill "
+                           "(`pct_zero x K`). At or near K means the sort is essentially degenerate.\n"
+                           "- **mean_if_nonzero** / **median_if_nonzero** — average and median over "
+                           "the non-zero rows only, so the zero mass does not drag them toward 0.\n"
+                           "- **max** — largest value of the signal across the panel.\n"
+                           "- **total_initiatives** — sum of the signal's raw `sum_with_i` numerator "
+                           "(initiative counts) over the panel, before any ratio is taken."
+                       )),
     ],
 )
 

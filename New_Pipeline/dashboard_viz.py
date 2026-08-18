@@ -32,9 +32,13 @@ class BundleTableViz(SampleTableViz):
     is hard-coded.
     """
 
-    def __init__(self, extract: Callable[[dict], Any], *, title: str, n: int = 200, key: str | None = None):
+    def __init__(self, extract: Callable[[dict], Any], *, title: str, n: int = 200,
+                 key: str | None = None, description: str = ""):
         super().__init__(columns=[], n=n, title=title, key=key)
         self._extract = extract
+        # SampleTableViz does not take `description`; set it directly on the VizSpec so
+        # Dashboard.build() picks it up and renders it under the widget title.
+        self.description = description
 
     def compute(self, output: Any) -> Any:
         import pandas as pd
