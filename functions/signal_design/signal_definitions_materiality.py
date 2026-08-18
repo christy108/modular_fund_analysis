@@ -74,6 +74,9 @@ def Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS():
 
 
 
+def Combined_Material_Immaterial_4_Behavioural_Signals
+
+
 
 def immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation", 
 signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
@@ -87,16 +90,6 @@ signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
 
-
-def immaterial_3_Matteo_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name= "Immaterial__Preparation", 
-signal_2_name="Immaterial__Transformation"):
-    return{
-
-    "immaterial__advocacy": 0, 
-    "immaterial__preparation": 1, 
-    "immaterial__transformation": 2,
-
-    }, signal_0_name, signal_1_name, signal_2_name
 
 
 
@@ -112,6 +105,21 @@ signal_2_name="Material__upskilling", signal_3_name="Material__innovation"):
     "material__innovation": 3,
 
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
+
+
+
+
+def immaterial_3_Matteo_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name= "Immaterial__Preparation", 
+signal_2_name="Immaterial__Transformation"):
+    return{
+
+    "immaterial__advocacy": 0, 
+    "immaterial__preparation": 1, 
+    "immaterial__transformation": 2,
+
+    }, signal_0_name, signal_1_name, signal_2_name
+
+
 
 
 def material_3_Matteo_Signals(signal_0_name="Material__Advocacy", signal_1_name= "Material__Preparation", 

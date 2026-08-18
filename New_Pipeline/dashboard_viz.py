@@ -91,8 +91,12 @@ class BundleColoredTableViz(ColoredTableViz):
         n: int = 200,
         palette: list[str] | None = None,
         key: str | None = None,
+        description: str = "",
     ):
         super().__init__(title=title, color_col=color_col, palette=palette, key=key)
+        # ColoredTableViz does not take `description`; set it on the VizSpec directly so
+        # Dashboard.build() picks it up and renders it under the widget title.
+        self.description = description
         self._extract = extract
         self.n = n
 

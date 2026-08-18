@@ -13,7 +13,8 @@ methodologies (denominator, alpha-trim, category groupings, additional signal
 transforms) without touching the data-ingestion node — the LC input is unchanged.
 
 Output is a lossless (pickle) bundle: ``{lc, lc_raw_for_coverage, sum_activities_outlier_stats,
-signal_summary_stats, signal_correlation_matrix, category_column_stats}`` — the last four are
+signal_summary_stats, signal_correlation_matrix, category_column_stats, signal_sparsity,
+signal_sparsity_by_year}`` — everything after ``lc_raw_for_coverage`` is
 diagnostic tables only (no effect on ``lc`` or downstream nodes), added purely so the dashboard can
 audit the signal construction across experiments; same ``lc`` shape as before plus the signal
 columns, so downstream (``prepare_panel``) keeps a single lc port.
@@ -58,6 +59,13 @@ def _signal_sparsity(bundle):
     zero for 99% of firm-years, which makes a quantile sort collapse into ties and leaves
     the top bucket empty or near-empty."""
     return bundle["signal_sparsity"]
+
+
+def _signal_sparsity_by_year(bundle):
+    """The sparsity table split by fiscal year — one row per (signal, rfyear). Shows
+    whether a signal is uniformly sparse or only sparse in early years, which decides
+    whether a sample restriction rescues it."""
+    return bundle["signal_sparsity_by_year"]
 
 
 CONTRACT = Contract(
@@ -151,8 +159,48 @@ fiscal years pooled, not a single year. Columns:
                            "the non-zero rows only, so the zero mass does not drag them toward 0.\n"
                            "- **max** — largest value of the signal across the panel.\n"
                            "- **total_initiatives** — sum of the signal's raw `sum_with_i` numerator "
-                           "(initiative counts) over the panel, before any ratio is taken."
+                           "(initiative counts) over the panel, before any ratio is taken.\n"
+                           "- **n_years**, **median_firms_nonzero_per_year**, "
+                           "**min_firms_nonzero_per_year**, **worst_year** — folded in from the "
+                           "per-year table below, because the eligibility question ('are there "
+                           "enough firms to fill K buckets in a typical year?') cannot be answered "
+                           "from pooled counts: the same total arises from many firms in one year "
+                           "or few firms in every year.\n"
+                           "- **median_firms_per_bucket** — `median_firms_nonzero_per_year / K`. "
+                           "The headline gate: compare against a minimum group size (5 is the "
+                           "precedent set by `cfg.esg_min_group_size`). Below it, buckets are "
+                           "undersized in a typical year no matter how the sort is configured."
                        )),
+        BundleColoredTableViz(_signal_sparsity_by_year,
+                              title="Signal sparsity by fiscal year",
+                              color_col="signal",
+                              n=1000,
+                              key="colored_table:signal_sparsity_by_year",
+                              description=(
+                                  "The pooled table above averages across regimes, so it can "
+                                  "describe no actual year: a signal that is 100% zero until 2019 "
+                                  "and 30% zero after pools to ~60%, and neither half of the sample "
+                                  "looks like that. The sort recomputes its cutpoints from each "
+                                  "formation date's cross-section alone, so these per-year figures "
+                                  "are the ones that decide whether a sort is possible — and "
+                                  "whether restricting the sample rescues a signal that looks dead "
+                                  "when pooled. Rows are tinted by signal; read down a colour block "
+                                  "to see one signal's trajectory.\n\n"
+                                  "- **rfyear** — fiscal year; all other columns are computed "
+                                  "within that year only.\n"
+                                  "- **n_firm_years** — firms in the panel that year (the year's "
+                                  "cross-section size).\n"
+                                  "- **n_zero** / **pct_zero** / **n_nonzero** — as in the pooled "
+                                  "table, but restricted to this year.\n"
+                                  "- **n_firms_nonzero** — distinct firms with activity this year. "
+                                  "This is the quantity the sort actually has to work with.\n"
+                                  "- **firms_per_bucket** — `n_firms_nonzero / K`. Under ~5 means "
+                                  "this year's buckets are too thin to form a meaningful portfolio.\n"
+                                  "- **quantiles_of_pure_zero** — cutpoints pinned at zero *this "
+                                  "year*. `>= K-1` means the top bucket has degenerated into 'any "
+                                  "firm with any activity'; `>= 2` means some bucket is empty and "
+                                  "that month's return is NaN."
+                              )),
     ],
 )
 
@@ -293,6 +341,59 @@ def derive_signals_v1(lc, cfg):
         pd.DataFrame(sparsity_rows).sort_values("pct_zero", ascending=False).reset_index(drop=True)
     )
 
+    # ---- audit: sparsity BY FISCAL YEAR --------------------------------------------- #
+    # The pooled table above averages across regimes, so it can describe no actual year:
+    # a signal that is 100% zero until 2019 and 30% zero after pools to ~60%, and neither
+    # half of the sample looks like that. The sort runs per formation date and recomputes
+    # its cutpoints from that date's cross-section alone, so per-YEAR support is what
+    # decides whether a sort is possible — and whether restricting the sample rescues a
+    # signal that looks dead pooled.
+    year_col = "rfyear" if "rfyear" in lc_df.columns else None
+    by_year_rows = []
+    if year_col and firm_col:
+        for col in signal_cols:
+            for yr, grp in lc_df.groupby(year_col, sort=True):
+                s = grp[col]
+                n_zero_y = int((s == 0).sum())
+                firms_nz = int(grp.loc[s != 0, firm_col].nunique())
+                by_year_rows.append({
+                    "signal": signal_label.get(col, col),
+                    "rfyear": int(yr),
+                    "n_firm_years": int(len(s)),
+                    "n_zero": n_zero_y,
+                    "pct_zero": round(float((s == 0).mean()) * 100, 1),
+                    "n_nonzero": int(len(s) - n_zero_y),
+                    "n_firms_nonzero": firms_nz,
+                    # Firms available per bucket if this year were sorted into K_q buckets —
+                    # compare against a minimum group size (cfg.esg_min_group_size is 5).
+                    "firms_per_bucket": round(firms_nz / K_q, 1),
+                    "quantiles_of_pure_zero": int((s == 0).mean() * K_q),
+                })
+    signal_sparsity_by_year = pd.DataFrame(by_year_rows)
+
+    # Fold the per-year detail into the pooled table as decision columns: the eligibility
+    # rule ("enough firms to fill K buckets in a typical year") cannot be evaluated from
+    # pooled counts alone, because the same total can come from many firms in one year or
+    # few firms in every year.
+    if not signal_sparsity_by_year.empty:
+        agg = (
+            signal_sparsity_by_year.groupby("signal")
+            .agg(n_years=("rfyear", "count"),
+                 median_firms_nonzero_per_year=("n_firms_nonzero", "median"),
+                 min_firms_nonzero_per_year=("n_firms_nonzero", "min"))
+            .reset_index()
+        )
+        agg["median_firms_per_bucket"] = (agg["median_firms_nonzero_per_year"] / K_q).round(1)
+        worst = (
+            signal_sparsity_by_year
+            .loc[signal_sparsity_by_year.groupby("signal")["n_firms_nonzero"].idxmin(),
+                 ["signal", "rfyear"]]
+            .rename(columns={"rfyear": "worst_year"})
+        )
+        signal_sparsity = signal_sparsity.merge(
+            agg.merge(worst, on="signal", how="left"), on="signal", how="left"
+        )
+
     # Carry lc_raw_for_coverage forward untouched so esg_coverage can still read
     # from this node if the topology is later rewired to consume derive_signals'
     # output. Today only process_lc feeds esg_coverage — see registry.EDGES.
@@ -304,6 +405,7 @@ def derive_signals_v1(lc, cfg):
         "signal_correlation_matrix": signal_correlation_matrix,
         "category_column_stats": category_column_stats,
         "signal_sparsity": signal_sparsity,
+        "signal_sparsity_by_year": signal_sparsity_by_year,
     })
 
 
