@@ -74,7 +74,24 @@ def Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS():
 
 
 
-def Combined_Material_Immaterial_4_Behavioural_Signals
+def Combined_Material_Immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation", 
+signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation", signal_4_name="Material__Advocacy", signal_5_name="Material__Adaptation", 
+signal_6_name="Material__Upskilling", signal_7_name="Material__Innovation"):
+    return{
+
+    
+
+    "immaterial__advocacy": 0, 
+    "immaterial__adaptation": 1, 
+    "immaterial__upskilling":2,
+    "immaterial__innovation": 3,
+
+    "material__advocacy": 4, 
+    "material__adaptation": 5, 
+    "material__upskilling":6,
+    "material__innovation": 7,
+
+    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name, signal_5_name, signal_6_name, signal_7_name
 
 
 
@@ -92,11 +109,8 @@ signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
 
 
 
-
-
-
-def material_4_Behavioural_Signals(signal_0_name="Material__advocacy", signal_1_name="Material__adaptation", 
-signal_2_name="Material__upskilling", signal_3_name="Material__innovation"):
+def material_4_Behavioural_Signals(signal_0_name="Material__Advocacy", signal_1_name="Material__Adaptation", 
+signal_2_name="Material__Upskilling", signal_3_name="Material__Innovation"):
     return{
 
     "material__advocacy": 0, 
@@ -105,6 +119,31 @@ signal_2_name="Material__upskilling", signal_3_name="Material__innovation"):
     "material__innovation": 3,
 
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
+
+
+
+
+
+
+
+
+
+
+
+def Combined_Material_Immaterial_3_Matteo_Signals(signal_0_name = "Immaterial__Advocacy", signal_1_name = "Immaterial__Preparation", 
+signal_2_name = "Immaterial__Transformation", signal_3_name = "Material__Advocacy", signal_4_name = "Material__Preparation", 
+signal_5_name = "Material__Transformation"):
+    return{
+
+    "immaterial__advocacy": 0, 
+    "immaterial__preparation": 1, 
+    "immaterial__transformation": 2,
+
+    "material__advocacy": 3, 
+    "material__preparation": 4, 
+    "material__transformation": 5,
+
+    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name, signal_5_name
 
 
 
@@ -118,8 +157,6 @@ signal_2_name="Immaterial__Transformation"):
     "immaterial__transformation": 2,
 
     }, signal_0_name, signal_1_name, signal_2_name
-
-
 
 
 def material_3_Matteo_Signals(signal_0_name="Material__Advocacy", signal_1_name= "Material__Preparation", 
