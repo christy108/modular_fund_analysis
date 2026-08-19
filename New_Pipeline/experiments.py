@@ -139,6 +139,8 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
+        Combined_Material_Immaterial_4_Behavioural_Signals,
+        Combined_Material_Immaterial_3_Matteo_Signals,
         immaterial_4_Behavioural_Signals,
         immaterial_3_Matteo_Signals,
         material_4_Behavioural_Signals,
@@ -186,20 +188,33 @@ def build_cfg(**overrides) -> dict:
     elif ac == "immaterial_4_Behavioural_Signals":
         categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
-    
+
     elif ac == "material_4_Behavioural_Signals":
         categories_dict, s0, s1, s2, s3 = material_4_Behavioural_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
-    
-    
+
+    # Combined material + immaterial in one sort: 8 signals (4 immaterial then 4
+    # material behavioural signals), same categories_dict union as the two halves above.
+    elif ac == "Combined_Material_Immaterial_4_Behavioural_Signals":
+        categories_dict, s0, s1, s2, s3, s4, s5, s6, s7 = Combined_Material_Immaterial_4_Behavioural_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3,
+                      "signal_4": s4, "signal_5": s5, "signal_6": s6, "signal_7": s7}
+
     elif ac == "immaterial_3_Matteo_Signals":
         categories_dict, s0, s1, s2 = immaterial_3_Matteo_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
-    
- 
+
+
     elif ac == "material_3_Matteo_Signals":
         categories_dict, s0, s1, s2 = material_3_Matteo_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
+
+    # Combined material + immaterial in one sort: 6 signals (3 immaterial then 3
+    # material Matteo signals), same categories_dict union as the two halves above.
+    elif ac == "Combined_Material_Immaterial_3_Matteo_Signals":
+        categories_dict, s0, s1, s2, s3, s4, s5 = Combined_Material_Immaterial_3_Matteo_Signals()
+        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3,
+                      "signal_4": s4, "signal_5": s5}
 
     # SDG-level materiality splits. These return a variable number of signals (one
     # material + one immaterial per SDG group), so unpack by star rather than by
@@ -389,6 +404,25 @@ def base_immateriality_4_Signals_counts():
     return make_experiment("base_immateriality_4_Signals_counts", build_cfg(add_materiality=True, action_characterization = "immaterial_4_Behavioural_Signals", signal_type="counts"))
 
 
+def base_materiality_combined_4_Signals():
+    # base_materiality, but sorting on all 8 behavioural signals together (4 immaterial +
+    # 4 material) in one combined quantile sort, instead of the material-only /
+    # immaterial-only halves above.
+    return make_experiment("base_materiality_combined_4_Signals", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_4_Behavioural_Signals"))
+
+def base_materiality_combined_4_Signals_counts():
+    return make_experiment("base_materiality_combined_4_Signals_counts", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_4_Behavioural_Signals", signal_type="counts"))
+
+
+def base_materiality_combined_3_Matteo_Signals():
+    # base_materiality, but sorting on all 6 Matteo signals together (3 immaterial +
+    # 3 material) in one combined quantile sort.
+    return make_experiment("base_materiality_combined_3_Matteo_Signals", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals"))
+
+def base_materiality_combined_3_Matteo_Signals_counts():
+    return make_experiment("base_materiality_combined_3_Matteo_Signals_counts", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals", signal_type="counts"))
+
+
 
 def base_materiality_counts():
     # base_materiality (2-signal Material_Immaterial_only), counts version.
@@ -489,7 +523,11 @@ EXPERIMENTS = {
     "base_immateriality_4_Signals": base_immateriality_4_Signals,
     "base_immateriality_4_Signals_counts": base_immateriality_4_Signals_counts,
     "base_materiality_4_Signals_counts":base_materiality_4_Signals_counts,
-  
+    "base_materiality_combined_4_Signals": base_materiality_combined_4_Signals,
+    "base_materiality_combined_4_Signals_counts": base_materiality_combined_4_Signals_counts,
+    "base_materiality_combined_3_Matteo_Signals": base_materiality_combined_3_Matteo_Signals,
+    "base_materiality_combined_3_Matteo_Signals_counts": base_materiality_combined_3_Matteo_Signals_counts,
+
     "base_materiality_counts": base_materiality_counts,
 
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,

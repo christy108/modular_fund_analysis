@@ -81,13 +81,13 @@ signal_6_name="Material__Upskilling", signal_7_name="Material__Innovation"):
 
     
 
-    "immaterial__advocacy": 0, 
-    "immaterial__adaptation": 1, 
+    "immaterial__advocacy_new_def": 0,
+    "immaterial__adaptation": 1,
     "immaterial__upskilling":2,
     "immaterial__innovation": 3,
 
-    "material__advocacy": 4, 
-    "material__adaptation": 5, 
+    "material__advocacy_new_def": 4,
+    "material__adaptation": 5,
     "material__upskilling":6,
     "material__innovation": 7,
 
@@ -99,8 +99,8 @@ def immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signa
 signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
     return{
 
-    "immaterial__advocacy": 0, 
-    "immaterial__adaptation": 1, 
+    "immaterial__advocacy_new_def": 0,
+    "immaterial__adaptation": 1,
     "immaterial__upskilling":2,
     "immaterial__innovation": 3,
 
@@ -109,12 +109,12 @@ signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
 
 
 
-def material_4_Behavioural_Signals(signal_0_name="Material__Advocacy", signal_1_name="Material__Adaptation", 
+def material_4_Behavioural_Signals(signal_0_name="Material__Advocacy", signal_1_name="Material__Adaptation",
 signal_2_name="Material__Upskilling", signal_3_name="Material__Innovation"):
     return{
 
-    "material__advocacy": 0, 
-    "material__adaptation": 1, 
+    "material__advocacy_new_def": 0,
+    "material__adaptation": 1,
     "material__upskilling":2,
     "material__innovation": 3,
 
