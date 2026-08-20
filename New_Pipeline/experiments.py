@@ -337,8 +337,44 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 def base_none():
     return make_experiment("base_none", build_cfg())
 
+
+
 def base_none_v_2A():
     return make_experiment("base_none_v_2A", build_cfg(golden_data = "v_2A"))
+
+def base_none_v_2A_2023():
+    return make_experiment("base_none_v_2A_2023", build_cfg(golden_data = "v_2A", end_year = 2023))
+
+
+def base_none_v_2A_no_3_filters():
+    return make_experiment("base_none_v_2A_no_3_filters", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = False))
+
+def base_none_v_2A_no_3_filters_drop_fin():
+    return make_experiment("base_none_v_2A_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = True))
+
+
+
+def base_none_v_2A_no_3_filters_drop_fin_2023():
+    return make_experiment("base_none_v_2A_no_3_filters_drop_fin_2023", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = True, end_year = 2023))
+
+
+
+
+def base_none_v_2A1():
+    return make_experiment("base_none_v_2A1", build_cfg(golden_data = "v_2A1"))
+
+
+def base_none_v_2A1_2023():
+    return make_experiment("base_none_v_2A1_2023", build_cfg(golden_data = "v_2A1", end_year = 2023))
+
+
+def base_none_v_2A1_no_3_filters():
+    return make_experiment("base_none_v_2A1_no_3_filters", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = False))
+
+def base_none_v_2A1_no_3_filters_drop_fin():
+    return make_experiment("base_none_v_2A1_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = True))
+
+
 
 
 def base_none_counts():
@@ -512,6 +548,22 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
+
+    #V2A
+    "base_none_v_2A": base_none_v_2A,
+    "base_none_v_2A_2023":base_none_v_2A_2023,
+    "base_none_v_2A_no_3_filters": base_none_v_2A_no_3_filters,
+    "base_none_v_2A_no_3_filters_drop_fin":base_none_v_2A_no_3_filters_drop_fin,
+    "base_none_v_2A_no_3_filters_drop_fin_2023":base_none_v_2A_no_3_filters_drop_fin_2023,
+
+    #V2A1
+    "base_none_v_2A1":base_none_v_2A1,
+    "base_none_v_2A1_2023":base_none_v_2A1_2023,
+    "base_none_v_2A1_no_3_filters":base_none_v_2A1_no_3_filters,
+    "base_none_v_2A1_no_3_filters_drop_fin":base_none_v_2A1_no_3_filters_drop_fin,
+
+
+
     "base_none_counts": base_none_counts,
     "esg_refinitiv": esg_refinitiv,
     "esg_msci": esg_msci,
@@ -541,10 +593,12 @@ EXPERIMENTS = {
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
     "base_materiality_climate_vs_each_sdg_counts": base_materiality_climate_vs_each_sdg_counts,
 
+
+    #Below dont work
     "sdg_3_groups_ppp": sdg_3_groups_ppp,
     "sdg_5_groups_brackets": sdg_5_groups_brackets,
     "sdg_climate_vs_each_sdg": sdg_climate_vs_each_sdg,
-    "base_none_v_2A":base_none_v_2A,
+    
 
 
 

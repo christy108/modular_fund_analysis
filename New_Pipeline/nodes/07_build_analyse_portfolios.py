@@ -169,7 +169,7 @@ def _bucket_sector_share_series(bucket_label: str):
 # `for _sig in signal_quantile_constituents` loop below), so a value too low here doesn't
 # crash — it silently omits that signal's widgets. Bump it when a characterization with
 # more signals is added.
-_MAX_SIGNAL_WIDGETS = 30
+_MAX_SIGNAL_WIDGETS = 4
 _BUCKET_KEYS = [
     *[(_b, f"signal_{_i}")
       for _i in reversed(range(_MAX_SIGNAL_WIDGETS))

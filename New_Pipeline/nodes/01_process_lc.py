@@ -95,6 +95,7 @@ def process_lc_v1(cfg):
         )
     )
     golden_files = {
+        "v_2A1": "LC_dataset_v2A1_20260813.parquet",
         "v_2A": "LC_dataset_v2A_20260812.parquet",
         "v_2C": "LC_dataset_v_2C_20260512.csv",
         "v_2B3": "LC_dataset_v_2B3_20260511.csv",
@@ -142,8 +143,9 @@ def process_lc_v1(cfg):
         print("Before filtering Annual Reports: ", lc.shape)
         
         print(golden_files[C["golden_data"]] )
-        if C["golden_data"] == "v_2A":
-                    lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["predicted_report_type"] == "Annual Report"))]
+        
+        if C["golden_data"] == "v_2A" or C["golden_data"] == "v_2A1":
+                    lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type_gpt2"] == "Annual Report"))]
 
         else:
             lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type"] == "Annual Report"))]
