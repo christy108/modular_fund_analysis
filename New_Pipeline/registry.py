@@ -3,7 +3,7 @@
 Nodes never reference their neighbours — all topology lives here (leonardo_nodes
 principle: Pipeline owns the edges). Import this module to get:
     CONTRACTS      : {name -> Contract}
-    NODE_MODULES   : the 9 node modules (each exposes CONTRACT + NODE + @process fns)
+    NODE_MODULES   : every node module (each exposes CONTRACT + NODE + @process fns)
     build_pipeline(): a validated Pipeline
     register_processes(): ingest every @process into the shared store
 """
@@ -48,6 +48,10 @@ CONTRACTS = {m.CONTRACT.name: m.CONTRACT for m in NODE_MODULES}
 # refinitiv / msci / snp) picked by Experiment.process_selection — one per ESG choice,
 # rather than an if/elif inside a single process.
 #
+# mktcap_filter_audit (10) is audit-only: it replays the market-cap coverage filter that
+# runs inside process_global_universe and reports how many listings it removed each month,
+# what share that is, and the effective size cutoff. Nothing reads its output.
+#
 # build_analyse_portfolios (07) folds the former build_portfolios, ff3_alphas,
 # performance_tables, and build_constituents into one node — all portfolio-level
 # analytics live there. Only the diagnostic nodes (esg_signal_corr, esg_coverage) remain
@@ -57,6 +61,11 @@ EDGES = [
     ("derive_signals.out", "prepare_panel.lc"),
     ("load_universes.out", "merge_esg_provider.universes"),
     ("merge_esg_provider.out", "prepare_panel.global_universe"),
+    # Position in this list is irrelevant to where the audit's dashboard section lands:
+    # no edge arrangement can push it last (it depends on one early node, so Kahn's
+    # algorithm makes it ready long before the analysis nodes), so the ordering is handled
+    # in dashboard_viz.OrderedDashboard instead of by faking a dependency here.
+    ("merge_esg_provider.out", "mktcap_filter_audit.universe"),
     ("load_fama_french.out", "prepare_panel.fama_french_raw"),
     ("prepare_panel.out", "build_analyse_portfolios.prep"),
     ("prepare_panel.out", "esg_signal_corr.prep"),

@@ -21,7 +21,7 @@ Three source trees, three states — know which is which before touching anythin
 
 `New_Pipeline/README.md` is detailed but **stale** in places — its node table and DAG diagram
 describe an older 12-node layout (`load_signal_lc`, `build_portfolios`, `ff3_alphas`,
-`performance_tables`, `build_constituents` as separate nodes). The real current DAG is 9 nodes
+`performance_tables`, `build_constituents` as separate nodes). The real current DAG is 10 nodes
 (see below); trust `New_Pipeline/registry.py` over the README's node table and diagram. The
 README's conceptual sections (Contract/Process/Node/Pipeline/Experiment, config-as-data, the
 pandas↔polars boundary, provenance/manifests, "How to extend it") are accurate and worth reading.
@@ -97,13 +97,14 @@ bundles, `empty_sentinel` for gated/off diagnostics) are lossless, order-preserv
 trips — verified by `python -m New_Pipeline.boundary`'s self-test. Fitted statsmodels models and
 pandas `MultiIndex` must not cross this boundary (flatten first).
 
-**Current DAG** (9 nodes; `python -m New_Pipeline.registry` prints the live topological order):
+**Current DAG** (10 nodes; `python -m New_Pipeline.registry` prints the live topological order):
 
 ```
 process_lc → derive_signals ─────────────┐
 load_universes → merge_esg_provider ─────┼→ prepare_panel → build_analyse_portfolios
-load_fama_french ─────────────────────────┘                → esg_signal_corr
-                                                             → esg_coverage
+load_fama_french ─────────────────────────┘   │            → esg_signal_corr
+                                              │            → esg_coverage
+                                              └→ mktcap_filter_audit
 ```
 
 (`esg_coverage` also takes `merge_esg_provider`'s `universe` and `process_lc`'s `lc` directly, not
@@ -126,6 +127,28 @@ only `prepare_panel`'s output — omitted above for the ASCII diagram's sake; se
   (quantile sorts, FF3 alphas, cumulative returns, risk metrics, constituent counts) live here.
   `run.py`'s `_MERGED_EXPORTS` maps its bundle keys back onto the original per-artifact parquet
   filenames that `parity.compare`/`parity.show` expect.
+- `mktcap_filter_audit` — audit-only. Replays the market-cap coverage filter that lives inside
+  `process_global_universe` (`functions/data_functions/process_data.py:149-187`) on the five columns
+  that filter reads, and reports per currency-month: listings in / dropped / % dropped, the
+  effective size floor (smallest market cap kept), and the literal `(1 - mktcap_covered) ×
+  total_mktcap` threshold. The replay is needed because the filter's own output cannot reveal the
+  *pre*-filter count — the dropped rows are gone — so it re-derives the security-month set and then
+  **cross-checks itself** against the real post-filter `global_universe` (`matches_actual` /
+  `cross_check_all_match`; expected vacuously true, it's a regression canary for a pandas upgrade
+  changing groupby/sort semantics). Nothing downstream reads it; its three parquets are exported
+  next to the other diagnostics and appear in `parity.compare` only as an informational
+  `(only in new: ...)` line. Gated by `cfg.show_mktcap_filter_audit` (default **True**).
+  Its per-currency-month numbers are deliberately **not** a dashboard widget (144+ rows read
+  badly there) — read `mktcap_filter_by_month.parquet` for the exact figures.
+
+**Dashboard section order ≠ DAG order.** The framework orders both the Taipy page and
+`to_markdown()` by `Pipeline.topological_order()`, and no edge arrangement can push an
+audit-only node to the bottom (it depends on one early node, so Kahn's algorithm makes it ready
+long before the analysis nodes). `New_Pipeline/dashboard_viz.py` therefore defines
+`OrderedDashboard`, which overrides `_ordered_nodes()` to render `_DEFERRED_SECTIONS`
+(currently just `mktcap_filter_audit`) last — used by both `dashboard.py` and `run.py`'s
+`dashboard.md` snapshot. Add a node name there rather than faking an edge, which would lie in
+the pipeline graph the dashboard itself draws.
 
 **Provenance**: every run archives to `runs/<UTC-timestamp>_<config>/` (never overwritten;
 `manifest.json` + human-readable `manifest.md` recording which Process/contract-version ran each

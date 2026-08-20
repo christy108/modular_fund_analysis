@@ -800,7 +800,7 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
         # Concatenate output
         dt = pd.concat([df, df2])
 
-        #select only profitable stocks
+      
         dt = dt[(dt['at']>0) & (dt['sale']>0)]
 
         dt['roa0'] = dt['ebitda']/dt['at']

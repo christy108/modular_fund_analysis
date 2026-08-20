@@ -1,4 +1,4 @@
-"""Custom VizSpecs that surface EXISTING node outputs on the dashboard.
+"""Custom VizSpecs — and section ordering — for the audit dashboard.
 
 Several nodes emit a lossless pickle *bundle* (one `__pickle__` cell) rather than a
 tidy frame, so the built-in `SampleTableViz`/`LineChartViz` — which read columns off a
@@ -8,12 +8,16 @@ unchanged, so the Taipy payload is exactly what the framework expects.
 
 No node output changes and no new analysis: each `extract` just returns a frame the
 Process already put in the bundle (or a trivial count of it), so parity is untouched.
+
+`OrderedDashboard` (bottom of the imports block) is the one non-VizSpec here: it moves
+audit-only node sections to the end of the page, which is presentation, not topology.
 """
 
 from __future__ import annotations
 
 from typing import Any, Callable
 
+from leonardo_nodes import Dashboard
 from leonardo_nodes.viz import (
     ColoredTableViz,
     DashboardComponent,
@@ -22,6 +26,31 @@ from leonardo_nodes.viz import (
     LineChartViz,
     SampleTableViz,
 )
+
+# Nodes whose dashboard section is pushed to the BOTTOM of the page, after the sections
+# that carry the actual results. These are pure diagnostics of an upstream step, so their
+# DAG position (which is what the framework orders sections by) puts them far earlier than
+# where a reader wants them — ahead of cumulative returns, alphas and risk tables.
+_DEFERRED_SECTIONS = ("mktcap_filter_audit",)
+
+
+class OrderedDashboard(Dashboard):
+    """Dashboard that renders ``_DEFERRED_SECTIONS`` last, whatever the DAG says.
+
+    ``Dashboard`` orders both the Taipy page and ``to_markdown()`` by
+    ``Pipeline.topological_order()``, and there is no edge arrangement that moves an
+    audit-only node to the end: it depends on one early node, so Kahn's algorithm makes it
+    ready long before the analysis nodes finish. Reordering here — rather than adding a
+    fake edge — keeps the DAG (and the pipeline graph the dashboard draws) honest about
+    what actually depends on what.
+    """
+
+    def _ordered_nodes(self) -> list:
+        nodes = super()._ordered_nodes()
+        deferred = [n for n in nodes if n.name in _DEFERRED_SECTIONS]
+        if not deferred:
+            return nodes
+        return [n for n in nodes if n.name not in _DEFERRED_SECTIONS] + deferred
 
 
 class BundleTableViz(SampleTableViz):
@@ -244,6 +273,10 @@ class BundleMultiSeriesViz(LineChartViz):
     colour per line name across subplots (see ``Dashboard._lines_figure``).
 
     This is the plot itself — no table, no extra artifact on disk.
+
+    Note ``_lines_figure`` sets no axis titles (the ``x``/``y`` names below are only used as
+    payload keys), so units belong in ``title`` and ``description`` — there is no axis label
+    to put them on.
     """
 
     def __init__(
@@ -254,11 +287,15 @@ class BundleMultiSeriesViz(LineChartViz):
         key: str | None = None,
         collapsible: bool = False,
         expanded: bool = True,
+        description: str = "",
     ):
         super().__init__(x="date", y="alpha", agg="mean", title=title, key=key or f"lines:{title}")
         self._extract = extract
         self._collapsible = collapsible
         self._expanded = expanded
+        # LineChartViz does not take `description`; set it directly on the VizSpec so
+        # Dashboard.build() picks it up and renders it under the widget title.
+        self.description = description
 
     def compute(self, output: Any) -> Any:
         from New_Pipeline.boundary import unpack_obj

@@ -25,6 +25,7 @@ import sys
 
 from leonardo_nodes import Dashboard
 
+from New_Pipeline.dashboard_viz import OrderedDashboard
 from New_Pipeline.experiments import EXPERIMENTS
 from New_Pipeline.registry import build_pipeline
 from New_Pipeline.run import run as run_config
@@ -43,7 +44,9 @@ def build(names: list[str]) -> Dashboard:
         manifest, _ = run_config(name)
         manifests[name] = manifest
 
-    return Dashboard(
+    # OrderedDashboard, not Dashboard: renders the audit-only sections last (see
+    # dashboard_viz._DEFERRED_SECTIONS) instead of at their DAG position.
+    return OrderedDashboard(
         manifests=manifests,
         pipeline=build_pipeline(),
         annotation_store=ANNOTATION_STORE,

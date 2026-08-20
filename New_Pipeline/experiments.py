@@ -77,6 +77,10 @@ def build_cfg(**overrides) -> dict:
         show_sample_portfolio=False,
         plot_coverage=False,
         show_esg_coverage=False,
+        # mktcap_filter_audit node (audit-only, nothing downstream reads it). Default ON
+        # because the whole point is that the market-cap filter is visible without opting
+        # in; flip it off to skip the replay if the extra runtime ever matters.
+        show_mktcap_filter_audit=True,
         include_all_signals_in_cum_risk_table=True,
     )
     c.update(overrides)

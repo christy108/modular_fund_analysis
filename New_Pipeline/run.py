@@ -64,7 +64,10 @@ def _export(outputs: dict, target: Path) -> list[str]:
                 pd_to_pl(frame, index_name=index_name).write_parquet(target / f"{fname}.parquet")
             written.append(fname)
 
-    for node in ("esg_signal_corr", "esg_coverage"):
+    # Diagnostic nodes: every key of their bundle is written as <key>.parquet. These are
+    # not notebook artifacts, so parity.compare lists them under "(only in new: ...)" —
+    # informational, it diffs only the set-intersection and cannot fail on them.
+    for node in ("esg_signal_corr", "esg_coverage", "mktcap_filter_audit"):
         df = outputs.get(node)
         if df is None or SENTINEL_COL in df.columns or PICKLE_COL not in df.columns:
             continue
@@ -110,11 +113,11 @@ def run(name: str, out_dir: str | None = None):
     # intent-text + widget tables + mermaid DAG that `New_Pipeline.dashboard --markdown`
     # prints, just captured to a file instead of stdout so it's reopenable later without
     # re-running anything (not interactive/live — a frozen text snapshot of this run).
-    from leonardo_nodes import Dashboard
-
+    from New_Pipeline.dashboard_viz import OrderedDashboard
     from New_Pipeline.registry import build_pipeline
 
-    dash = Dashboard(manifests={name: manifest}, pipeline=build_pipeline()).build()
+    # Same ordering as the served dashboard: audit-only sections last.
+    dash = OrderedDashboard(manifests={name: manifest}, pipeline=build_pipeline()).build()
     dashboard_md = dash.to_markdown() + "\n\n```mermaid\n" + dash.pipeline_graph_mermaid() + "\n```\n"
     (run_dir / "dashboard.md").write_text(dashboard_md)
 
