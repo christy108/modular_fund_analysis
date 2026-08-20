@@ -106,9 +106,38 @@ def process_global_universe(
     row_universe,
     japan_universe,
     currency_filter,
-    mktcap_covered,
+    mktcap_covered_if_filter_by_cum_market_cap,
     esg_choice,
+    market_cap_filter="percent_total_mcap",
+    percentage_stocks_removed_if_percent_stocks_true=0.01,
+    floor_if_percent_stocks_true=100e6,
 ):
+    """Assemble the global universe and apply ONE of two market-cap screens.
+
+    ``market_cap_filter`` selects the screen:
+
+    * ``"percent_total_mcap"`` (default) — the original rule, applied per
+      currency-MONTH: rank listings ascending by month-end cap, cumulate from the
+      smallest, and keep those whose running total exceeds
+      ``(1 - mktcap_covered_if_filter_by_cum_market_cap)`` of the cell total. The
+      percentage is a share of aggregate market-cap VALUE, which because cap is
+      concentrated discards ~65% of listings at 0.95.
+    * ``"percent_stocks"`` — applied per currency-YEAR. A listing is dropped for the
+      whole of year Y iff, measured on its LAST cap in year Y-1, it is both among the
+      smallest ``percentage_stocks_removed_if_percent_stocks_true`` of listings BY COUNT
+      and below ``floor_if_percent_stocks_true``. Equivalently: apply the floor, but
+      never remove more than the smallest x% of listings. Using Y-1 keeps the decision
+      point-in-time; a listing with no Y-1 observation is dropped.
+
+    The two percentages are NOT comparable: one is a share of value, the other a share
+    of count.
+
+    The new parameters are keyword-with-defaults and sit at the END of the signature
+    because every call site in this repo passes positionally — see the callers in
+    New_Pipeline/nodes/04_merge_esg_provider.py, functions/extra_functions/plot_coverage.py,
+    scripts/download_us_gics.py and both notebooks. Defaulting to "percent_total_mcap"
+    means all of those keep their exact previous behaviour untouched.
+    """
     # Drop old identifier columns (if present)
     usa_universe = usa_universe.drop(columns=["cusip"], errors="ignore")
     row_universe = row_universe.drop(columns=["isin"], errors="ignore")
@@ -180,11 +209,81 @@ def process_global_universe(
         how='left'
     )
 
-    # Keep `mktcap_covered` of total market cap (of each currency area)
-    global_universe = global_universe[
-        global_universe["cumulative_mktcap"]
-        > (1 - mktcap_covered) * global_universe["total_mktcap"]
-    ]
+    if market_cap_filter == "percent_total_mcap":
+        # Keep `mktcap_covered_if_filter_by_cum_market_cap` of total market cap (of each
+        # currency area). Unchanged from the original rule.
+        global_universe = global_universe[
+            global_universe["cumulative_mktcap"]
+            > (1 - mktcap_covered_if_filter_by_cum_market_cap) * global_universe["total_mktcap"]
+        ]
+
+    elif market_cap_filter == "percent_stocks":
+        # Drop the smallest x% of listings BY COUNT, but only those also below an
+        # absolute floor. Decided once per YEAR on the previous year's last cap.
+        if not 0 <= percentage_stocks_removed_if_percent_stocks_true <= 1:
+            raise ValueError(
+                "percentage_stocks_removed_if_percent_stocks_true is a FRACTION "
+                f"(0.01 == 1%), got {percentage_stocks_removed_if_percent_stocks_true!r}"
+            )
+        # An absolute floor is only meaningful in a single currency. `mktcap` is in the
+        # LISTING currency unless convert_to_USD converted it upstream, so comparing it
+        # to a constant across currency areas is wrong (a JPY cap against a USD floor is
+        # out by ~150x). Same guard plot_coverage.compute_coverage_over_time enforces.
+        _ccy = sorted(global_universe["curcdd"].dropna().unique())
+        if len(_ccy) > 1:
+            raise ValueError(
+                "market_cap_filter='percent_stocks' compares mktcap to an absolute "
+                f"floor, but the universe spans {_ccy}. Use a single-currency "
+                "currency_filter, or set convert_to_USD=True so every mktcap is in "
+                "one currency."
+            )
+
+        # One reference cap per listing per YEAR: its last observation that year.
+        # global_universe_sorted is already date-sorted, so "last" is the latest date --
+        # the same construction the monthly block above uses.
+        ref = (
+            global_universe_sorted.groupby(["year", "curcdd", "gvkey", "iid"])
+            .agg(ref_mktcap=("mktcap", "last"))
+            .reset_index()
+        )
+
+        # Rank by COUNT within each reference year+currency (not by value share).
+        ref = ref.sort_values(by=["year", "curcdd", "ref_mktcap"])
+        _cell = ["year", "curcdd"]
+        ref["ref_pct_rank"] = (ref.groupby(_cell).cumcount() + 1) / ref.groupby(_cell)[
+            "ref_mktcap"
+        ].transform("size")
+        ref["drop_ref"] = (
+            ref["ref_pct_rank"] <= percentage_stocks_removed_if_percent_stocks_true
+        ) & (ref["ref_mktcap"] < floor_if_percent_stocks_true)
+
+        # Year Y's membership is decided by year Y-1's reference: shift forward, join.
+        ref["year"] = ref["year"] + 1
+        global_universe = pd.merge(
+            global_universe,
+            ref[["year", "curcdd", "gvkey", "iid", "ref_mktcap", "ref_pct_rank", "drop_ref"]],
+            on=["year", "curcdd", "gvkey", "iid"],
+            how="left",
+        )
+
+        # .eq(False) keeps ONLY listings whose Y-1 reference says keep, dropping both
+        # drop_ref=True and drop_ref=NaN in one expression. NaN means "no Y-1
+        # observation" -- a new listing, or every listing in the earliest year present --
+        # which is dropped by design. This also matches how the percent_total_mcap branch
+        # treats rows whose NaN gvkey/iid never matched the merge (NaN > x is False).
+        global_universe = global_universe[global_universe["drop_ref"].eq(False)]
+
+    else:
+        # NOT optional: without this a typo'd value falls through both branches and the
+        # universe passes COMPLETELY UNFILTERED -- a silent ~3x sample change that looks
+        # like a real result.
+        raise ValueError(f"unknown market_cap_filter {market_cap_filter!r}")
+
+    # Drop the percent_stocks helper columns so the returned column set is identical
+    # under either method (no-op on the percent_total_mcap path, which never adds them).
+    global_universe = global_universe.drop(
+        columns=["ref_mktcap", "ref_pct_rank", "drop_ref"], errors="ignore"
+    )
 
     # Format the gvkeys
     global_universe["gvkey"] = (

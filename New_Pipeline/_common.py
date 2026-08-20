@@ -54,6 +54,26 @@ def open_schema() -> ColumnSchema:
     return ColumnSchema(allow_extra=True)
 
 
+def mktcap_filter_kwargs(cfg: dict) -> dict:
+    """The market-cap-screen arguments for ``process_global_universe``, read from cfg.
+
+    Extracted so the four interchangeable ESG Processes don't each carry a copy of the
+    same blob, and so the screen's knobs are threaded from exactly one place. Passed as
+    **keywords** deliberately: every other call site of ``process_global_universe`` in
+    this repo passes positionally, which is how a new parameter silently mis-binds.
+
+    ``.get()`` with the frozen defaults, not ``[...]``: a hand-built cfg (or one written
+    before these keys existed) then still runs the original screen rather than raising.
+    """
+    return dict(
+        market_cap_filter=cfg.get("market_cap_filter", "percent_total_mcap"),
+        percentage_stocks_removed_if_percent_stocks_true=cfg.get(
+            "percentage_stocks_removed_if_percent_stocks_true", 0.01
+        ),
+        floor_if_percent_stocks_true=cfg.get("floor_if_percent_stocks_true", 100e6),
+    )
+
+
 def normalise_gvkeys(gvkeys: "pd.Series") -> "pd.Series":
     """Normalise a gvkey Series to the repo-standard zero-padded 6-char string.
 

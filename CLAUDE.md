@@ -127,11 +127,11 @@ only `prepare_panel`'s output — omitted above for the ASCII diagram's sake; se
   (quantile sorts, FF3 alphas, cumulative returns, risk metrics, constituent counts) live here.
   `run.py`'s `_MERGED_EXPORTS` maps its bundle keys back onto the original per-artifact parquet
   filenames that `parity.compare`/`parity.show` expect.
-- `mktcap_filter_audit` — audit-only. Replays the market-cap coverage filter that lives inside
-  `process_global_universe` (`functions/data_functions/process_data.py:149-187`) on the five columns
-  that filter reads, and reports per currency-month: listings in / dropped / % dropped, the
-  effective size floor (smallest market cap kept), and the literal `(1 - mktcap_covered) ×
-  total_mktcap` threshold. The replay is needed because the filter's own output cannot reveal the
+- `mktcap_filter_audit` — audit-only. Replays whichever market-cap filter method ran inside
+  `process_global_universe` on the five columns that filter reads, and reports per currency-month:
+  listings in / dropped / % dropped, the effective per-listing size floor (smallest market cap
+  kept), and the method-specific cutoff numbers. The replay is needed because the filter's own
+  output cannot reveal the
   *pre*-filter count — the dropped rows are gone — so it re-derives the security-month set and then
   **cross-checks itself** against the real post-filter `global_universe` (`matches_actual` /
   `cross_check_all_match`; expected vacuously true, it's a regression canary for a pandas upgrade
@@ -140,6 +140,30 @@ only `prepare_panel`'s output — omitted above for the ASCII diagram's sake; se
   `(only in new: ...)` line. Gated by `cfg.show_mktcap_filter_audit` (default **True**).
   Its per-currency-month numbers are deliberately **not** a dashboard widget (144+ rows read
   badly there) — read `mktcap_filter_by_month.parquet` for the exact figures.
+
+**Two market-cap filter methods, picked by `cfg.market_cap_filter`** (in
+`process_global_universe`; the audit node replays whichever ran):
+- `"percent_total_mcap"` (**default**, the frozen behaviour) — per currency-**month**, keep the
+  largest listings covering `mktcap_covered_if_filter_by_cum_market_cap` (0.95) of the cell's total
+  cap. That percentage is a share of aggregate **value**, and because cap is concentrated it
+  discards ~65% of listings.
+- `"percent_stocks"` — per currency-**year**, decided on each listing's last cap in Y−1: drop iff
+  both among the smallest `percentage_stocks_removed_if_percent_stocks_true` (0.01) of listings **by
+  count** *and* below `floor_if_percent_stocks_true` ($100mn). A share of **count**, so ~67× gentler
+  than it looks next to the other knob. Config: `base_pct_stocks`. Two consequences: a listing with
+  no Y−1 cap is dropped, so **the whole first data year (2013) disappears**; and the absolute floor
+  makes this **single-currency only** (it raises otherwise — a JPY cap against a USD floor is out by
+  ~150×).
+
+Gotchas when touching this: **every** call site of `process_global_universe` passes **positionally**
+(4× in `04_merge_esg_provider.py` — now keyword, via `_common.mktcap_filter_kwargs` — plus
+`plot_coverage.py`, `scripts/download_us_gics.py`, and both notebooks), so new parameters must be
+appended with defaults or arguments silently mis-bind. `mktcap_covered` was renamed to
+`mktcap_covered_if_filter_by_cum_market_cap` in the pipeline, but **not** in
+`plot_coverage.py` (the notebooks pass it as a keyword) or `output_paths.py`'s `RUN_PARAM_NAMES`
+(resolved against the notebook's namespace) — those two keep the old name deliberately. `build_cfg`
+now **raises on unknown override keys**, which is what turns the rename from a silent dead-key into
+an error.
 
 **Dashboard section order ≠ DAG order.** The framework orders both the Taipy page and
 `to_markdown()` by `Pipeline.topological_order()`, and no edge arrangement can push an

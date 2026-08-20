@@ -1,12 +1,17 @@
-"""Audit the market-cap coverage filter that shrinks the tradable universe.
+"""Audit the market-cap filter that shrinks the tradable universe.
 
-Node `mktcap_filter_audit`: a pure diagnostic on the filter applied inside
-functions/data_functions/process_data.py::process_global_universe (lines 149-187),
-which sorts each currency-month's listings ascending by market cap, cumulates from the
-smallest upward, and keeps only those whose running total exceeds ``(1 - mktcap_covered)``
-of that currency-month's total. It is the pipeline's single largest sample cut and is
-currently invisible: it prints nothing, and the number of listings it removed cannot be
-recovered from its own output.
+Node `mktcap_filter_audit`: a pure diagnostic on the filter inside
+functions/data_functions/process_data.py::process_global_universe, which has two selectable
+methods (``cfg.market_cap_filter``) and is the pipeline's single largest sample cut:
+
+* ``percent_total_mcap`` — per currency-MONTH. Sort listings ascending by month-end cap,
+  cumulate from the smallest, keep those whose running total exceeds
+  ``(1 - mktcap_covered_if_filter_by_cum_market_cap)`` of the cell total.
+* ``percent_stocks`` — per currency-YEAR, on the previous year's last cap. Drop a listing
+  iff it is both among the smallest x% BY COUNT and below an absolute floor.
+
+Either way the filter is invisible from the outside: it prints nothing, and the number of
+listings it removed cannot be recovered from its own output.
 
 Why the filter has to be replayed here rather than read off an upstream output:
 ``merge_esg_provider``'s ``global_universe`` retains ``last_mktcap`` / ``cumulative_mktcap``
@@ -56,6 +61,33 @@ def _summary(bundle):
     return bundle.get("mktcap_filter_summary")
 
 
+def _binding_constraint(bundle):
+    """Three lines showing which of the two `percent_stocks` conditions actually bit.
+
+    Empty under `percent_total_mcap`, which has no such conditions. A step function under
+    the yearly rule — one level per year — which is the correct depiction of an annual
+    rebalance, not a rendering artefact.
+    """
+    import pandas as pd
+
+    df = bundle.get("mktcap_filter_by_month")
+    if df is None or len(df) == 0 or "n_below_floor" not in df.columns:
+        return []
+    df = df.sort_values("ym")
+    if df["n_below_floor"].isna().all():      # percent_total_mcap ran
+        return []
+    x = [str(v) for v in df["ym"]]
+    out = []
+    for col, name in (("n_below_floor", "below the floor"),
+                      ("n_in_bottom_pct", "in the bottom x% by count"),
+                      ("n_dropped", "actually dropped")):
+        out.append({
+            "name": name, "x": x,
+            "y": [None if pd.isna(v) else float(v) for v in df[col]],
+        })
+    return out
+
+
 def _series_by_currency(col: str, scale: float = 1.0):
     """One line per currency area for ``col`` over year-months.
 
@@ -69,6 +101,11 @@ def _series_by_currency(col: str, scale: float = 1.0):
 
         df = bundle.get("mktcap_filter_by_month")
         if df is None or len(df) == 0 or col not in df.columns:
+            return []
+        if df[col].isna().all():
+            # The column exists but belongs to the other method (e.g. cum_threshold under
+            # percent_stocks). Return nothing rather than one all-None series, which would
+            # render as a legend entry with no line -- reading as broken, not as N/A.
             return []
         series = []
         for currency, part in df.groupby("curcdd", sort=True):
@@ -100,14 +137,26 @@ _UNITS_NOTE = (
 
 CONTRACT = Contract(
     name="mktcap_filter_audit",
-    intent="""Make the market-cap coverage filter visible. That filter runs inside
-``process_global_universe`` and is the pipeline's largest single sample cut, yet it reports
-nothing and its own output cannot reveal how many listings it removed. This node replays it
-from the same per-region universes and reports, per currency-month: how many listings entered,
-how many were removed, what share that is, and the exact numerical cutoff — both the literal
-threshold in the code (``(1 - mktcap_covered) x total_mktcap``, a CUMULATIVE cap over the
-discarded tail) and the effective per-listing size floor (the smallest market cap that
-survived), which is what a reader usually means by "the cutoff".
+    intent="""Make the market-cap universe filter visible, whichever of its two methods ran.
+That filter lives inside ``process_global_universe`` and is the pipeline's largest single
+sample cut, yet it reports nothing and its own output cannot reveal how many listings it
+removed. This node replays it from the same per-region universes and reports, per
+currency-month: how many listings entered, how many were removed, what share that is, and the
+effective per-listing size floor (the smallest market cap that survived) — which is what a
+reader usually means by "the cutoff".
+
+Which method ran is read from ``cfg.market_cap_filter`` and the replay branches to match:
+
+- ``percent_total_mcap`` — per currency-MONTH; keeps listings whose cumulative cap exceeds
+  ``(1 - mktcap_covered_if_filter_by_cum_market_cap) x total_mktcap``. Also reported: that
+  literal threshold, a CUMULATIVE budget over the whole discarded tail and NOT a per-listing
+  size (it is ~300x the size floor; conflating the two is the standard misreading).
+- ``percent_stocks`` — per currency-YEAR, decided on each listing's last cap in Y-1: dropped
+  iff both among the smallest ``percentage_stocks_removed_if_percent_stocks_true`` of listings
+  BY COUNT and below ``floor_if_percent_stocks_true``. Also reported: which of the two
+  conditions bound each year, and how many listings were dropped purely for having no Y-1
+  observation. The two methods' percentages are NOT comparable — one is a share of aggregate
+  value, the other a share of the listing count.
 
 Scope boundary: this node owns no numerics that anything else consumes. It re-derives a filter
 that already ran upstream, purely so the filter can be inspected. No downstream node reads its
@@ -119,11 +168,17 @@ Mandatory measures (enforced by schema / audits):
   table; ``cross_check_all_match`` in the summary). Expected to be vacuously true against a
   frozen ``process_global_universe`` and a pinned pandas — it is a regression canary for a
   pandas upgrade changing groupby/sort semantics, not a numerical reconciliation.
-- market cap actually dropped never exceeds the configured budget: because the strict ``>``
-  keeps the listing straddling the threshold,
-  ``pct_mktcap_dropped <= 100 x (1 - mktcap_covered)``
-- ``largest_dropped <= size_floor`` always, since the sort is ascending by cap; equality means
-  the boundary fell inside a tie
+- ``percent_total_mcap`` only: market cap actually dropped never exceeds the configured budget
+  (because the strict ``>`` keeps the listing straddling the threshold),
+  ``pct_mktcap_dropped <= 100 x (1 - mktcap_covered_if_filter_by_cum_market_cap)``; and
+  ``largest_dropped <= size_floor`` always, since the sort is ascending by cap (equality means
+  the boundary fell inside a tie). Both are reported as ``None`` under ``percent_stocks``, where
+  they are meaningless, rather than as a vacuous pass — the second because the ranking uses the
+  Y-1 cap while those two are measured on the current month's caps, so a dropped listing can
+  legitimately out-grow a kept one during year Y.
+- ``percent_stocks`` only: ``n_dropped == min(n_below_floor, n_in_bottom_pct) + n_no_ref``
+  (``prefix_invariant_ok``). Both selection sets are prefixes of the ascending-cap order, so
+  their intersection is a prefix and the smaller set is the binding one.
 - counts are LISTING-level, keyed on (gvkey, iid) exactly as the filter groups; company-level
   (distinct gvkey) counts are reported alongside and are NOT the same number
 - cap columns are never summed across currency areas unless every market cap is already in one
@@ -136,12 +191,15 @@ Mandatory measures (enforced by schema / audits):
   ``convert_to_USD`` False)
 
 Surfaces: listings dropped against percentage dropped over time, on separate y-axes since they
-differ by orders of magnitude (``BundleDualAxisViz``); the effective size floor per currency
-area over time, in billions (``BundleMultiSeriesViz``); the literal cumulative threshold per
-currency area, in billions (``BundleMultiSeriesViz``); and the headline summary including the
-cross-check verdict (``BundleTableViz``). The full per-currency-month numbers are deliberately
-NOT a widget — 144+ rows read badly on a dashboard — but they are still bundled and exported as
-``mktcap_filter_by_month.parquet`` for anyone who wants the exact figures.""",
+differ by orders of magnitude (``BundleDualAxisViz``); the effective per-listing size floor over
+time, in billions (``BundleMultiSeriesViz``); and the headline summary including the cross-check
+verdict (``BundleTableViz``) — all three under either method. Plus one method-specific chart
+each, blank when its method is not the active one, since ``Contract.audits`` is static at import
+time and cannot branch on cfg: the cumulative discard budget for ``percent_total_mcap``, and the
+binding-constraint comparison for ``percent_stocks`` (``BundleMultiSeriesViz``). The full
+per-currency-month numbers are deliberately NOT a widget — 144+ rows read badly on a dashboard —
+but they are still bundled and exported as ``mktcap_filter_by_month.parquet`` for anyone who
+wants the exact figures.""",
     input_schema={"universe": open_schema(), "cfg": cfg_schema()},
     output_schema=open_schema(),
     audits=[
@@ -160,18 +218,25 @@ NOT a widget — 144+ rows read badly on a dashboard — but they are still bund
             title="PER-FIRM cutoff: market cap of the smallest listing kept (billions)",
             key="lines:mktcap_filter_size_floor",
             description=(
-                "The cutoff in the sense you probably mean it: a single listing had to be "
-                "worth at least this much to survive that month. Contrast the discard-budget "
-                "chart below, which is a SUM over 1,077-1,713 firms and is therefore 283-388x "
-                "larger — the two are not comparable magnitudes.\n\n" + _UNITS_NOTE
+                "Populated under **both** methods — the cutoff in the sense you probably "
+                "mean it: a single listing had to be worth at least this much to survive "
+                "that month.\n\n"
+                "Under `percent_total_mcap`, contrast the discard-budget chart, which is a "
+                "SUM over 1,077-1,713 firms and therefore 283-388x larger — not a comparable "
+                "magnitude. Under `percent_stocks` this can sit *below* the configured floor: "
+                "that happens exactly when the bottom-x% cap binds before the floor does, so "
+                "listings under the floor survive because they are not among the very "
+                "smallest.\n\n" + _UNITS_NOTE
             ),
         ),
         BundleMultiSeriesViz(
             _series_by_currency("cum_threshold", scale=1e9),
-            title=("DISCARD BUDGET, summed over all dropped listings: "
-                   "(1 - mktcap_covered) x total market cap (billions)"),
+            title=("DISCARD BUDGET, summed over all dropped listings: (1 - coverage) x total "
+                   "market cap (billions) — percent_total_mcap only"),
             key="lines:mktcap_filter_cum_threshold",
             description=(
+                "**Blank unless `market_cap_filter=\"percent_total_mcap\"`** — the other rule "
+                "has no cumulative budget.\n\n"
                 "**This is not a per-firm size.** It is the total market cap the filter is "
                 "allowed to discard collectively, and it is never compared against one "
                 "firm's cap: the test is `cumulative_mktcap > threshold`, where "
@@ -182,6 +247,27 @@ NOT a widget — 144+ rows read badly on a dashboard — but they are still bund
                 "2.65bn, so the PER-FIRM boundary is ~2.65bn (see the chart above), roughly "
                 "283x smaller than this budget. Both numbers are correct; they measure "
                 "different things.\n\n" + _UNITS_NOTE
+            ),
+        ),
+        BundleMultiSeriesViz(
+            _binding_constraint,
+            title="Which constraint bit: listings below the floor vs in the bottom x% "
+                  "vs actually dropped — percent_stocks only",
+            key="lines:mktcap_filter_binding",
+            description=(
+                "**Blank unless `market_cap_filter=\"percent_stocks\"`.**\n\n"
+                "That rule drops a listing only if it satisfies BOTH conditions, so the "
+                "dropped count is the smaller of the two lines (plus any listing with no "
+                "previous-year cap at all, which is dropped outright). Whichever line sits "
+                "lower is the constraint doing the work:\n\n"
+                "- **below the floor** lower → the *floor* binds; raising `x%` would change "
+                "nothing.\n"
+                "- **in the bottom x% by count** lower → the *x% cap* binds; the floor wants "
+                "to remove more listings than x% allows, so lowering the floor changes "
+                "nothing.\n\n"
+                "Expect a **step function**: the decision is taken once a year off the "
+                "previous year's caps, so it is constant across each year's twelve months. "
+                "That flatness is the annual rebalance, not a plotting artefact."
             ),
         ),
         BundleTableViz(
@@ -210,8 +296,15 @@ def mktcap_filter_audit_v1(universe, cfg):
         return pack_obj({})
 
     U = unpack_obj(universe)
-    cov = C["mktcap_covered"]
     currency_filter = C["currency_filter"]
+    # Which screen actually ran upstream. .get() defaults mirror _common.mktcap_filter_kwargs
+    # so this replay follows whatever process_global_universe was given.
+    method = C.get("market_cap_filter", "percent_total_mcap")
+    cov = C["mktcap_covered_if_filter_by_cum_market_cap"]
+    pct = C.get("percentage_stocks_removed_if_percent_stocks_true", 0.01)
+    floor = C.get("floor_if_percent_stocks_true", 100e6)
+    if method not in ("percent_total_mcap", "percent_stocks"):
+        raise ValueError(f"unknown market_cap_filter {method!r}")
 
     # ---- 1. Replay the PRE-filter security-month set -------------------------------- #
     # Mirrors process_global_universe lines 113-187 on the five columns the filter reads.
@@ -247,20 +340,67 @@ def mktcap_filter_audit_v1(universe, cfg):
     # groupby drops any group with NaN in a key (pandas default dropna=True). The frozen
     # code drops those rows too, one step later: they get a NaN cumulative_mktcap from the
     # left merge, and `NaN > x` is False. Same rows either way.
+    pre_sorted = pre.sort_values(by=["date"])
+    del pre
     sec = (
-        pre.sort_values(by=["date"])
-        .groupby(["month", "year", "curcdd", "gvkey", "iid"])
+        pre_sorted.groupby(["month", "year", "curcdd", "gvkey", "iid"])
         .agg(last_mktcap=("mktcap", "last"))
         .reset_index()
     )
-    del pre
+    # The yearly reference cap for percent_stocks: each listing's LAST observation in the
+    # year, taken off the same date-sorted daily frame the frozen function uses. Built
+    # here, before pre_sorted is released, rather than re-derived from `sec` -- that
+    # shortcut would only be equivalent via sec.last_mktcap being the month's last daily
+    # observation, and this replay's whole value is not assuming things like that.
+    ref = None
+    if method == "percent_stocks":
+        ref = (
+            pre_sorted.groupby(["year", "curcdd", "gvkey", "iid"])
+            .agg(ref_mktcap=("mktcap", "last"))
+            .reset_index()
+        )
+    del pre_sorted
+
     sec = sec.sort_values(by=["month", "year", "curcdd", "last_mktcap"])
     grouped = sec.groupby(["month", "year", "curcdd"])["last_mktcap"]
+    # Computed under both methods: informative either way, and percent_total_mcap's test
+    # needs them.
     sec["cumulative_mktcap"] = grouped.cumsum()
     sec["total_mktcap"] = grouped.transform("sum")
-    sec["kept"] = sec["cumulative_mktcap"] > (1 - cov) * sec["total_mktcap"]
-    print(f"[mktcap_filter_audit] replayed {len(sec)} listing-months, "
-          f"{int(sec['kept'].sum())} kept at mktcap_covered={cov}")
+
+    if method == "percent_total_mcap":
+        sec["kept"] = sec["cumulative_mktcap"] > (1 - cov) * sec["total_mktcap"]
+        sec["no_ref"] = False
+    else:
+        # Rank by COUNT within each reference year+currency, decide, then shift the
+        # reference year forward so Y-1's decision governs year Y.
+        ref = ref.sort_values(by=["year", "curcdd", "ref_mktcap"])
+        _c = ["year", "curcdd"]
+        ref["ref_pct_rank"] = (ref.groupby(_c).cumcount() + 1) / ref.groupby(_c)[
+            "ref_mktcap"
+        ].transform("size")
+        ref["in_bottom_pct"] = ref["ref_pct_rank"] <= pct
+        ref["below_floor"] = ref["ref_mktcap"] < floor
+        ref["drop_ref"] = ref["in_bottom_pct"] & ref["below_floor"]
+        ref["year"] = ref["year"] + 1
+        sec = sec.merge(
+            ref[["year", "curcdd", "gvkey", "iid", "ref_mktcap", "ref_pct_rank",
+                 "in_bottom_pct", "below_floor", "drop_ref"]],
+            on=["year", "curcdd", "gvkey", "iid"], how="left",
+        )
+        # ORDER MATTERS: derive `kept` from the raw merged column first. .eq(False) drops
+        # both drop_ref=True and drop_ref=NaN, NaN meaning "no Y-1 observation" (a new
+        # listing, or every listing in the earliest year present). Only afterwards may the
+        # diagnostic booleans be filled, because fillna(False) on drop_ref would flip
+        # those no-reference rows from dropped to kept.
+        sec["no_ref"] = sec["drop_ref"].isna()
+        sec["kept"] = sec["drop_ref"].eq(False)
+        for _b in ("in_bottom_pct", "below_floor"):
+            sec[_b] = sec[_b].fillna(False).astype(bool)
+
+    print(f"[mktcap_filter_audit] method={method}: replayed {len(sec)} listing-months, "
+          f"{int(sec['kept'].sum())} kept "
+          f"({'coverage=%s' % cov if method == 'percent_total_mcap' else 'pct=%s floor=%s' % (pct, floor)})")
 
     # ---- 2. Aggregate to one row per currency-month --------------------------------- #
     keys = ["year", "month", "curcdd"]
@@ -282,14 +422,47 @@ def mktcap_filter_audit_v1(universe, cfg):
     by["n_dropped"] = by["n_pre"] - by["n_kept"]
     by["pct_dropped"] = 100.0 * by["n_dropped"] / by["n_pre"]
     by["n_dropped_gvkeys"] = by["n_pre_gvkeys"] - by["n_kept_gvkeys"]
-    by["cum_threshold"] = (1.0 - cov) * by["total_mktcap"]
     by["pct_mktcap_dropped"] = (
         100.0 * (by["total_mktcap"] - by["kept_mktcap"]) / by["total_mktcap"]
     )
-    # Ascending-by-cap sort means every dropped listing precedes every kept one, so
-    # largest_dropped <= size_floor holds by construction; equality means the threshold
-    # fell inside a tie and the boundary does not strictly separate.
-    by["boundary_tied"] = by["largest_dropped"] == by["size_floor"]
+
+    # ---- method-specific columns ----------------------------------------------------- #
+    by["filter_period"] = "month" if method == "percent_total_mcap" else "year"
+    if method == "percent_total_mcap":
+        by["cum_threshold"] = (1.0 - cov) * by["total_mktcap"]
+        # Ascending-by-cap sort means every dropped listing precedes every kept one, so
+        # largest_dropped <= size_floor holds by construction; equality means the threshold
+        # fell inside a tie and the boundary does not strictly separate.
+        by["boundary_tied"] = by["largest_dropped"] == by["size_floor"]
+        for _c in ("n_below_floor", "n_in_bottom_pct", "n_no_ref"):
+            by[_c] = np.nan
+        by["binding_constraint"] = ""
+    else:
+        # No cumulative budget exists under this rule.
+        by["cum_threshold"] = np.nan
+        # largest_dropped <= size_floor is NOT expected month-by-month here: the ranking
+        # uses the Y-1 cap while these two are measured on the current month's caps, so a
+        # dropped listing can out-grow a kept one during year Y. Checked on the reference
+        # frame instead (see cross_check / summary).
+        by["boundary_tied"] = False
+        # Merged on `keys`, not assigned via .values: `by` has a RangeIndex by this point,
+        # so a positional assignment would rely on this groupby emitting rows in exactly
+        # the order `all_g` did — true today, and a silent mis-alignment the day it isn't.
+        _counts = (
+            sec.groupby(keys)[["below_floor", "in_bottom_pct", "no_ref"]].sum()
+            .rename(columns={"below_floor": "n_below_floor",
+                             "in_bottom_pct": "n_in_bottom_pct",
+                             "no_ref": "n_no_ref"})
+            .reset_index()
+        )
+        by = by.merge(_counts, on=keys, how="left")
+        # Both sets are prefixes of the ascending-cap order, so their intersection is a
+        # prefix and n_dropped == min(...) whenever every listing has a reference. Reporting
+        # which side is smaller says which constraint actually bit.
+        by["binding_constraint"] = np.where(
+            by["n_below_floor"] < by["n_in_bottom_pct"], "floor",
+            np.where(by["n_below_floor"] > by["n_in_bottom_pct"], "pct_stocks", "tie"),
+        )
     by["ym"] = (
         by["year"].astype(int).astype(str) + "-"
         + by["month"].astype(int).astype(str).str.zfill(2)
@@ -310,18 +483,29 @@ def mktcap_filter_audit_v1(universe, cfg):
         .reset_index()
     )
     by = by.merge(actual, on=keys, how="outer")
-    by["matches_actual"] = (
-        (by["n_kept"] == by["n_kept_actual"])
-        & np.isclose(by["total_mktcap"], by["total_mktcap_actual"],
+    # A currency-month with ZERO survivors produces no group in `actual`, so the outer
+    # merge leaves NaN rather than 0 -- and total_mktcap_actual is genuinely unreadable
+    # there, since there are no surviving rows to read it off. Treat "absent from the real
+    # frame" as zero kept, and only compare the total where the real frame has rows.
+    # Without this, a legitimately empty cell reports as a cross-check FAILURE: under
+    # percent_stocks every month of the earliest year is empty (no listing has a Y-1
+    # reference), which is the rule working, not a replay mismatch.
+    _cell_present = by["n_kept_actual"].notna()
+    by["n_kept_actual"] = by["n_kept_actual"].fillna(0)
+    by["matches_actual"] = (by["n_kept"] == by["n_kept_actual"]) & (
+        ~_cell_present
+        | np.isclose(by["total_mktcap"], by["total_mktcap_actual"],
                      rtol=0.0, atol=0.0, equal_nan=True)
     )
     by = by.sort_values(["ym", "curcdd"]).reset_index(drop=True)
     by = by[[
-        "ym", "year", "month", "curcdd",
+        "ym", "year", "month", "curcdd", "filter_period",
         "n_pre", "n_kept", "n_dropped", "pct_dropped",
         "n_pre_gvkeys", "n_kept_gvkeys", "n_dropped_gvkeys",
         "size_floor", "largest_dropped", "boundary_tied",
         "cum_threshold", "total_mktcap", "kept_mktcap", "pct_mktcap_dropped",
+        # percent_stocks only; NaN/"" under percent_total_mcap
+        "n_below_floor", "n_in_bottom_pct", "n_no_ref", "binding_constraint",
         "n_kept_actual", "total_mktcap_actual", "matches_actual",
     ]]
 
@@ -347,15 +531,15 @@ def mktcap_filter_audit_v1(universe, cfg):
     totals = totals.reset_index()
 
     # ---- 5. Headline summary --------------------------------------------------------- #
-    floor = by.dropna(subset=["size_floor"]).sort_values("ym")
-    first_floor = float(floor["size_floor"].iloc[0]) if len(floor) else float("nan")
-    last_floor = float(floor["size_floor"].iloc[-1]) if len(floor) else float("nan")
-    boundary_ok = bool(
-        (by["largest_dropped"] <= by["size_floor"])
-        .where(by["largest_dropped"].notna(), True).all()
-    )
-    summary = pd.DataFrame([{
-        "mktcap_covered": float(cov),
+    # NB: local name is `floor_rows`, not `floor` -- `floor` is the config value read at
+    # the top of this Process and shadowing it here would silently corrupt the summary.
+    floor_rows = by.dropna(subset=["size_floor"]).sort_values("ym")
+    first_floor = float(floor_rows["size_floor"].iloc[0]) if len(floor_rows) else float("nan")
+    last_floor = float(floor_rows["size_floor"].iloc[-1]) if len(floor_rows) else float("nan")
+
+    row = {
+        "market_cap_filter": method,
+        "filter_period": "month" if method == "percent_total_mcap" else "year",
         "currency_filter": ", ".join(currency_filter) if currency_filter else "(all)",
         "convert_to_USD": bool(C["convert_to_USD"]),
         "currency_areas": int(by["curcdd"].nunique()),
@@ -371,20 +555,48 @@ def mktcap_filter_audit_v1(universe, cfg):
         "size_floor_first_bn": first_floor / 1e9,
         "size_floor_last_bn": last_floor / 1e9,
         "max_pct_mktcap_dropped": float(by["pct_mktcap_dropped"].max()),
-        "mktcap_budget_respected": bool(
+    }
+
+    if method == "percent_total_mcap":
+        # Only this rule has a value budget, and only here does the ordering invariant hold
+        # month by month. Reported as None under the other method so a vacuous True can
+        # never be mistaken for a real check.
+        row["mktcap_covered_if_filter_by_cum_market_cap"] = float(cov)
+        row["percentage_stocks_removed"] = None
+        row["floor_bn"] = None
+        row["mktcap_budget_respected"] = bool(
             (by["pct_mktcap_dropped"] <= 100.0 * (1.0 - cov) + 1e-9).all()
-        ),
-        "boundary_ordering_ok": boundary_ok,
-        "cross_check_all_match": bool(by["matches_actual"].all()),
-        "cross_check_n_mismatched": int((~by["matches_actual"]).sum()),
-    }])
+        )
+        row["boundary_ordering_ok"] = bool(
+            (by["largest_dropped"] <= by["size_floor"])
+            .where(by["largest_dropped"].notna(), True).all()
+        )
+        row["n_months_floor_binding"] = None
+        row["n_months_pct_binding"] = None
+        row["prefix_invariant_ok"] = None
+    else:
+        row["mktcap_covered_if_filter_by_cum_market_cap"] = None
+        row["percentage_stocks_removed"] = float(pct)
+        row["floor_bn"] = float(floor) / 1e9
+        row["mktcap_budget_respected"] = None
+        row["boundary_ordering_ok"] = None
+        row["n_months_floor_binding"] = int((by["binding_constraint"] == "floor").sum())
+        row["n_months_pct_binding"] = int((by["binding_constraint"] == "pct_stocks").sum())
+        # Both selection sets are prefixes of the ascending-cap order, so their
+        # intersection is a prefix and the dropped count is the smaller of the two --
+        # except where listings lack a Y-1 reference and are dropped on top of that.
+        _expect = by[["n_below_floor", "n_in_bottom_pct"]].min(axis=1) + by["n_no_ref"]
+        row["prefix_invariant_ok"] = bool((by["n_dropped"] == _expect).all())
+
+    row["cross_check_all_match"] = bool(by["matches_actual"].all())
+    row["cross_check_n_mismatched"] = int((~by["matches_actual"]).sum())
+    summary = pd.DataFrame([row])
 
     print(f"[mktcap_filter_audit] {len(totals)} months, "
-          f"pct_dropped mean={summary['mean_pct_dropped'].iloc[0]:.1f}% "
-          f"range=[{summary['min_pct_dropped'].iloc[0]:.1f}%, "
-          f"{summary['max_pct_dropped'].iloc[0]:.1f}%], "
+          f"pct_dropped mean={row['mean_pct_dropped']:.1f}% "
+          f"range=[{row['min_pct_dropped']:.1f}%, {row['max_pct_dropped']:.1f}%], "
           f"size_floor {first_floor / 1e9:.2f}bn -> {last_floor / 1e9:.2f}bn, "
-          f"cross-check all_match={summary['cross_check_all_match'].iloc[0]}")
+          f"cross-check all_match={row['cross_check_all_match']}")
 
     return pack_obj({
         "mktcap_filter_by_month": by,

@@ -57,7 +57,14 @@ def build_cfg(**overrides) -> dict:
         signal_type="weights",    # "weights": signal_i = sum_with_i / sum_activities
                                    # "counts":  signal_i = sum_with_i (raw initiative total, no denominator)
         alpha_bound=0.1,
-        mktcap_covered=0.95,
+        # Which market-cap screen process_global_universe applies, and the knobs each
+        # one owns. NOTE the two percentages are NOT comparable: mktcap_covered_... is a
+        # share of aggregate market-cap VALUE (0.95 discards ~65% of listings), while
+        # percentage_stocks_removed_... is a share of the listing COUNT.
+        market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+        mktcap_covered_if_filter_by_cum_market_cap=0.95,
+        percentage_stocks_removed_if_percent_stocks_true=0.01,   # fraction, not percent
+        floor_if_percent_stocks_true=100e6,      # absolute, in the mktcap currency
         add_accounting_data=False,
         add_materiality=False,
         materiality_version=2,
@@ -83,6 +90,15 @@ def build_cfg(**overrides) -> dict:
         show_mktcap_filter_audit=True,
         include_all_signals_in_cum_risk_table=True,
     )
+    # Reject unknown override keys. `c.update` would otherwise accept a typo (or a key
+    # renamed out from under a caller, e.g. the old `mktcap_covered`) as a dead entry and
+    # silently run with the default -- a wrong number with no error anywhere.
+    _unknown = set(overrides) - set(c)
+    if _unknown:
+        raise ValueError(
+            f"build_cfg got unknown config key(s): {sorted(_unknown)}. "
+            f"Add them to the baseline dict above, or fix the spelling."
+        )
     c.update(overrides)
 
     # ---- cell 2: esg_choice end_year override (order matters; applied after
@@ -342,6 +358,19 @@ def base_none():
     return make_experiment("base_none", build_cfg())
 
 
+def base_pct_stocks():
+    # base_none, but the universe screen is the gentler count-based rule: drop a listing
+    # for the whole year iff its LAST cap in the previous year puts it in the smallest 1%
+    # of listings AND below $100mn. Expect single digits of listings dropped per month
+    # versus ~1,339 under the 95%-of-value rule -- and all of the first data year (2013)
+    # dropped, since no listing has a 2012 reference cap.
+    return make_experiment("base_pct_stocks", build_cfg(
+        market_cap_filter="percent_stocks",
+        percentage_stocks_removed_if_percent_stocks_true=0.2,
+        floor_if_percent_stocks_true=100e6,
+    ))
+
+
 
 def base_none_v_2A():
     return make_experiment("base_none_v_2A", build_cfg(golden_data = "v_2A"))
@@ -552,6 +581,7 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
+    "base_pct_stocks": base_pct_stocks,
 
     #V2A
     "base_none_v_2A": base_none_v_2A,
