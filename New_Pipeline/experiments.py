@@ -337,6 +337,10 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 def base_none():
     return make_experiment("base_none", build_cfg())
 
+def base_none_v_2A():
+    return make_experiment("base_none_v_2A", build_cfg(golden_data = "v_2A"))
+
+
 def base_none_counts():
     # base_none, but each signal is the raw total-initiative count for its group
     # rather than that group's share of sum_activities.
@@ -540,6 +544,7 @@ EXPERIMENTS = {
     "sdg_3_groups_ppp": sdg_3_groups_ppp,
     "sdg_5_groups_brackets": sdg_5_groups_brackets,
     "sdg_climate_vs_each_sdg": sdg_climate_vs_each_sdg,
+    "base_none_v_2A":base_none_v_2A,
 
 
 

@@ -95,12 +95,16 @@ def process_lc_v1(cfg):
         )
     )
     golden_files = {
+        "v_2A": "LC_dataset_v2A_20260812.parquet",
         "v_2C": "LC_dataset_v_2C_20260512.csv",
         "v_2B3": "LC_dataset_v_2B3_20260511.csv",
-        "v_2A": "LC_dataset_v_2A.csv",
         "v_2B1": "LC_dataset_v_2B1_20260409.csv",
     }
-    lc = pd.read_csv(golden_location / golden_files[C["golden_data"]])
+
+    try:
+        lc = pd.read_csv(golden_location / golden_files[C["golden_data"]])
+    except:
+        lc = pd.read_parquet(golden_location / golden_files[C["golden_data"]])
 
     # ---- cell 14: process_lc + 3-filter block + drop real estate --------- #
     lc = process_lc(lc, C["start_year"], C["end_year"])
@@ -136,7 +140,14 @@ def process_lc_v1(cfg):
             print("Shape after filtering Truly Sus: ", lc.shape)
 
         print("Before filtering Annual Reports: ", lc.shape)
-        lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type"] == "Annual Report"))]
+        
+        print(golden_files[C["golden_data"]] )
+        if C["golden_data"] == "v_2A":
+                    lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["predicted_report_type"] == "Annual Report"))]
+
+        else:
+            lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type"] == "Annual Report"))]
+
         print("After filtering Annual Reports: ", lc.shape)
         lc.to_csv("./data/debug/lc_after_all_filter.csv")
 
