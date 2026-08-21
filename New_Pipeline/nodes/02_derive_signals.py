@@ -214,6 +214,7 @@ def derive_signals_v1(lc, cfg):
     from functions.data_functions.process_lc import (
         filter_sum_activities_by_fiscal_year_quantiles,
     )
+    from New_Pipeline._common import count_firms, funnel_frame
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -259,6 +260,22 @@ def derive_signals_v1(lc, cfg):
     # ---- audit: sum_activities AFTER the alpha-bound trim ------------------- #
     desc_after = lc_df["sum_activities"].describe()
     outlier_stages.append(("after_alpha_bound", desc_after))
+
+    # ---- audit: sample filter funnel, this node's one stage -------------------------- #
+    # Forwarded-plus-appended, the same way lc_raw_for_coverage is carried through below.
+    # Note there is no inactive case: use_alpha_bound=False does NOT mean "no trim", it
+    # means the hardcoded 0.2/0.05 bounds in the else branch above ran instead — so the
+    # row is labelled with whichever bounds actually applied and is never null.
+    _bounds = (f"alpha_bound={C['alpha_bound']}" if C["use_alpha_bound"]
+               else "use_alpha_bound=False -> hardcoded lower=0.2 upper=0.05")
+    funnel = funnel_frame([(
+        f"Per-fiscal-year extreme-activity trim on sum_activities ({_bounds})", "LC",
+        "02_derive_signals.py:246 / filter_sum_activities_by_fiscal_year_quantiles",
+        count_firms(lc_df["gvkey"]),
+    )])
+    _prev_funnel = L.get("funnel")
+    if _prev_funnel is not None:
+        funnel = pd.concat([_prev_funnel, funnel], axis=0, ignore_index=True)
 
     # Wide table: one row per stat, one column per stage (in the order captured above).
     # describe() always emits the same stat index (count/mean/std/min/25%/50%/75%/max)
@@ -400,6 +417,8 @@ def derive_signals_v1(lc, cfg):
     return pack_obj({
         "lc": lc_df,
         "lc_raw_for_coverage": L.get("lc_raw_for_coverage"),
+        "funnel": funnel,
+        "funnel_checks": L.get("funnel_checks"),
         "sum_activities_outlier_stats": sum_activities_outlier_stats,
         "signal_summary_stats": signal_summary_stats,
         "signal_correlation_matrix": signal_correlation_matrix,

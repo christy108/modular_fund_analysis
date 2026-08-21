@@ -88,21 +88,61 @@ ESG-universe path, which carries no LC data.""",
 def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     import json
 
+    import numpy as np
     import pandas as pd
 
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_univariate_sorting_inputs,
     )
-    from New_Pipeline._common import normalise_gvkeys
+    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
-    guniv = unpack_obj(global_universe)["global_universe"]
-    lc_df = unpack_obj(lc)["lc"]
+    GU = unpack_obj(global_universe)
+    L = unpack_obj(lc)
+    guniv = GU["global_universe"]
+    lc_df = L["lc"]
     ff = unpack_obj(fama_french_raw)["fama_french"]
 
     # cell 26 tail: ensure gvkey is 6 digits for merging (idempotent).
     lc_df["gvkey"] = normalise_gvkeys(lc_df["gvkey"])
+
+    # ---- audit: sample filter funnel, panel side (stages inside the prep call) ------- #
+    # prepare_univariate_sorting_inputs returns only its endpoint, but three of these four
+    # counts are readable off what it already gives back and the fourth is one mask, so
+    # none of the heavy path is re-run:
+    #
+    #  * the intersection is np.intersect1d on two gvkey arrays -- mirrored here rather
+    #    than by calling intersect_gvkeys_and_filter, which MUTATES its lc argument
+    #    (univariate_sorting_preprocess.py:43).
+    #  * the date/tri dropna needs no merge: those are universe columns, and
+    #    merge_lc_into_global_universe is a LEFT merge that can duplicate rows but never
+    #    drops them and never touches date/tri, so a mask on the intersected universe
+    #    gives the exact distinct-firm count.
+    #  * the standardisation-key dropna is prep.global_universe itself.
+    #  * the cross-signal mask must be read off prep.global_returns, NOT prep.signals:
+    #    global_returns is exactly apply_cross_signal_nan_mask's output, while the bundled
+    #    signals are post-standardize_all_signals, which can add NaNs of its own (a
+    #    singleton standardisation group gives std=0).
+    #
+    # to_monthly_last_trading_date and compute_monthly_returns_long's 36-day gap mask are
+    # not stages: the first is a groupby().last() collapse that cannot drop a firm, the
+    # second nulls a value rather than dropping a row (it feeds the cross-signal mask).
+    _lc_keys = lc_df["gvkey"].unique()
+    _gu_keys = guniv["gvkey"].unique()
+    _common_keys = np.intersect1d(_lc_keys, _gu_keys)
+    _in_common = guniv["gvkey"].isin(_common_keys)
+    funnel_rows = [
+        ("MERGE: LC intersect Compustat universe (np.intersect1d)", "both",
+         "univariate_sorting_preprocess.py:37 / intersect_gvkeys_and_filter",
+         int(len(_common_keys))),
+        ('dropna(subset=["date", "tri"]) - drop listings with no price history',
+         "merged panel",
+         "univariate_sorting_preprocess.py:70 / add_gvkey_iid_sort_clean",
+         count_firms(guniv.loc[
+             _in_common & guniv["date"].notna() & guniv["tri"].notna(), "gvkey"
+         ])),
+    ]
 
     prep = prepare_univariate_sorting_inputs(
         global_universe=guniv,
@@ -116,6 +156,26 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         show_corr_matrices=C["show_esg_corr_matricies"],
         corr_method=C["esg_corr_method"],
     )
+
+    funnel_rows.append((
+        'dropna(subset=["rfyear", "curcdd", "Industry"]) - standardisation keys',
+        "merged panel",
+        "univariate_sorting_preprocess.py:151 / dropna_std_cols_and_build_pivots",
+        count_firms(prep.global_universe["gvkey"]),
+    ))
+    # Surviving firms after the mask = the gvkey_iid columns of global_returns that still
+    # hold at least one non-NaN cell, mapped back to their gvkey prefix.
+    _live = prep.global_returns.columns[prep.global_returns.notna().any(axis=0)]
+    funnel_rows.append((
+        "Cross-signal NaN mask (every surviving cell complete across return + all signals)",
+        "merged panel",
+        "univariate_sorting_preprocess.py:170 / apply_cross_signal_nan_mask",
+        count_firms(pd.Series([str(c).split("_")[0] for c in _live])),
+    ))
+    funnel = funnel_frame(funnel_rows)
+    _prev = [f for f in (L.get("funnel"), GU.get("funnel")) if f is not None]
+    if _prev:
+        funnel = pd.concat(_prev + [funnel], axis=0, ignore_index=True)
 
     # ---- audit: descriptives of the sample that SURVIVED this node ------------------ #
     # prep.global_universe is (gvkey_iid, year, month) — each firm-fiscal-year repeated
@@ -171,6 +231,8 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         "fama_french": prep.fama_french,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
+        "funnel": funnel,
+        "funnel_checks": L.get("funnel_checks"),
     })
 
 
@@ -178,14 +240,19 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
 def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     import json
 
+    import pandas as pd
+
     from functions.data_functions.get_data import get_gics_by_gvkey
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_esg_universe_sorting_inputs,
     )
+    from New_Pipeline._common import count_firms, funnel_frame
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
-    guniv = unpack_obj(global_universe)["global_universe"]
+    GU = unpack_obj(global_universe)
+    L = unpack_obj(lc)
+    guniv = GU["global_universe"]
     ff = unpack_obj(fama_french_raw)["fama_french"]
 
     gics_by_gvkey = get_gics_by_gvkey(
@@ -202,6 +269,54 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         drop_real_estate=C["drop_real_estate_Full_ESG"],
         drop_utilities=C["drop_utilities_Full_ESG"],
     )
+    # ---- audit: sample filter funnel, ESG-universe path ------------------------------ #
+    # A different sequence from the LC path: no LC merge and so no gvkey intersection, its
+    # own sector drops on the raw GICS sector (the LC path does those back in node 01), a
+    # min-group guard the LC path does not run, and a Fama-French month intersection that
+    # the LC path resolves by raising instead.
+    #
+    # Only TWO points on this path are observable from outside the frozen function, so only
+    # two rows carry a count:
+    #
+    #  * prep.global_universe is what dropna_std_cols_and_build_pivots returned, and on this
+    #    path that call sits AFTER both the standardisation-key dropna (:452) and the
+    #    min-group guard (:459). Those two therefore cannot be told apart from out here, and
+    #    are reported as ONE row rather than attributing the composite survivor count to the
+    #    first of them -- which is what a split would silently do.
+    #  * prep.global_returns is post-mask, giving the final count.
+    #
+    # The earlier stages are null, with the reason in the `where` column. Splitting them
+    # would need the raw-GICS sector-name mapping replayed out of the frozen function --
+    # a hardcoded dict duplicated for one config's audit, which is exactly the drift this
+    # contribute-rather-than-replay design exists to avoid.
+    _live = prep.global_returns.columns[prep.global_returns.notna().any(axis=0)]
+    funnel = funnel_frame([
+        ("MERGE: LC intersect Compustat universe (np.intersect1d)", "both",
+         "not run on the ESG-universe path (no LC)", None),
+        (f"drop_real_estate={C['drop_real_estate_Full_ESG']} / "
+         f"drop_utilities={C['drop_utilities_Full_ESG']} on the raw GICS sector",
+         "ESG universe",
+         "univariate_sorting_preprocess.py:430 (not separately observable)", None),
+        ('dropna(subset=["date", "tri"]) - drop listings with no price history',
+         "ESG universe",
+         "univariate_sorting_preprocess.py:447 (not separately observable)", None),
+        (f"dropna on standardisation keys (incl. firms with no GICS) AND min-group guard "
+         f"(< {C['esg_min_group_size']} issues per cell) - one composite stage",
+         "ESG universe",
+         "univariate_sorting_preprocess.py:452+459 / prepare_esg_universe_sorting_inputs",
+         count_firms(prep.global_universe["gvkey"])),
+        ("Fama-French month intersection (drops return MONTHS, not firms directly)",
+         "ESG universe",
+         "univariate_sorting_preprocess.py:479 (not separately observable)", None),
+        ("Cross-signal NaN mask (every surviving cell complete across return + all signals)",
+         "ESG universe",
+         "univariate_sorting_preprocess.py:526 / apply_cross_signal_nan_mask",
+         count_firms(pd.Series([str(c).split("_")[0] for c in _live]))),
+    ])
+    _prev = [f for f in (L.get("funnel"), GU.get("funnel")) if f is not None]
+    if _prev:
+        funnel = pd.concat(_prev + [funnel], axis=0, ignore_index=True)
+
     # Inlined bundle (must be self-contained: archived processes run in a fresh namespace).
     # sample_descriptives / firms_and_initiatives are None here: this path never reads lc
     # and standardises on `last_year`, so there is no rfyear and no initiative count to
@@ -215,6 +330,8 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         "fama_french": prep.fama_french,
         "sample_descriptives": None,
         "firms_and_initiatives": None,
+        "funnel": funnel,
+        "funnel_checks": L.get("funnel_checks"),
     })
 
 

@@ -83,3 +83,107 @@ def normalise_gvkeys(gvkeys: "pd.Series") -> "pd.Series":
     float-valued column would keep its ``.0`` — matching the pre-refactor behaviour.
     """
     return gvkeys.astype(str).str.zfill(6)
+
+
+# ---- Sample filter funnel: shared measurement helpers -------------------------- #
+# The funnel table (rendered by the sample_funnel_audit node) is assembled from rows
+# CONTRIBUTED BY each node where a filter actually runs, rather than replayed from the
+# raw data in one place. These three helpers are what the contributing nodes share so a
+# "firms surviving" count means the same thing at every stage.
+#
+# Called from inside Process bodies (like mktcap_filter_kwargs above): a Process may not
+# rely on module-level helpers of its OWN module, but importing another module inside the
+# body is the established pattern and survives archived-Process replay.
+
+def count_firms(gvkeys: "pd.Series") -> int:
+    """Distinct firms in a gvkey Series, counted independently of gvkey FORMAT.
+
+    The same firm is spelled three ways along the pipeline: ``process_lc`` casts to
+    ``.astype(int).astype(str)`` ("1004"), ``process_global_universe`` casts to
+    ``.astype(float).astype(int).astype(str)``, and the nodes then zero-pad to six
+    ("001004") — while a raw Golden/WRDS column can still be float ("1004.0"). Comparing
+    or counting those as strings silently reports different firms as distinct, which is
+    the trap ``nodes/10_mktcap_filter_audit.py`` avoids by never joining on gvkey.
+    Coercing to a number first makes every stage's count comparable to every other's.
+    """
+    import pandas as pd
+
+    return int(pd.to_numeric(gvkeys, errors="coerce").nunique())
+
+
+def funnel_frame(rows: list) -> "pd.DataFrame":
+    """Pack ``(filter, acts_on, where, n_firms_after)`` tuples into the funnel contract.
+
+    ``n_firms_after`` is nullable ``Int64``: ``None`` means "this stage did not run under
+    this config" (a gated filter that is off) or "not applicable on this path", and the
+    audit node renders it as an em dash. It does NOT mean zero, which is why the column
+    cannot be a plain int.
+    """
+    import pandas as pd
+
+    rows = list(rows)
+    df = pd.DataFrame(
+        [r[:3] for r in rows], columns=["filter", "acts_on", "where"]
+    )
+    # Built from the tuples, NOT from a column of the assembled frame: a mixed int/None
+    # column arrives as float64 with NaN, and `NaN is None` is False, so reading it back
+    # would raise on the int() cast rather than preserving the "did not run" marker.
+    df["n_firms_after"] = pd.array(
+        [None if r[3] is None else int(r[3]) for r in rows], dtype="Int64"
+    )
+    return df
+
+
+def universe_funnel_rows(pre_frames, post_frames, global_universe, cfg, provider_label):
+    """Universe-side funnel rows, shared by merge_esg_provider's four ESG Processes.
+
+    ``pre_frames`` / ``post_frames`` are ``(usa, row, japan)`` tuples — the per-region
+    universes before and after the ESG merge (``japan`` may be None).
+
+    The two row-wise predicates ``process_global_universe`` applies before its market-cap
+    screen (``process_data.py:171`` mktcap-notna, ``:179`` currency) are replayed here on
+    the region frames rather than after the concat. That is exact — both are purely
+    row-wise and concat preserves rows — and it is what keeps this measurement off the
+    ~17M RoW/Japan daily rows a single-currency config cannot keep. Same argument, and
+    the same motivation, as the replay in ``nodes/10_mktcap_filter_audit.py``.
+
+    The market-cap screen itself is NOT replayed: it is the last of the three, so its
+    survivors are directly observable on ``global_universe``. (Contrast node 10, which
+    must replay because it needs *pre*-filter listing counts per currency-month — rows
+    that no longer exist in the output. A single overall firm count needs no such work.)
+    """
+    import pandas as pd
+
+    def _n(frames, mask=None):
+        keys = []
+        for f in frames:
+            if f is None:
+                continue
+            s = f["gvkey"] if mask is None else f.loc[mask(f), "gvkey"]
+            keys.append(pd.to_numeric(s, errors="coerce"))
+        if not keys:
+            return 0
+        return int(pd.concat(keys, ignore_index=True).nunique())
+
+    currency_filter = cfg["currency_filter"]
+    has_ccy = currency_filter is not None and len(currency_filter) > 0
+    method = cfg.get("market_cap_filter", "percent_total_mcap")
+
+    return funnel_frame([
+        (f"Compustat universe as loaded (secstat={cfg.get('security_status', 'active_only')}, "
+         f"year <= {cfg['end_year']})",
+         "Compustat universe", "03_load_universes / get_*_universe", _n(pre_frames)),
+        (f"ESG provider merge ({provider_label})",
+         "Compustat universe", "04_merge_esg_provider / get_*_merge_to_universe",
+         _n(post_frames)),
+        ("Drop rows missing mktcap",
+         "Compustat universe", "process_data.py:171 / process_global_universe",
+         _n(post_frames, lambda f: f["mktcap"].notna())),
+        (f"Currency filter (curcdd in {list(currency_filter) if has_ccy else 'n/a'})",
+         "Compustat universe", "process_data.py:179 / process_global_universe",
+         _n(post_frames, lambda f: f["mktcap"].notna() & f["curcdd"].isin(currency_filter))
+         if has_ccy else None),
+        (f"Market-cap screen ({method})",
+         "Compustat universe", "process_data.py:212 / process_global_universe",
+         count_firms(global_universe["gvkey"])),
+    ])

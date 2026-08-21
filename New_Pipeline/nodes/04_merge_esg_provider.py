@@ -56,12 +56,20 @@ def esg_none_v1(universes, cfg):
     import json
 
     from functions.data_functions.process_data import process_global_universe
-    from New_Pipeline._common import mktcap_filter_kwargs, normalise_gvkeys
+    from New_Pipeline._common import (
+        mktcap_filter_kwargs,
+        normalise_gvkeys,
+        universe_funnel_rows,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
     U = unpack_obj(universes)
     usa_universe, row_universe, japan_universe = U["usa_universe"], U["row_universe"], U["japan_universe"]
+
+    # Pre-"merge" region frames for the funnel audit, captured before the esg assignment:
+    # these three names ARE U's frames, so the assignment below mutates them in place.
+    _pre = (usa_universe, row_universe, japan_universe)
 
     usa_universe["esg"] = 100
     row_universe["esg"] = 100
@@ -84,6 +92,10 @@ def esg_none_v1(universes, cfg):
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
+        "funnel": universe_funnel_rows(
+            _pre, (usa_universe, row_universe, japan_universe), global_universe, C,
+            "none (neutral esg=100, no provider merged)",
+        ),
         "global_universe": global_universe,
         "usa_universe": usa_universe,
         "row_universe": row_universe,
@@ -99,11 +111,17 @@ def esg_refinitiv_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_refinitive_snp_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
-    from New_Pipeline._common import mktcap_filter_kwargs, normalise_gvkeys
+    from New_Pipeline._common import (
+        mktcap_filter_kwargs,
+        normalise_gvkeys,
+        universe_funnel_rows,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
     U = unpack_obj(universes)
+        # Pre-merge region frames for the funnel audit: the names are rebound below.
+    _pre = (U["usa_universe"], U["row_universe"], U["japan_universe"])
     usa_universe, row_universe, japan_universe = get_refinitive_snp_merge_to_universe(
         U["usa_universe"], U["row_universe"], U["japan_universe"]
     )
@@ -125,6 +143,10 @@ def esg_refinitiv_v1(universes, cfg):
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
+        "funnel": universe_funnel_rows(
+            _pre, (usa_universe, row_universe, japan_universe), global_universe, C,
+            "refinitiv (LSEG valuescore)",
+        ),
         "global_universe": global_universe,
         "usa_universe": usa_universe,
         "row_universe": row_universe,
@@ -144,11 +166,17 @@ def esg_msci_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_msci_esg_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
-    from New_Pipeline._common import mktcap_filter_kwargs, normalise_gvkeys
+    from New_Pipeline._common import (
+        mktcap_filter_kwargs,
+        normalise_gvkeys,
+        universe_funnel_rows,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
     U = unpack_obj(universes)
+        # Pre-merge region frames for the funnel audit: the names are rebound below.
+    _pre = (U["usa_universe"], U["row_universe"], U["japan_universe"])
     usa_universe, row_universe, japan_universe = get_msci_esg_merge_to_universe(
         U["usa_universe"], U["row_universe"], U["japan_universe"],
         score_column=C["msci_score_column"],
@@ -171,6 +199,10 @@ def esg_msci_v1(universes, cfg):
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
+        "funnel": universe_funnel_rows(
+            _pre, (usa_universe, row_universe, japan_universe), global_universe, C,
+            f"msci (score_column={C['msci_score_column']})",
+        ),
         "global_universe": global_universe,
         "usa_universe": usa_universe,
         "row_universe": row_universe,
@@ -186,11 +218,17 @@ def esg_snp_v1(universes, cfg):
 
     from functions.data_functions.get_data import get_snp_esg_merge_to_universe
     from functions.data_functions.process_data import process_global_universe
-    from New_Pipeline._common import mktcap_filter_kwargs, normalise_gvkeys
+    from New_Pipeline._common import (
+        mktcap_filter_kwargs,
+        normalise_gvkeys,
+        universe_funnel_rows,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
     U = unpack_obj(universes)
+        # Pre-merge region frames for the funnel audit: the names are rebound below.
+    _pre = (U["usa_universe"], U["row_universe"], U["japan_universe"])
     usa_universe, row_universe, japan_universe = get_snp_esg_merge_to_universe(
         U["usa_universe"], U["row_universe"], U["japan_universe"]
     )
@@ -212,6 +250,10 @@ def esg_snp_v1(universes, cfg):
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
     return pack_obj({
+        "funnel": universe_funnel_rows(
+            _pre, (usa_universe, row_universe, japan_universe), global_universe, C,
+            "s&p (S&P Global)",
+        ),
         "global_universe": global_universe,
         "usa_universe": usa_universe,
         "row_universe": row_universe,

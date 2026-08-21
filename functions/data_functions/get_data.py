@@ -3,6 +3,90 @@ import numpy as np
 import wrds
 
 
+# --------------------------------------------------------------------------- #
+# Security status (survivorship) handling
+# --------------------------------------------------------------------------- #
+# One on-disk extract per region, ALWAYS the unfiltered all-secstat frame: a single
+# download serves both the survivor-only and the all-firms sample, so the two can never
+# differ by data vintage. (Two separately-timed WRDS pulls would confound the survivorship
+# effect with vintage drift -- measured at 79 vanished gvkeys and retroactive split
+# rescaling across six weeks on the Japan extract.) Write path and read path share these
+# constants so they cannot drift apart.
+USA_UNIVERSE_PATH = "./data/usa_universe_all_secstat.csv"
+ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat.csv"
+JAPAN_UNIVERSE_PATH = "./data/japan_universe_all_secstat.csv"
+
+SECURITY_STATUS_CHOICES = ("active_only", "all_firms_even_delisted")
+
+
+def _require_universe_file(path, region):
+    """Return ``path``, or raise a directive error naming how to produce it."""
+    import os
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"[{region}] universe extract not found: {path}\n"
+            f"This extract carries a 'secstat' column and is produced by the WRDS download "
+            f"branch of get_{region}_universe(...). Run it once with download_wrds_data=True "
+            f"(needs WRDS credentials) to create it. Pre-secstat extracts are not "
+            f"interchangeable: they were filtered to secstat='A' in SQL, so the delisted "
+            f"securities are not recoverable from them."
+        )
+    return path
+
+
+def _apply_security_status(df, security_status, region):
+    """Apply the ``secstat`` sample choice to a freshly loaded/downloaded universe.
+
+    Compustat's ``secstat`` is the security's status **as of the extract date**, stamped onto
+    every historical row -- so filtering it to 'A' in SQL erases the entire price history of
+    any security that is inactive today, not merely its post-delisting rows. The queries
+    below therefore SELECT it as a column rather than filtering on it, and the sample choice
+    is made here:
+
+    * ``"active_only"`` -- keep ``secstat == 'A'``. Bit-exact with the old SQL predicate
+      ``AND (secstat='A')``, NULLs included: SQL ``secstat='A'`` is false for NULL, and
+      pandas ``== 'A'`` is False for NaN.
+    * ``"all_firms_even_delisted"`` -- keep every row, so delisted / acquired / bankrupt
+      securities retain their full history.
+
+    NOTE this removes the whole-firm erasure channel ONLY. The ``cshtrd``/``exchg``/``curcdd``
+    screens still eject a surviving firm's worst months (volume dries up and listings move to
+    OTC precisely around distress), and Compustat carries no delisting return, so a security's
+    terminal loss is still absent from both samples. Neither is "survivorship-bias free".
+    """
+    if security_status not in SECURITY_STATUS_CHOICES:
+        raise ValueError(
+            f"security_status must be one of {list(SECURITY_STATUS_CHOICES)}, "
+            f"got {security_status!r}"
+        )
+
+    if "secstat" not in df.columns:
+        if security_status == "active_only":
+            raise KeyError(
+                f"[{region}] security_status='active_only' needs a 'secstat' column, but the "
+                f"loaded frame has none. Extracts downloaded before secstat was SELECTed were "
+                f"already filtered to secstat='A' in SQL; re-download to get the column."
+            )
+        raise KeyError(
+            f"[{region}] security_status='all_firms_even_delisted' is impossible on an extract "
+            f"with no 'secstat' column: it was filtered to secstat='A' in SQL, so the delisted "
+            f"securities are gone and cannot be recovered by reading it. Re-download."
+        )
+
+    counts = df["secstat"].value_counts(dropna=False).to_dict()
+    if security_status == "all_firms_even_delisted":
+        print(f"[{region}] security_status=all_firms_even_delisted -> all {len(df):,} rows "
+              f"kept; secstat distribution: {counts}")
+        return df
+
+    before = len(df)
+    out = df[df["secstat"] == "A"]
+    print(f"[{region}] security_status=active_only -> {len(out):,} of {before:,} rows kept, "
+          f"{before - len(out):,} dropped as secstat != 'A'; secstat distribution: {counts}")
+    return out.reset_index(drop=True)
+
+
 #### 2.2.1 Recover dollar returns from Compustat
 
 # From WRDS tutorials:
@@ -19,7 +103,8 @@ import wrds
 
 # This can be aggregated to compute monthly figures.
 
-def get_usa_universe(start_year, end_year, download_wrds_data=False):
+def get_usa_universe(start_year, end_year, download_wrds_data=False,
+                     security_status="active_only"):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -38,6 +123,7 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
                 secd.datadate AS date, 
                 secd.gvkey, 
                 secd.iid, 
+                secd.secstat, 
                 secd.cusip, 
                 (secd.prccd * secd.cshoc) as mktcap, 
                 CASE WHEN secd.ajexdi <> 0 THEN (secd.trfd * secd.prccd / secd.ajexdi) ELSE NULL END AS tri
@@ -48,7 +134,6 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
                 ON (secd.gvkey=usa_listings.gvkey AND secd.iid=usa_listings.priusa)
             WHERE
                 (secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}')
-                AND (secd.secstat='A')
                 AND (secd.tpci='0')
                 AND (secd.prccd>0)
                 AND (secd.cshtrd>0)
@@ -62,25 +147,27 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
         usa_universe['year'] = pd.to_datetime(usa_universe['date']).dt.year
         usa_universe = usa_universe[usa_universe['year'] <= end_year]
         usa_universe = usa_universe.drop(columns=['year'])
-        # Save to disk
+        # Save to disk. The saved extract is ALWAYS the unfiltered all-secstat frame;
+        # the sample choice is applied to what we RETURN, not to what we persist.
         print('Saving to disk!')
-        usa_universe.to_csv('./data/usa_universe.csv')
-        return usa_universe
+        usa_universe.to_csv(USA_UNIVERSE_PATH)
+        return _apply_security_status(usa_universe, security_status, 'usa')
 
     # Load from file
     else:
-        usa_universe = pd.read_csv('./data/usa_universe.csv').iloc[:, 1:]
+        usa_universe = pd.read_csv(_require_universe_file(USA_UNIVERSE_PATH, 'usa')).iloc[:, 1:]
         usa_universe['year'] = pd.to_datetime(usa_universe['date']).dt.year
         usa_universe = usa_universe[usa_universe['year'] <= end_year]
 
-        return usa_universe
+        return _apply_security_status(usa_universe, security_status, 'usa')
 
 
 
 
 
 
-def get_row_universe(start_year, end_year, download_wrds_data=False):
+def get_row_universe(start_year, end_year, download_wrds_data=False,
+                     security_status="active_only"):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -98,6 +185,7 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
                 g_secd.datadate AS date, 
                 g_secd.gvkey, 
                 g_secd.iid, 
+                g_secd.secstat, 
                 g_secd.isin, 
                 g_secd.curcdd, 
                 (g_secd.prccd * g_secd.cshoc / g_secd.qunit) as mktcap_lcu, 
@@ -109,7 +197,6 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
                 ON (g_secd.gvkey=row_listings.gvkey AND g_secd.iid=row_listings.prirow)
             WHERE
                 (g_secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}')
-                AND (g_secd.secstat='A')
                 AND (g_secd.tpci='0')
                 AND (g_secd.prccd>0)
                 AND (g_secd.cshtrd>0)
@@ -127,18 +214,19 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
         row_universe = row_universe.drop(columns=['year'])
         # Save to disk
         print('Saving to disk!')
-        row_universe.to_csv('./data/row_universe.csv')
+        row_universe.to_csv(ROW_UNIVERSE_PATH)
 
-        return row_universe
+        return _apply_security_status(row_universe, security_status, 'row')
     # Load from file
     else:
-        row_universe = pd.read_csv('./data/row_universe.csv').iloc[:, 1:]
+        row_universe = pd.read_csv(_require_universe_file(ROW_UNIVERSE_PATH, 'row')).iloc[:, 1:]
         row_universe['year'] = pd.to_datetime(row_universe['date']).dt.year
         row_universe = row_universe[row_universe['year'] <= end_year]
-    return row_universe
+    return _apply_security_status(row_universe, security_status, 'row')
 
 
-def get_japan_universe(start_year, end_year, download_wrds_data=False):
+def get_japan_universe(start_year, end_year, download_wrds_data=False,
+                       security_status="active_only"):
     if download_wrds_data:
         conn = wrds.Connection(wrds_username="cbruce1")  # or pass username like RoW/US do
         print("Connecting to WRDS...")
@@ -154,6 +242,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
                 g_secd.datadate AS date,
                 g_secd.gvkey,
                 g_secd.iid,
+                g_secd.secstat,
                 g_secd.isin,
                 g_secd.curcdd,
                 g_secd.prccd,
@@ -168,7 +257,6 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
               ON (g_secd.gvkey = japan_listings.gvkey AND g_secd.iid = japan_listings.prirow)
             WHERE
                 g_secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}'
-                AND g_secd.secstat = 'A'
                 AND g_secd.tpci = '0'
                 AND g_secd.prccd > 0
                 AND g_secd.cshtrd > 0
@@ -185,14 +273,14 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
         japan_universe = japan_universe.drop(columns=["year"])
 
         print("Saving to disk!")
-        japan_universe.to_csv("./data/japan_universe_new.csv")
-        return japan_universe
+        japan_universe.to_csv(JAPAN_UNIVERSE_PATH)
+        return _apply_security_status(japan_universe, security_status, "japan")
 
     else:
-        japan_universe = pd.read_csv("./data/japan_universe.csv").iloc[:, 1:]
+        japan_universe = pd.read_csv(_require_universe_file(JAPAN_UNIVERSE_PATH, "japan")).iloc[:, 1:]
         japan_universe["year"] = pd.to_datetime(japan_universe["date"]).dt.year
         japan_universe = japan_universe[japan_universe["year"] <= end_year]
-        return japan_universe
+        return _apply_security_status(japan_universe, security_status, "japan")
 
 
 

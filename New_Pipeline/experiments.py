@@ -43,6 +43,15 @@ def build_cfg(**overrides) -> dict:
         action_characterization="original_matteo",
         start_year=2015,
         end_year=2024,
+        # Which Compustat securities enter the universe. "active_only" keeps
+        # secstat=='A', reproducing the frozen behaviour (that filter used to live in the
+        # SQL WHERE clause); "all_firms_even_delisted" keeps securities that are inactive
+        # as of the extract date, so a delisted / acquired / bankrupt name retains its full
+        # price history instead of being erased from every year. Removes the whole-firm
+        # survivorship channel ONLY -- the cshtrd/exchg screens and the absent delisting
+        # returns still bias the surviving names' tails. See
+        # functions/data_functions/get_data.py::_apply_security_status.
+        security_status="active_only", #all_firms_even_delisted
         no_simple_quantiles=7,
         ff_factors_number=3,
         esg_choice="none",
@@ -88,6 +97,10 @@ def build_cfg(**overrides) -> dict:
         # because the whole point is that the market-cap filter is visible without opting
         # in; flip it off to skip the replay if the extra runtime ever matters.
         show_mktcap_filter_audit=True,
+        # sample_funnel_audit node (audit-only, nothing downstream reads it). Default ON:
+        # its rows are contributed by the nodes that already ran the filters, so it costs
+        # a handful of nunique() calls rather than a replay.
+        show_sample_funnel_audit=True,
         include_all_signals_in_cum_risk_table=True,
     )
     # Reject unknown override keys. `c.update` would otherwise accept a typo (or a key
@@ -100,6 +113,15 @@ def build_cfg(**overrides) -> dict:
             f"Add them to the baseline dict above, or fix the spelling."
         )
     c.update(overrides)
+
+    # Validate the VALUE, not just the key. The check above rejects unknown keys; a
+    # misspelt value would otherwise travel all the way into get_*_universe and raise
+    # from inside a node, long after the run started.
+    if c["security_status"] not in ("active_only", "all_firms_even_delisted"):
+        raise ValueError(
+            f"security_status must be 'active_only' or 'all_firms_even_delisted', "
+            f"got {c['security_status']!r}"
+        )
 
     # ---- cell 2: esg_choice end_year override (order matters; applied after
     #      overrides so esg_choice takes effect, matching the notebook) ------ #
@@ -358,6 +380,24 @@ def base_none():
     return make_experiment("base_none", build_cfg())
 
 
+def base_none_all_firms():
+    # base_none, but the universe retains securities that are INACTIVE as of the Compustat
+    # extract date (secstat != 'A') instead of dropping their entire price history. The
+    # survivorship arm to compare against base_none.
+    #
+    # Reads the same on-disk extract as base_none -- one download, filtered in memory --
+    # so the two arms cannot differ by data vintage, only by the filter. Removes the
+    # whole-firm erasure channel only: cshtrd/exchg still eject a surviving firm's worst
+    # months, and Compustat carries no delisting return, so terminal losses are still
+    # missing from both arms.
+    #
+    # Expect: more listings per currency-month pre-screen, weaker long-leg alpha, and a
+    # materially worse short leg. Per-region kept/dropped counts land in
+    # runs/<ts>_base_none_all_firms/debug_prints.log.
+    return make_experiment("base_none_all_firms",
+                           build_cfg(security_status="all_firms_even_delisted"))
+
+
 def base_pct_stocks():
     # base_none, but the universe screen is the gentler count-based rule: drop a listing
     # for the whole year iff its LAST cap in the previous year puts it in the smallest 1%
@@ -581,6 +621,7 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
+    "base_none_all_firms": base_none_all_firms,
     "base_pct_stocks": base_pct_stocks,
 
     #V2A

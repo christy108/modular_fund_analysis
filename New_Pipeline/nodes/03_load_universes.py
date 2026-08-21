@@ -23,11 +23,19 @@ CONTRACT = Contract(
 configured window, then regionally-process each (currency conversion when configured, Japan
 fiscal-year alignment). No ESG columns are attached here — that belongs to the paired
 ``merge_esg_provider`` node so the ESG choice is picked as an interchangeable Process rather
-than branched inside this Process. The window and FX-conversion knobs are read from cfg.
+than branched inside this Process. The window, FX-conversion and security-status knobs are
+read from cfg.
+
+``cfg.security_status`` selects the survivorship sample: "active_only" keeps Compustat
+securities whose secstat is 'A' as of the extract date (the frozen behaviour), while
+"all_firms_even_delisted" retains the full price history of securities that have since
+gone inactive. Both arms read the SAME on-disk extract and differ only by an in-memory
+filter, so they cannot diverge by data vintage.
 
 Mandatory measures (enforced by schema / audits):
 - three per-region universes with return and market-cap columns, no ESG column
 - fx_rates present for the configured end year
+- the configured security_status sample applied identically across all three regions
 
 Surfaces: (none — output is a lossless pickle bundle, not a tidy frame; a plain
 ``RowCountViz`` would always report 1 and add no information).""",
@@ -56,16 +64,25 @@ def load_universes_v1(cfg):
 
     C = json.loads(cfg["json"][0])
     start_year, end_year = C["start_year"], C["end_year"]
+    # .get() with the frozen default, not C[...]: a cfg built before this key existed then
+    # still runs the original survivor-only screen rather than raising. Same rationale as
+    # _common.mktcap_filter_kwargs.
+    security_status = C.get("security_status", "active_only")
 
     fx_rates = get_processed_fx_rates(end_year)
 
-    usa_universe = get_usa_universe(start_year, end_year, download_wrds_data=False)
+    # download_wrds_data stays False: network I/O inside a content-addressed Process would
+    # break replay. The extracts are produced offline by the same functions.
+    usa_universe = get_usa_universe(start_year, end_year, download_wrds_data=False,
+                                    security_status=security_status)
     usa_universe = process_usa_universe(usa_universe)
 
-    row_universe = get_row_universe(start_year, end_year, download_wrds_data=False)
+    row_universe = get_row_universe(start_year, end_year, download_wrds_data=False,
+                                    security_status=security_status)
     row_universe = process_row_universe(row_universe, fx_rates, C["convert_to_USD"])
 
-    japan_universe = get_japan_universe(start_year, end_year, download_wrds_data=False)
+    japan_universe = get_japan_universe(start_year, end_year, download_wrds_data=False,
+                                        security_status=security_status)
     japan_universe = process_japan_universe(
         japan_universe, fx_rates, C["convert_to_USD"],
         C["japan_year_adjustment_split_month_for_two_or_one"],

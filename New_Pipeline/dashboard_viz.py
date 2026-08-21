@@ -31,7 +31,8 @@ from leonardo_nodes.viz import (
 # that carry the actual results. These are pure diagnostics of an upstream step, so their
 # DAG position (which is what the framework orders sections by) puts them far earlier than
 # where a reader wants them — ahead of cumulative returns, alphas and risk tables.
-_DEFERRED_SECTIONS = ("mktcap_filter_audit",)
+# Order within this tuple is the order they render in (see _ordered_nodes below).
+_DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit")
 
 
 class OrderedDashboard(Dashboard):
@@ -47,7 +48,12 @@ class OrderedDashboard(Dashboard):
 
     def _ordered_nodes(self) -> list:
         nodes = super()._ordered_nodes()
-        deferred = [n for n in nodes if n.name in _DEFERRED_SECTIONS]
+        # Sorted by position in _DEFERRED_SECTIONS, not left in topological order among
+        # themselves: with more than one deferred section, their relative order would
+        # otherwise be whatever Kahn's algorithm happened to produce from their upstream
+        # dependencies -- which has nothing to do with how a reader wants them stacked.
+        deferred = sorted((n for n in nodes if n.name in _DEFERRED_SECTIONS),
+                          key=lambda n: _DEFERRED_SECTIONS.index(n.name))
         if not deferred:
             return nodes
         return [n for n in nodes if n.name not in _DEFERRED_SECTIONS] + deferred
