@@ -18,7 +18,7 @@ from __future__ import annotations
 from leonardo_nodes import Contract, Node, process
 
 from New_Pipeline._common import cfg_schema, open_schema, store
-from New_Pipeline.dashboard_viz import BundleDualAxisViz, BundleTableViz
+from New_Pipeline.dashboard_viz import BundleDualAxisViz, BundleTableViz, config_table
 
 
 # ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
@@ -49,12 +49,20 @@ Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with GICS + Industry columns present
 - rows only drop via the declared filters
 
-Surfaces: descriptives of the sample that survives this node — unique gvkeys, unique
+Surfaces: the run's full configuration as a parameter/value/description table
+(``BundleTableViz``); descriptives of the sample that survives this node — unique gvkeys, unique
 gvkey-year observations, total initiatives (``BundleTableViz``); and unique companies
 against total initiatives over time on separate y-axes (``BundleDualAxisViz``).""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
     audits=[
+        BundleTableViz(config_table, title="Run configuration", n=200,
+                       key="table:config",
+                       description="Every cfg key this run received: parameter, value, and "
+                                   "what it does. Baseline knobs first (notebook cell 2), then "
+                                   "the values derived from them (cells 8 and 11). Keys marked "
+                                   "'provenance only' are hashed and name output files but are "
+                                   "not read by any node."),
         BundleTableViz(_sample_descriptives, title="Final sample descriptives",
                        key="table:sample_descriptives"),
         BundleDualAxisViz(
@@ -333,6 +341,12 @@ def process_lc_v1(cfg):
 
     return pack_obj({
         "lc": lc,
+        # The run's config, verbatim, for the "Run configuration" dashboard table.
+        # Audits compute over a node's OUTPUT only (Contract.compute_audits), so the
+        # cfg has to ride out of a node to be renderable at all; this is the first node
+        # in topological order, which puts the table at the top of the page. Audit-only
+        # -- no downstream node reads this key.
+        "cfg_json": cfg["json"][0],
         "lc_raw_for_coverage": lc_raw_for_coverage,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,

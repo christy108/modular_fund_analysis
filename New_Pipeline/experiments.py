@@ -411,28 +411,7 @@ def base_pct_stocks():
     ))
 
 
-
-def base_none_v_2A():
-    return make_experiment("base_none_v_2A", build_cfg(golden_data = "v_2A"))
-
-def base_none_v_2A_2023():
-    return make_experiment("base_none_v_2A_2023", build_cfg(golden_data = "v_2A", end_year = 2023))
-
-
-def base_none_v_2A_no_3_filters():
-    return make_experiment("base_none_v_2A_no_3_filters", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = False))
-
-def base_none_v_2A_no_3_filters_drop_fin():
-    return make_experiment("base_none_v_2A_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = True))
-
-
-
-def base_none_v_2A_no_3_filters_drop_fin_2023():
-    return make_experiment("base_none_v_2A_no_3_filters_drop_fin_2023", build_cfg(golden_data = "v_2A", execute_3_filters = False, drop_fin = True, end_year = 2023))
-
-
-
-
+#1
 def base_none_v_2A1():
     return make_experiment("base_none_v_2A1", build_cfg(golden_data = "v_2A1"))
 
@@ -448,6 +427,89 @@ def base_none_v_2A1_no_3_filters_drop_fin():
     return make_experiment("base_none_v_2A1_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = True))
 
 
+
+
+#2
+def base_none_v_2A1_delisted_present():
+    return make_experiment("base_none_v_2A1_delisted_present", build_cfg(golden_data = "v_2A1", security_status="all_firms_even_delisted"))
+
+#3 
+def base_none_v_2A1_mcap_covered_99(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_mcap_covered_99", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 0.99, market_cap_filter="percent_total_mcap"))
+
+def base_none_v_2A1_mcap_covered_99_9(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_mcap_covered_99_9", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 0.999, market_cap_filter="percent_total_mcap"))
+
+def base_none_v_2A1_mcap_covered_100(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_mcap_covered_100", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 1, market_cap_filter="percent_total_mcap"))
+
+
+
+#4
+def base_none_v_2A1_percent_stocks_5_100M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_percent_stocks_5_100M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
+    percentage_stocks_removed_if_percent_stocks_true=0.05, floor_if_percent_stocks_true=100e6))
+
+def base_none_v_2A1_percent_stocks_20_100M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_percent_stocks_20_100M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
+    percentage_stocks_removed_if_percent_stocks_true=0.2, floor_if_percent_stocks_true=100e6))
+
+def base_none_v_2A1_percent_stocks_50_200M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
+    return make_experiment("base_none_v_2A1_percent_stocks_50_200M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
+    percentage_stocks_removed_if_percent_stocks_true=0.5, floor_if_percent_stocks_true=200e6))
+
+
+
+
+
+def base_none_v_2A1_no_mcap_filter_no_3filter(): 
+    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter", build_cfg(golden_data = "v_2A1", 
+    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
+     market_cap_filter="percent_total_mcap"))
+
+
+
+
+
+def base_none_v_2A1_no_3filter_with_delisted_firms(): 
+    return make_experiment("base_none_v_2A1_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", execute_3_filters = False,
+     market_cap_filter="percent_total_mcap",  security_status="all_firms_even_delisted"))
+
+
+def base_none_v_2A1_no_mcap_filter_with_delisted_firms(): 
+    return make_experiment("base_none_v_2A1_no_mcap_filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
+    mktcap_covered_if_filter_by_cum_market_cap = 1,
+     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted" ))
+
+
+
+
+def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10(): 
+    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
+    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
+     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted", no_simple_quantiles = 10 ))
+
+
+def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5(): 
+    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
+    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
+     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted", no_simple_quantiles = 5 ))
+
+
+
+
+
+def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms(): 
+    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
+    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
+     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted" ))
+
+
+
+
+
+
+ 
 
 
 def base_none_counts():
@@ -498,6 +560,13 @@ def base_materiality_v1():
 def base_4_signals():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
     return make_experiment("4_signals_new", build_cfg(add_materiality=True, action_characterization = "4_signals_new"))
+
+
+
+def base_4_signals_V2A1():
+    # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
+    return make_experiment("4_signals_new", build_cfg(add_materiality=True, golden_data = "v_2A1", action_characterization = "4_signals_new"))
+
 
 
 def base_materiality_4_Signals():
@@ -621,21 +690,43 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
-    "base_none_all_firms": base_none_all_firms,
+    "base_none_all_firms": base_none_all_firms, #base_none_delisted_present
     "base_pct_stocks": base_pct_stocks,
-
-    #V2A
-    "base_none_v_2A": base_none_v_2A,
-    "base_none_v_2A_2023":base_none_v_2A_2023,
-    "base_none_v_2A_no_3_filters": base_none_v_2A_no_3_filters,
-    "base_none_v_2A_no_3_filters_drop_fin":base_none_v_2A_no_3_filters_drop_fin,
-    "base_none_v_2A_no_3_filters_drop_fin_2023":base_none_v_2A_no_3_filters_drop_fin_2023,
 
     #V2A1
     "base_none_v_2A1":base_none_v_2A1,
     "base_none_v_2A1_2023":base_none_v_2A1_2023,
     "base_none_v_2A1_no_3_filters":base_none_v_2A1_no_3_filters,
     "base_none_v_2A1_no_3_filters_drop_fin":base_none_v_2A1_no_3_filters_drop_fin,
+
+    "base_none_v_2A1_delisted_present":base_none_v_2A1_delisted_present,
+
+
+    "base_none_v_2A1_mcap_covered_99":base_none_v_2A1_mcap_covered_99,
+    "base_none_v_2A1_mcap_covered_99_9":base_none_v_2A1_mcap_covered_99_9,
+    "base_none_v_2A1_mcap_covered_100":base_none_v_2A1_mcap_covered_100,
+
+
+    "base_none_v_2A1_percent_stocks_5_100M_floor":base_none_v_2A1_percent_stocks_5_100M_floor,
+    "base_none_v_2A1_percent_stocks_20_100M_floor":base_none_v_2A1_percent_stocks_20_100M_floor,
+    "base_none_v_2A1_percent_stocks_50_200M_floor":base_none_v_2A1_percent_stocks_50_200M_floor,
+
+    #5
+    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms,
+    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10,
+    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5,
+
+    "base_none_v_2A1_no_mcap_filter_no_3filter":base_none_v_2A1_no_mcap_filter_no_3filter,
+    "base_none_v_2A1_no_3filter_with_delisted_firms":base_none_v_2A1_no_3filter_with_delisted_firms,
+    "base_none_v_2A1_no_mcap_filter_with_delisted_firms":base_none_v_2A1_no_mcap_filter_with_delisted_firms,
+
+
+  
+
+
+
+
+
 
 
 
@@ -673,6 +764,11 @@ EXPERIMENTS = {
     "sdg_3_groups_ppp": sdg_3_groups_ppp,
     "sdg_5_groups_brackets": sdg_5_groups_brackets,
     "sdg_climate_vs_each_sdg": sdg_climate_vs_each_sdg,
+
+
+
+
+    "base_4_signals_V2A1":base_4_signals_V2A1,
     
 
 

@@ -353,3 +353,127 @@ class BundleSeriesViz(LineChartViz):
         if self._collapsible:
             component.options = {**component.options, "collapsible": True, "expanded": self._expanded}
         return component
+
+
+# --------------------------------------------------------------------------- #
+# Run configuration table
+# --------------------------------------------------------------------------- #
+# One short line per cfg key, for the "Run configuration" widget below. Kept here
+# rather than in experiments.py because it is documentation for a *reader of a run*,
+# not an input to the run -- and because a Process body must be self-contained, so a
+# module-level dict like this one can never live inside a node.
+#
+# Ordering is irrelevant here (the table follows the cfg dict's own order, which mirrors
+# the notebook's cell-2/8/11 sequence); any key missing from this map still renders, with
+# an empty description, so adding a knob to build_cfg cannot break the widget.
+#
+# "Provenance only" marks keys that no node reads: they travel in the cfg frame (so they
+# are hashed, and they name output files via functions/output_paths.py) but change nothing
+# in this pipeline. Verified by grepping every C[...] / .get(...) read across New_Pipeline.
+_PARAM_DOCS: dict[str, str] = {
+    # ---- cell 2: data vintage, window, region -------------------------------
+    "golden_data": "Which Golden LC extract vintage to load from $GOLDEN_LOCATION (e.g. v_2C, v_2A1).",
+    "region_analysis": "Region preset. Drives currency_filter / region_filter / convert_to_USD / fama_factor_region below.",
+    "fama_factors_currency": "Currency of the FF factor set. Consulted only when region_analysis='Japan' (05_load_fama_french).",
+    "RF_JAPAN_PATH": "Workbook holding the Japanese monthly risk-free rate; read only on the Japan JPY path.",
+    "action_characterization": "Which signal design to build -- selects the categories_dict + signal-name pair from signal_definitions(_materiality).py. Consumed by build_cfg only; nodes see the derived dicts.",
+    "start_year": "First calendar year of the return / universe window.",
+    "end_year": "Last calendar year. Overridden by esg_choice (refinitiv or msci -> 2024, s&p -> 2022).",
+    "security_status": "'active_only' keeps Compustat secstat=='A' (the frozen behaviour); 'all_firms_even_delisted' keeps inactive securities, so a delisted name retains its full price history.",
+    "no_simple_quantiles": "Number of buckets in the univariate quantile sort (7 = septiles).",
+    "ff_factors_number": "Factors in the alpha regression (3 = Mkt-RF, SMB, HML).",
+    # ---- cell 2: ESG provider ----------------------------------------------
+    "esg_choice": "ESG provider merged into the universe: none / refinitiv / msci / s&p. Also picks which Process runs at merge_esg_provider.",
+    "esg_full_universe": "Sort the whole ESG universe on the provider score alone, with no LC signals. Requires a provider.",
+    "show_esg_corr_matricies": "Gate for the esg_signal_corr node's correlation output.",
+    "esg_corr_method": "Correlation method used there (pearson / spearman / kendall).",
+    "esg_min_group_size": "Minimum issues per sort cell before prepare_panel collapses it into one composite stage.",
+    "drop_real_estate_Full_ESG": "In the esg_full_universe run only: exclude real estate.",
+    "drop_utilities_Full_ESG": "In the esg_full_universe run only: exclude utilities.",
+    "download_gics_data": "Re-download GICS sector codes instead of using the cached file.",
+    # ---- cell 2: signal construction ---------------------------------------
+    "signal_denominator": "Denominator for signal_i: 'Sum_All_Signals' or 'Sum_All_Initiatives' (02_derive_signals).",
+    "signal_type": "'weights' = signal_i is the group's share of sum_activities; 'counts' = the raw initiative total, and signal names gain a _counts suffix.",
+    "alpha_bound": "Trim fraction applied to the signal tails when use_alpha_bound is on.",
+    # ---- cell 2: market-cap screen -----------------------------------------
+    "market_cap_filter": "Which universe size screen runs: 'percent_total_mcap' (per currency-MONTH, share of aggregate cap VALUE) or 'percent_stocks' (per currency-YEAR, share of listing COUNT plus an absolute floor).",
+    "mktcap_covered_if_filter_by_cum_market_cap": "percent_total_mcap only: fraction of each currency-month's total cap to retain. 0.95 is a share of value, so it discards roughly 65% of listings.",
+    "percentage_stocks_removed_if_percent_stocks_true": "percent_stocks only: fraction of listings BY COUNT eligible for dropping (0.01 = 1%). Must be in [0,1]; a listing is dropped only if it is also below the floor.",
+    "floor_if_percent_stocks_true": "percent_stocks only: absolute cap floor in the mktcap currency. Being absolute, it makes that screen single-currency only.",
+    # ---- cell 2: optional merges -------------------------------------------
+    "add_accounting_data": "Merge Compustat accounting items. Provenance only -- not read by any node.",
+    "add_materiality": "Inner-join the SASB materiality workbook on (gvkey, rfyear). CHANGES THE SAMPLE -- the workbook stops at rfyear 2022.",
+    "materiality_version": "SASB workbook vintage (1 or 2). Only v2 carries the per-SDG breakdown columns.",
+    # ---- cell 2: sorting / calendar ----------------------------------------
+    "industry_level": "Industry granularity the sort is taken within (0, 1 or 2).",
+    "japan_year_adjustment_split_month_for_two_or_one": "Japan fiscal-year alignment: the month that splits fiscal year Y-2 from Y-1.",
+    # ---- cell 2: sample filters --------------------------------------------
+    "execute_3_filters": "Master switch for the three sample filters below (min fyears / suspicious gvkeys / min initiatives).",
+    "min_available_fyears": "Filter 1: minimum distinct fiscal years a firm must have to stay in the sample.",
+    "min_initatives_annual_reports": "Filter 3: minimum initiatives an Annual Report row must carry. (Key spelling is as in the config.)",
+    "drop_suspicious_gvkeys": "Filter 2: drop the hand-listed suspicious gvkeys.",
+    "drop_real_estate": "Exclude real estate from the LC sample.",
+    "drop_fin": "Exclude financials from the LC sample.",
+    "drop_utilities": "Exclude utilities from the LC sample.",
+    "drop_health_care": "Exclude health care from the LC sample.",
+    "anlayse_fashion_only": "Restrict the sample to fashion firms. (Key spelling is as in the config.)",
+    "msci_score_column": "Which MSCI score column to merge ('weighted' or 'industry').",
+    "use_alpha_bound": "Whether the alpha_bound trim runs at all.",
+    # ---- cell 2: diagnostics gates -----------------------------------------
+    "show_sample_portfolio": "Emit the sample-portfolio diagnostic from build_analyse_portfolios.",
+    "plot_coverage": "Coverage plots. Provenance only -- not read by any node (that plot is notebook-era, in functions/extra_functions/plot_coverage.py).",
+    "show_esg_coverage": "Gate for the esg_coverage node, and for the pre-filter LC snapshot it needs from this node.",
+    "show_mktcap_filter_audit": "Gate for the mktcap_filter_audit node, which replays the size screen per currency-month.",
+    "show_sample_funnel_audit": "Gate for the sample_funnel_audit node, which reports rows in / out at each filter.",
+    "include_all_signals_in_cum_risk_table": "Include every signal in the cumulative / risk tables. Provenance only -- not read by any node.",
+    # ---- derived: region block (cell 2 if/elif) ----------------------------
+    "fama_factor_region": "Derived from region_analysis: which FF factor file to load.",
+    "currency_filter": "Derived from region_analysis: currencies kept in the universe.",
+    "convert_to_USD": "Derived from region_analysis: whether returns and caps are converted to USD.",
+    "region_filter": "Derived from region_analysis: Compustat region names kept.",
+    "execute_region_filters": "Derived from region_analysis: whether that region filter is applied at all.",
+    # ---- derived: signal design (cell 8) -----------------------------------
+    "categories_dict": "Derived from action_characterization: LC category column -> signal index.",
+    "lc_signals": "Derived from action_characterization: signal_i -> human-readable name (with the _counts suffix when signal_type='counts').",
+    # ---- derived: analysis selection (cell 11) -----------------------------
+    "analyse_high_low": "Derived: which tail the LC sorts report. Provenance only -- not read by any node.",
+    "hml_directions": "Derived: per-signal direction of the long-short leg.",
+    "universe_signals": "Derived: the provider ESG score treated as an extra sortable signal ({} when esg_choice='none').",
+    "analysis_selection": "Derived: the (signal, bucket) pairs to analyse. Provenance only -- 07_build_analyse_portfolios rebuilds this list locally instead of reading it.",
+}
+
+# Cells wider than this are truncated with an ellipsis: categories_dict alone is ~50
+# entries, and one runaway cell makes every other row in the Taipy table unreadable.
+_VALUE_CHARS = 150
+
+
+def config_table(bundle) -> Any:
+    """``parameter | value | description`` for every key in the run's cfg.
+
+    Reads the ``cfg_json`` string this node carries in its bundle, so the table shows the
+    config *as the run actually received it* -- not as ``build_cfg`` would derive it today.
+    Rows follow the cfg dict's own order (notebook cells 2, then 8, then 11), so the
+    baseline knobs come first and the derived values last.
+    """
+    import json
+
+    import pandas as pd
+
+    raw = (bundle or {}).get("cfg_json")
+    if not raw:
+        return pd.DataFrame(columns=["parameter", "value", "description"])
+
+    cfg = json.loads(raw)
+    rows = []
+    for key, value in cfg.items():
+        # Scalars render as-is; dicts/lists as compact JSON, with the item count kept
+        # visible when truncation hides the tail.
+        if isinstance(value, (dict, list)):
+            text = json.dumps(value, default=str)
+            if len(text) > _VALUE_CHARS:
+                text = f"{text[:_VALUE_CHARS]}... ({len(value)} items)"
+        else:
+            text = "None" if value is None else str(value)
+        rows.append({"parameter": key, "value": text,
+                     "description": _PARAM_DOCS.get(key, "")})
+    return pd.DataFrame(rows)
