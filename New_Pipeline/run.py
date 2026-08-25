@@ -68,7 +68,7 @@ def _export(outputs: dict, target: Path) -> list[str]:
     # not notebook artifacts, so parity.compare lists them under "(only in new: ...)" —
     # informational, it diffs only the set-intersection and cannot fail on them.
     for node in ("esg_signal_corr", "esg_coverage", "mktcap_filter_audit",
-                 "sample_funnel_audit"):
+                 "sample_funnel_audit", "sort_cutpoint_audit"):
         df = outputs.get(node)
         if df is None or SENTINEL_COL in df.columns or PICKLE_COL not in df.columns:
             continue

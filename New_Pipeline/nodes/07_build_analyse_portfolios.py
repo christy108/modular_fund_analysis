@@ -317,6 +317,10 @@ def build_analyse_portfolios_v1(prep, cfg):
     first_conditioning_set = 0
     no_simple_extremes_quantiles = 1
     take_extremes = False
+    # How a firm sitting exactly ON a cutpoint is bucketed. .get() with a default so an
+    # archived Process replayed against an older cfg (no such key) still runs -- same
+    # backwards-compat pattern as signal_type in 02_derive_signals.py.
+    quantile_interval_bounds = C.get("quantile_interval_bounds", "half_open")
 
     # ---- cell 36: quantile portfolios + constituents --------------------- #
     signal_quantiles: dict = {}
@@ -329,6 +333,7 @@ def build_analyse_portfolios_v1(prep, cfg):
             first_conditioning_set=first_conditioning_set,
             take_extremes=take_extremes,
             n_extremes_quantiles=no_simple_extremes_quantiles,
+            quantile_interval_bounds=quantile_interval_bounds,
         )
         signal_quantiles[col] = U.compute_returns()
         signal_quantile_constituents[col] = U.get_constituents_over_time()

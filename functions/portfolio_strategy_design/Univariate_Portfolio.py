@@ -26,6 +26,9 @@ class UnivariateQuantilePortfolio:
     first_conditioning_set: int = 0
     take_extremes: bool = False
     n_extremes_quantiles: int | None = None
+    # "half_open" (frozen behaviour) or "closed"; see univariate_portfolio_sorting. Last
+    # field so positional construction of the existing ones is unaffected.
+    quantile_interval_bounds: str = "half_open"
 
     def __post_init__(self) -> None:
         self.signal = self.signal.copy()
@@ -106,6 +109,7 @@ class UnivariateQuantilePortfolio:
                 self.n_quantiles,
                 no_extremes_quantiles_1=n_ext,
                 take_extremes=self.take_extremes,
+                quantile_interval_bounds=self.quantile_interval_bounds,
             )
             selected.name = formation_date
             self.constituents_over_time.append(selected)

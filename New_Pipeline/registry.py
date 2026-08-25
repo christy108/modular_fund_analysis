@@ -79,6 +79,11 @@ EDGES = [
     # the source of process_lc's endpoint cross-check. Its position at the BOTTOM of the
     # dashboard page is handled in dashboard_viz._DEFERRED_SECTIONS; no edge arrangement
     # could achieve it, since it is ready as soon as prepare_panel is.
+    # sort_cutpoint_audit needs BOTH: prepare_panel for the standardized pivots it replays
+    # the sort from, and build_analyse_portfolios for the REAL buckets it cross-checks that
+    # replay against (without the cross-check a replay bug reads as a finding).
+    ("prepare_panel.out", "sort_cutpoint_audit.prep"),
+    ("build_analyse_portfolios.out", "sort_cutpoint_audit.portfolios"),
     ("derive_signals.out", "sample_funnel_audit.lc_stages"),
     ("merge_esg_provider.out", "sample_funnel_audit.universe_stages"),
     ("prepare_panel.out", "sample_funnel_audit.panel_stages"),

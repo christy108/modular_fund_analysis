@@ -113,6 +113,15 @@ fiscal years pooled, not a single year. Columns:
 - ``mean_if_nonzero`` / ``median_if_nonzero`` — centre CONDITIONAL on being non-zero, so a
   healthy non-zero side is distinguishable from a signal that is merely small everywhere.
 - ``max`` — largest observed signal value.
+- ``n_at_max`` / ``pct_at_max`` / ``quantiles_of_pure_max`` — the high-side mirrors of the zero
+  columns. Needed because the sort treats its two ends differently: the low bucket is
+  ``signal <= q_1`` and the high bucket is ``signal > q_{K-1}``, so a tie block landing on the
+  bottom cutpoint is KEPT while one landing on the top cutpoint is DROPPED. A bounded ratio
+  signal saturates at 1 the way it piles up at 0, so ``pct_zero`` alone diagnoses only half the
+  problem — a signal can be near-zero-free and still have a badly under-populated high bucket.
+- ``n_distinct_values`` — distinct values available to cut on. Below ``no_simple_quantiles`` the
+  sort cannot fill K buckets at all, whatever the zero share; a ratio of small integer counts
+  often has only a handful of levels.
 - ``total_initiatives`` — raw ``sum_with_i`` summed over the panel: total initiatives feeding
   this signal, before any denominator.""",
     input_schema={"lc": open_schema(), "cfg": cfg_schema()},
@@ -158,6 +167,25 @@ fiscal years pooled, not a single year. Columns:
                            "- **mean_if_nonzero** / **median_if_nonzero** — average and median over "
                            "the non-zero rows only, so the zero mass does not drag them toward 0.\n"
                            "- **max** — largest value of the signal across the panel.\n"
+                           "- **n_at_max** / **pct_at_max** — firm-years sitting *exactly* at "
+                           "`max`: the high-side mirror of `n_zero`/`pct_zero`. This is the column "
+                           "that tells you whether the HIGH bucket is sound. A bounded ratio signal "
+                           "saturates at 1 the way it piles up at 0, and the two ends are not "
+                           "treated alike: the sort's low bucket is `signal <= q1` and its high "
+                           "bucket is `signal > q_K-1`, so a tie block on the bottom cutpoint is "
+                           "*kept* while one on the top cutpoint is *dropped*. A large `pct_at_max` "
+                           "therefore costs the high bucket names — empirically, roughly "
+                           "`pct_at_max` percent of them, in the months where the block straddles "
+                           "the cutpoint. For a count signal the max is a single firm, so this "
+                           "reads ~0 and is simply uninformative.\n"
+                           "- **quantiles_of_pure_max** — high-side mirror of "
+                           "`quantiles_of_pure_zero`: how many buckets the saturation mass alone "
+                           "would fill. >= 1 means the top cutpoint can land inside the atom and "
+                           "the high bucket can collapse or empty.\n"
+                           "- **n_distinct_values** — distinct values the sort has to cut on. Below "
+                           "`cfg.no_simple_quantiles` the signal *cannot* fill K buckets however "
+                           "small its zero share is — a ratio of small integer counts often has "
+                           "only a handful of distinct levels.\n"
                            "- **total_initiatives** — sum of the signal's raw `sum_with_i` numerator "
                            "(initiative counts) over the panel, before any ratio is taken.\n"
                            "- **n_years**, **median_firms_nonzero_per_year**, "
@@ -172,7 +200,7 @@ fiscal years pooled, not a single year. Columns:
                            "undersized in a typical year no matter how the sort is configured."
                        )),
         BundleColoredTableViz(_signal_sparsity_by_year,
-                              title="Signal sparsity by fiscal year",
+                              title="Signal sparsity by fiscal year — BEFORE standardisation (raw signal)",
                               color_col="signal",
                               n=1000,
                               key="colored_table:signal_sparsity_by_year",
@@ -186,6 +214,13 @@ fiscal years pooled, not a single year. Columns:
                                   "whether restricting the sample rescues a signal that looks dead "
                                   "when pooled. Rows are tinted by signal; read down a colour block "
                                   "to see one signal's trajectory.\n\n"
+                                  "This is the RAW `signal_i`, measured on "
+                                  "firm-years. Its post-standardisation twin lives "
+                                  "on `prepare_panel` (*Signal sparsity by year - "
+                                  "AFTER standardisation*) and measures the z-scored "
+                                  "monthly cross-sections the sort actually cuts. "
+                                  "This table says whether the SIGNAL has support; "
+                                  "that one says whether the SORT does.\n\n"
                                   "- **rfyear** — fiscal year; all other columns are computed "
                                   "within that year only.\n"
                                   "- **n_firm_years** — firms in the panel that year (the year's "
@@ -196,6 +231,14 @@ fiscal years pooled, not a single year. Columns:
                                   "This is the quantity the sort actually has to work with.\n"
                                   "- **firms_per_bucket** — `n_firms_nonzero / K`. Under ~5 means "
                                   "this year's buckets are too thin to form a meaningful portfolio.\n"
+                                  "- **pct_at_max** / **quantiles_of_pure_max** — the same two "
+                                  "measures for the *upper* end, against this year's own max. "
+                                  "`pct_at_max` is what predicts damage to the HIGH bucket, the way "
+                                  "`pct_zero` predicts it for the low one; the sort keeps a tie "
+                                  "block on the bottom cutpoint but drops one on the top cutpoint, "
+                                  "so the two ends are not symmetric.\n"
+                                  "- **n_distinct_values** — distinct values this year. Below K the "
+                                  "year cannot be sorted into K buckets at all.\n"
                                   "- **quantiles_of_pure_zero** — cutpoints pinned at zero *this "
                                   "year*. `>= K-1` means the top bucket has degenerated into 'any "
                                   "firm with any activity'; `>= 2` means some bucket is empty and "
@@ -352,6 +395,19 @@ def derive_signals_v1(lc, cfg):
             "mean_if_nonzero": round(float(nz.mean()), 4) if len(nz) else 0.0,
             "median_if_nonzero": round(float(nz.median()), 4) if len(nz) else 0.0,
             "max": round(float(s.max()), 4),
+            # High-side mirror of the zero columns. A bounded ratio signal saturates at
+            # its max the same way it piles up at 0, and the sort's `>` on the top
+            # cutpoint EXCLUDES a tie block sitting on it while the `<=` on the bottom
+            # cutpoint INCLUDES one — so a saturation atom damages the HIGH bucket
+            # exactly as a zero atom damages the LOW bucket, and pct_zero alone cannot
+            # see it. For a count signal the max is one firm, so pct_at_max is ~1/N and
+            # simply uninformative rather than misleading.
+            "n_at_max": int((s == s.max()).sum()),
+            "pct_at_max": round(float((s == s.max()).mean()) * 100, 1),
+            "quantiles_of_pure_max": int((s == s.max()).mean() * K_q),
+            # Distinct values available to cut on. Below K the sort cannot fill K buckets
+            # from this signal at all, however the zero share looks.
+            "n_distinct_values": int(s.nunique()),
             "total_initiatives": int(raw.sum()),
         })
     signal_sparsity = (
@@ -385,6 +441,12 @@ def derive_signals_v1(lc, cfg):
                     # compare against a minimum group size (cfg.esg_min_group_size is 5).
                     "firms_per_bucket": round(firms_nz / K_q, 1),
                     "quantiles_of_pure_zero": int((s == 0).mean() * K_q),
+                    # High-side atom within this year -- see the pooled table's comment.
+                    # Computed against THIS year's max, not the panel max, because the
+                    # sort's top cutpoint is set from the local cross-section.
+                    "pct_at_max": round(float((s == s.max()).mean()) * 100, 1),
+                    "quantiles_of_pure_max": int((s == s.max()).mean() * K_q),
+                    "n_distinct_values": int(s.nunique()),
                 })
     signal_sparsity_by_year = pd.DataFrame(by_year_rows)
 

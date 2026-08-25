@@ -18,7 +18,11 @@ from __future__ import annotations
 from leonardo_nodes import Contract, Node, process
 
 from New_Pipeline._common import cfg_schema, open_schema, store
-from New_Pipeline.dashboard_viz import BundleDualAxisViz, BundleTableViz
+from New_Pipeline.dashboard_viz import (
+    BundleColoredTableViz,
+    BundleDualAxisViz,
+    BundleTableViz,
+)
 
 
 # ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
@@ -33,6 +37,12 @@ def _firms_and_initiatives(bundle):
     """Per-fiscal-year unique companies / firm-year observations / total initiatives for
     the surviving sample. None on the ESG-universe path (no LC, no rfyear)."""
     return bundle.get("firms_and_initiatives")
+
+
+def _signal_sparsity_standardized(bundle):
+    """Per signal per calendar year, sortability of the POST-standardization monthly panel
+    -- the cross-sections the sort actually cuts. Companion to node 02's raw table."""
+    return bundle.get("signal_sparsity_standardized")
 
 
 CONTRACT = Contract(
@@ -56,7 +66,23 @@ Mandatory measures (enforced by schema / audits):
 Surfaces: final-sample descriptives — unique gvkeys, unique gvkey-year observations, total
 initiatives (``BundleTableViz``); the same three measures per fiscal year (``BundleTableViz``);
 and unique companies against total initiatives over time on separate y-axes
-(``BundleDualAxisViz``, since the two differ by orders of magnitude). All are empty on the
+(``BundleDualAxisViz``, since the two differ by orders of magnitude).
+
+Also surfaces post-standardisation sortability per signal per calendar year
+(``BundleColoredTableViz``): the twin of node 02's raw ``signal_sparsity_by_year``, measured on
+the z-scored monthly pivots this node produces rather than on the raw firm-year signal. The two
+cannot share columns. ``standardize_pivot`` z-scores within (rfyear, curcdd, Industry), so a raw
+0 becomes ``-mean_g / std_g`` -- a different value per group -- which SHATTERS the zero atom and
+makes ``pct_zero`` meaningless (z=0 only means "at the group mean"). The tie-block columns
+(``largest_tie_pct``, ``pct_at_min``, ``pct_at_max``) replace it: after z-scoring the damaging
+tie block is no longer AT a known value, so it is found by size instead. The unit is the (date,
+asset) monthly cell -- exactly what ``UnivariateQuantilePortfolio`` consumes -- so ``year`` is
+the CALENDAR year of the formation month, not ``rfyear``; the point-in-time lag offsets them.
+Every figure is computed per formation month and then aggregated over the year, because the sort
+recomputes its cutpoints from one cross-section at a time. Audit-only: nothing downstream
+reads it.
+
+All the LC-derived tables above are empty on the
 ESG-universe path, which carries no LC data.""",
     input_schema={
         "global_universe": open_schema(),
@@ -80,6 +106,52 @@ ESG-universe path, which carries no LC data.""",
         ),
         BundleTableViz(_firms_and_initiatives, title="Firms and initiatives by year",
                        key="table:firms_and_initiatives"),
+        BundleColoredTableViz(
+            _signal_sparsity_standardized,
+            title="Signal sparsity by year — AFTER standardisation (as sorted)",
+            color_col="signal", n=1000,
+            key="colored_table:signal_sparsity_standardized",
+            description=(
+                "The post-standardisation twin of node 02's *Signal sparsity by fiscal "
+                "year*. Node 02 measures the RAW `signal_i` on firm-years; this measures "
+                "the z-scored monthly pivots that `UnivariateQuantilePortfolio` actually "
+                "cuts. Read them together: the raw table says whether the *signal* has "
+                "support, this one says whether the *sort* does.\n\n"
+                "Two things change at the boundary, so the columns cannot match:\n\n"
+                "1. `standardize_pivot` z-scores within (rfyear, curcdd, Industry), so a "
+                "raw 0 becomes `-mean_g/std_g` \u2014 a **different value in every group**. "
+                "The zero atom is *shattered*, which is why exactly-empty buckets are "
+                "rarer than the raw `pct_zero` suggests. And `pct_zero` stops meaning "
+                "anything (z=0 is just 'at the group mean'), so the tie columns below "
+                "replace it.\n"
+                "2. The unit is the (date, asset) monthly cell, not the firm-year. `year` "
+                "is the **calendar year of the formation month**, not `rfyear` \u2014 the "
+                "point-in-time accounting lag offsets the two, so rows do not line up "
+                "one-to-one with the raw table.\n\n"
+                "Every figure is computed per formation month and then aggregated over "
+                "that year's months, because the sort recomputes its cutpoints from one "
+                "cross-section at a time.\n\n"
+                "- **n_months** \u2014 formation months contributing to this year.\n"
+                "- **median_assets** / **min_assets** \u2014 sortable (non-NaN) assets in "
+                "a typical / the thinnest month. This is the population the sort divides.\n"
+                "- **assets_per_bucket** \u2014 `median_assets / K`. The headline gate: "
+                "the expected size of one quantile bucket. Compare against a minimum group "
+                "size (5 is the `cfg.esg_min_group_size` precedent).\n"
+                "- **median_n_distinct** \u2014 distinct z-values per month. Below K the "
+                "month cannot fill K buckets however many assets it has.\n"
+                "- **largest_tie_pct** / **worst_month_tie_pct** \u2014 the biggest block "
+                "of exactly-equal values, as a % of that month's cross-section (median and "
+                "worst month). This is the post-standardisation replacement for "
+                "`pct_zero`: after z-scoring the damaging tie block is no longer *at* "
+                "zero, so it has to be found by size rather than by value. At or above "
+                "`1/K` a cutpoint can land inside the block and a bucket can collapse.\n"
+                "- **pct_at_min** / **pct_at_max** \u2014 mass sitting exactly at the "
+                "cross-sectional extremes. These are the ends the sort treats "
+                "asymmetrically: the low bucket is `s <= q_1` and **keeps** a tie block on "
+                "its cutpoint, the high bucket is `s > q_K-1` and **drops** one. So "
+                "`pct_at_max` is what predicts an under-populated HIGH bucket."
+            ),
+        ),
     ],
 )
 
@@ -94,7 +166,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_univariate_sorting_inputs,
     )
-    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys
+    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys, standardized_sparsity_by_year
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -227,6 +299,10 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         "global_returns": prep.global_returns,
         "signals": prep.signals,
         "signal_names": prep.signal_names,
+        # Audit-only: sortability of the standardized cross-sections. Nothing reads it.
+        "signal_sparsity_standardized": standardized_sparsity_by_year(
+            prep.signals, prep.signal_names, C["no_simple_quantiles"]
+        ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,
         "sample_descriptives": sample_descriptives,
@@ -246,7 +322,7 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_esg_universe_sorting_inputs,
     )
-    from New_Pipeline._common import count_firms, funnel_frame
+    from New_Pipeline._common import count_firms, funnel_frame, standardized_sparsity_by_year
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -326,6 +402,10 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         "global_returns": prep.global_returns,
         "signals": prep.signals,
         "signal_names": prep.signal_names,
+        # Audit-only: sortability of the standardized cross-sections. Nothing reads it.
+        "signal_sparsity_standardized": standardized_sparsity_by_year(
+            prep.signals, prep.signal_names, C["no_simple_quantiles"]
+        ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,
         "sample_descriptives": None,

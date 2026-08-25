@@ -53,12 +53,24 @@ def build_cfg(**overrides) -> dict:
         # functions/data_functions/get_data.py::_apply_security_status.
         security_status="active_only", #all_firms_even_delisted
         no_simple_quantiles=7,
+        # How a firm sitting exactly ON a quantile cutpoint is bucketed.
+        #   "half_open" (frozen behaviour): buckets are (q_{i-1}, q_i] -- a tie block on a
+        #       cutpoint goes wholly to the bucket BELOW it. Because bucket 1 has no lower
+        #       bound, its breakpoint is inclusive while bucket K's is not, so for two
+        #       complementary signals High_a = {z > q} but Low_b = {z >= q}: two portfolios
+        #       that must be identical differ by the tie mass (see sort_cutpoint_audit).
+        #   "closed": buckets are [q_{i-1}, q_i] -- both adjacent buckets keep the block, so
+        #       the mirror is exact. Cost: the K buckets no longer PARTITION the universe
+        #       (memberships sum to > N, bucket returns stop decomposing to the market).
+        #       High and Low never share a cutpoint for K >= 3, so the spread is unaffected.
+        quantile_interval_bounds="half_open",   # or "closed"
         ff_factors_number=3,
         esg_choice="none",
         esg_full_universe=False,
         show_esg_corr_matricies=False,
         esg_corr_method="pearson",
         esg_min_group_size=5,
+        show_sort_cutpoint_audit=True,
         drop_real_estate_Full_ESG=True,
         drop_utilities_Full_ESG=True,
         download_gics_data=False,
@@ -117,6 +129,22 @@ def build_cfg(**overrides) -> dict:
     # Validate the VALUE, not just the key. The check above rejects unknown keys; a
     # misspelt value would otherwise travel all the way into get_*_universe and raise
     # from inside a node, long after the run started.
+    if c["quantile_interval_bounds"] not in ("half_open", "closed"):
+        raise ValueError(
+            f"quantile_interval_bounds must be 'half_open' or 'closed', "
+            f"got {c['quantile_interval_bounds']!r}"
+        )
+    # Fast fail: univariate_portfolio_sorting raises on this too, but only once a run is
+    # already minutes deep in loading data. At K=2 the single breakpoint is both the Low
+    # bucket's upper edge and the High bucket's lower edge, so under "closed" a tie block
+    # there is held LONG and SHORT at once in the High-Low spread.
+    if c["quantile_interval_bounds"] == "closed" and c["no_simple_quantiles"] < 3:
+        raise ValueError(
+            f"quantile_interval_bounds='closed' requires no_simple_quantiles >= 3, got "
+            f"{c['no_simple_quantiles']}. At K=2 the High and Low buckets share their only "
+            f"breakpoint, so a tie block on it would be held long and short simultaneously."
+        )
+
     if c["security_status"] not in ("active_only", "all_firms_even_delisted"):
         raise ValueError(
             f"security_status must be 'active_only' or 'all_firms_even_delisted', "
@@ -547,14 +575,38 @@ def base_materiality():
     return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
 
-def base_materiality_v1():
+
+def base_materiality_q3():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality_v1", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", materiality_version = 1))
+    return make_experiment("base_materiality_q3", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", no_simple_quantiles = 3))
+
+def base_materiality_q2():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_q2", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", no_simple_quantiles = 2))
 
 
 
 
+
+
+
+def base_materiality_closed():
+    # base_materiality with closed quantile intervals. The pair to compare against
+    # base_materiality: High Material should become EXACTLY Low Immaterial, so the two
+    # High-Low spread alphas become exact negatives (+/-0.78) instead of 0.72 / -0.78.
+    return make_experiment("base_materiality_closed", build_cfg(
+        add_materiality=True, action_characterization="Material_Immaterial_only",
+        quantile_interval_bounds="closed"))
+
+
+def base_none_closed():
+    # base_none with closed quantile intervals. No complementary pair here, so no mirror to
+    # fix -- this arm just measures what the convention costs on its own: the Low legs are
+    # untouched (bucket 1 never executes the changed line) and each High leg gains its
+    # cutpoint tie block.
+    return make_experiment("base_none_closed", build_cfg(quantile_interval_bounds="closed"))
 
 
 def base_4_signals():
@@ -739,7 +791,10 @@ EXPERIMENTS = {
 
 
     "base_materiality": base_materiality,
-    "base_materiality_v1":base_materiality_v1,
+    "base_materiality_closed": base_materiality_closed,
+    "base_none_closed": base_none_closed,
+    "base_materiality_q3":base_materiality_q3,
+    "base_materiality_q2":base_materiality_q2,
      "4_signals_new": base_4_signals,
     "base_materiality_4_Signals": base_materiality_4_Signals,
     "base_immateriality_4_Signals": base_immateriality_4_Signals,

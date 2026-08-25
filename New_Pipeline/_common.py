@@ -187,3 +187,70 @@ def universe_funnel_rows(pre_frames, post_frames, global_universe, cfg, provider
          "Compustat universe", "process_data.py:212 / process_global_universe",
          count_firms(global_universe["gvkey"])),
     ])
+
+
+def standardized_sparsity_by_year(signals, signal_names, n_quantiles):
+    """Sortability of the POST-standardization monthly panel, per signal per calendar year.
+
+    The companion to node 02's ``signal_sparsity_by_year``, which measures the RAW
+    ``signal_i`` on firm-years. Standardization changes what "sparse" means, so the two
+    tables cannot share columns:
+
+    * ``standardize_pivot`` z-scores within (rfyear, curcdd, Industry), so a raw 0 becomes
+      ``-mean_g / std_g`` -- a DIFFERENT value in every group. The zero atom is shattered,
+      which is why an exactly-empty bucket is rarer here than the raw ``pct_zero`` implies.
+      ``pct_zero`` is also meaningless post-z-score (0 just means "at the group mean"), so
+      the tie measures below replace it.
+    * The unit is the (date, gvkey_iid) monthly cell, not the firm-year: this is literally
+      what ``UnivariateQuantilePortfolio`` consumes, one cross-section per formation date.
+      ``year`` is therefore the CALENDAR year of the formation month, not ``rfyear`` -- the
+      point-in-time accounting lag offsets the two.
+
+    Everything is computed per formation month and then aggregated over the months of a
+    year, because the sort recomputes its cutpoints from one month's cross-section alone.
+    """
+    import pandas as pd
+
+    K = int(n_quantiles)
+    label = dict(signal_names or {})
+    rows = []
+    for col, wide in (signals or {}).items():
+        if wide is None or getattr(wide, "empty", True):
+            continue
+        per_month = []
+        for dt, month in wide.iterrows():
+            s = month.dropna()
+            n = len(s)
+            if n == 0:
+                continue
+            counts = s.value_counts()
+            per_month.append({
+                "year": int(pd.Timestamp(dt).year),
+                "n": n,
+                "n_distinct": int(s.nunique()),
+                # Biggest block of exactly-equal values: the post-standardization
+                # generalisation of pct_zero. After z-scoring the damaging tie block is no
+                # longer AT zero, so it has to be found by size rather than by value.
+                "largest_tie_pct": 100.0 * int(counts.iloc[0]) / n,
+                "pct_at_min": 100.0 * float((s == s.min()).mean()),
+                "pct_at_max": 100.0 * float((s == s.max()).mean()),
+            })
+        if not per_month:
+            continue
+        pm = pd.DataFrame(per_month)
+        for yr, g in pm.groupby("year", sort=True):
+            med = float(g["n"].median())
+            rows.append({
+                "signal": label.get(col, col),
+                "year": int(yr),
+                "n_months": int(len(g)),
+                "median_assets": int(round(med)),
+                "min_assets": int(g["n"].min()),
+                "assets_per_bucket": round(med / K, 1),
+                "median_n_distinct": int(g["n_distinct"].median()),
+                "largest_tie_pct": round(float(g["largest_tie_pct"].median()), 1),
+                "worst_month_tie_pct": round(float(g["largest_tie_pct"].max()), 1),
+                "pct_at_min": round(float(g["pct_at_min"].median()), 1),
+                "pct_at_max": round(float(g["pct_at_max"].median()), 1),
+            })
+    return pd.DataFrame(rows)

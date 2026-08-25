@@ -32,7 +32,7 @@ from leonardo_nodes.viz import (
 # DAG position (which is what the framework orders sections by) puts them far earlier than
 # where a reader wants them — ahead of cumulative returns, alphas and risk tables.
 # Order within this tuple is the order they render in (see _ordered_nodes below).
-_DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit")
+_DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit", "sort_cutpoint_audit")
 
 
 class OrderedDashboard(Dashboard):
