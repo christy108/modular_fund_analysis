@@ -36,12 +36,12 @@ def build_cfg(**overrides) -> dict:
     """
     # ---- cell 2: baseline scalar defaults --------------------------------- #
     c: dict = dict(
-        golden_data="v_2C",
+        golden_data="v_2A1",
         region_analysis="United_States",
         fama_factors_currency="JPY",
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
         action_characterization="original_matteo",
-        start_year=2015,
+        start_year=2016,
         end_year=2024,
         # Which Compustat securities enter the universe. "active_only" keeps
         # secstat=='A', reproducing the frozen behaviour (that filter used to live in the
@@ -63,13 +63,25 @@ def build_cfg(**overrides) -> dict:
         #       the mirror is exact. Cost: the K buckets no longer PARTITION the universe
         #       (memberships sum to > N, bucket returns stop decomposing to the market).
         #       High and Low never share a cutpoint for K >= 3, so the spread is unaffected.
-        quantile_interval_bounds="half_open",   # or "closed"
+        quantile_interval_bounds="closed",   # half_open or "closed"   closed: [max,q1],[q1,q2][q2,max] in sorts--- half_open: [max,q1],(q1,q2](q2,max] 
         ff_factors_number=3,
         esg_choice="none",
         esg_full_universe=False,
         show_esg_corr_matricies=False,
         esg_corr_method="pearson",
         esg_min_group_size=5,
+        # Thin-portfolio gate (PRESENTATION ONLY -- the exported parquets always keep every
+        # portfolio). A High/Low leg must hold at least `min_stocks_per_portfolio` names in at
+        # least `min_portfolio_coverage` of formation months, or it is hidden from the
+        # dashboard along with its High-Low spread. A bucket of a handful of names is not a
+        # portfolio -- its return is idiosyncratic noise -- and showing it beside
+        # well-populated ones invites reading signal into sampling error.
+        # Calibrated at 25 rather than 30 deliberately: measured on the current runs, every
+        # base_none / base_materiality leg clears 25 in 88% of months but only 73-77% of
+        # months at 30, so a threshold of 30 would drop every signal in both configs.
+        # Set min_stocks_per_portfolio=0 to disable the gate entirely.
+        min_stocks_per_portfolio=25,
+        min_portfolio_coverage=0.80,
         show_sort_cutpoint_audit=True,
         drop_real_estate_Full_ESG=True,
         drop_utilities_Full_ESG=True,
@@ -129,6 +141,17 @@ def build_cfg(**overrides) -> dict:
     # Validate the VALUE, not just the key. The check above rejects unknown keys; a
     # misspelt value would otherwise travel all the way into get_*_universe and raise
     # from inside a node, long after the run started.
+    if not 0.0 <= c["min_portfolio_coverage"] <= 1.0:
+        raise ValueError(
+            f"min_portfolio_coverage is a fraction in [0, 1], got "
+            f"{c['min_portfolio_coverage']!r} (0.80 means 80% of months)"
+        )
+    if c["min_stocks_per_portfolio"] < 0:
+        raise ValueError(
+            f"min_stocks_per_portfolio must be >= 0 (0 disables the gate), got "
+            f"{c['min_stocks_per_portfolio']!r}"
+        )
+
     if c["quantile_interval_bounds"] not in ("half_open", "closed"):
         raise ValueError(
             f"quantile_interval_bounds must be 'half_open' or 'closed', "
@@ -441,18 +464,18 @@ def base_pct_stocks():
 
 #1
 def base_none_v_2A1():
-    return make_experiment("base_none_v_2A1", build_cfg(golden_data = "v_2A1"))
+    return make_experiment("base_none_v_2A1", build_cfg(golden_data = "v_2A1", start_year = 2015))
 
 
 def base_none_v_2A1_2023():
-    return make_experiment("base_none_v_2A1_2023", build_cfg(golden_data = "v_2A1", end_year = 2023))
+    return make_experiment("base_none_v_2A1_2023", build_cfg(golden_data = "v_2A1", start_year = 2015, end_year = 2023))
 
 
 def base_none_v_2A1_no_3_filters():
-    return make_experiment("base_none_v_2A1_no_3_filters", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = False))
+    return make_experiment("base_none_v_2A1_no_3_filters", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = False, start_year = 2015))
 
 def base_none_v_2A1_no_3_filters_drop_fin():
-    return make_experiment("base_none_v_2A1_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = True))
+    return make_experiment("base_none_v_2A1_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = True, start_year = 2015))
 
 
 
@@ -572,7 +595,20 @@ def show_corr():
 def base_materiality():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
+    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", min_portfolio_coverage=0.6))
+
+
+def base_materiality_including_delisted():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_including_delisted", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only",  security_status="all_firms_even_delisted", min_portfolio_coverage=0.6))
+
+
+def base_materiality_v_2C():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_v_2C", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", golden_data = "v_2C"))
+
 
 
 
@@ -591,14 +627,6 @@ def base_materiality_q2():
 
 
 
-
-def base_materiality_closed():
-    # base_materiality with closed quantile intervals. The pair to compare against
-    # base_materiality: High Material should become EXACTLY Low Immaterial, so the two
-    # High-Low spread alphas become exact negatives (+/-0.78) instead of 0.72 / -0.78.
-    return make_experiment("base_materiality_closed", build_cfg(
-        add_materiality=True, action_characterization="Material_Immaterial_only",
-        quantile_interval_bounds="closed"))
 
 
 def base_none_closed():
@@ -704,6 +732,12 @@ def base_materiality_5_groups_brackets_counts():
                             signal_type="counts")
 
 
+def base_materiality_climate_vs_each_sdg_v_2C():
+    # 30 signals: material/immaterial x (Climate & Natural Capital, then each of the
+    # 14 non-climate SDGs on its own).
+    return _sdg_materiality("base_materiality_climate_vs_each_sdg",
+                            "Materiality_Climate_Natural_Capital_vs_All_SDGS", golden_data = "v_2C")
+
 def base_materiality_climate_vs_each_sdg():
     # 30 signals: material/immaterial x (Climate & Natural Capital, then each of the
     # 14 non-climate SDGs on its own).
@@ -791,7 +825,11 @@ EXPERIMENTS = {
 
 
     "base_materiality": base_materiality,
-    "base_materiality_closed": base_materiality_closed,
+
+
+    "base_materiality_v_2C":base_materiality_v_2C,
+    "base_materiality_including_delisted": base_materiality_including_delisted,
+ 
     "base_none_closed": base_none_closed,
     "base_materiality_q3":base_materiality_q3,
     "base_materiality_q2":base_materiality_q2,
@@ -812,7 +850,9 @@ EXPERIMENTS = {
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
+    
     "base_materiality_climate_vs_each_sdg_counts": base_materiality_climate_vs_each_sdg_counts,
+    "base_materiality_climate_vs_each_sdg_v_2C":base_materiality_climate_vs_each_sdg_v_2C,
 
 
     #Below dont work

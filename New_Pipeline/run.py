@@ -41,6 +41,10 @@ _MERGED_EXPORTS = {
     "constituents_Industry": None,
     "constituents_loc": None,
     "holdings_over_time": None,
+    # Thin-portfolio gate audit. New filenames, so parity.compare lists them under
+    # "(only in new: ...)" -- informational, it cannot fail on them.
+    "portfolio_coverage": None,
+    "portfolio_gate_summary": None,
 }
 
 
