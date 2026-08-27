@@ -1,10 +1,10 @@
 """Load the SASB materiality file and merge it onto the LC firm-year panel.
 
-Optional, additive step: the file contributes 15 SASB "materiality" count columns
-({immaterial, material, unmapped} x {adaptation, advocacy, innovation, upskilling,
-total}) keyed by (gvkey, rfyear). Merging is an INNER join, so only firm-years present
-in both LC and the materiality file survive — LC gains the count columns and is filtered
-to the matched sample.
+Optional, additive step: the file contributes 24 SASB "materiality" count columns
+({immaterial, material, unmapped} x {adaptation, advocacy_new_def, advocacy_old_def,
+innovation, preparation, transformation, upskilling, total}) keyed by (gvkey, rfyear).
+Merging is an INNER join, so only firm-years present in both LC and the materiality
+file survive — LC gains the count columns and is filtered to the matched sample.
 
 Kept as a standalone plain-pandas module (no New_Pipeline dependency), matching the
 style of the sibling ``process_lc.py`` so it stays usable outside the pipeline. gvkey is
@@ -18,13 +18,17 @@ import pandas as pd
 
 
 
-# The 15 count columns to bring onto LC. The file's other columns (company name,
+# The 24 count columns to bring onto LC. The file's other columns (company name,
 # GICS_level_1/2/3, loc, MacroRegion, conml) already exist in LC and are dropped here to
-# avoid _x/_y collisions on merge.
+# avoid _x/_y collisions on merge. advocacy_old_def/preparation/transformation are the
+# original (pre-SDG-rework) "Matteo" 3-category split, kept alongside the newer
+# adaptation/advocacy_new_def/innovation/upskilling 4-category split -- both live in the
+# same file, so both are selected here rather than picking one.
 MATERIALITY_COLUMNS = [
     f"{grp}__{act}"
     for grp in ("immaterial", "material", "unmapped")
-    for act in ("adaptation", "advocacy_new_def", "innovation", "upskilling", "total")
+    for act in ("adaptation", "advocacy_new_def", "advocacy_old_def",
+                "innovation", "preparation", "transformation", "upskilling", "total")
 ]
 
 # Per-SDG breakdown of the three __total__ columns, feeding the SDG-level signal designs in

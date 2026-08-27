@@ -95,6 +95,37 @@ signal_6_name="Material__Upskilling", signal_7_name="Material__Innovation"):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+def Combined_Material_Immaterial_3_Matteo_Signals(signal_0_name = "Immaterial__Advocacy", signal_1_name = "Immaterial__Preparation", 
+signal_2_name = "Immaterial__Transformation", signal_3_name = "Material__Advocacy", signal_4_name = "Material__Preparation", 
+signal_5_name = "Material__Transformation"):
+    return{
+
+    "immaterial__advocacy_old_def": 0, 
+    "immaterial__preparation": 1, 
+    "immaterial__transformation": 2,
+
+    "material__advocacy_old_def": 3, 
+    "material__preparation": 4, 
+    "material__transformation": 5,
+
+    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name, signal_5_name
+
+
+
+#Extra singals::>>
+
 def immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation", 
 signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation"):
     return{
@@ -121,38 +152,11 @@ signal_2_name="Material__Upskilling", signal_3_name="Material__Innovation"):
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
 
-
-
-
-
-
-
-
-
-
-def Combined_Material_Immaterial_3_Matteo_Signals(signal_0_name = "Immaterial__Advocacy", signal_1_name = "Immaterial__Preparation", 
-signal_2_name = "Immaterial__Transformation", signal_3_name = "Material__Advocacy", signal_4_name = "Material__Preparation", 
-signal_5_name = "Material__Transformation"):
-    return{
-
-    "immaterial__advocacy": 0, 
-    "immaterial__preparation": 1, 
-    "immaterial__transformation": 2,
-
-    "material__advocacy": 3, 
-    "material__preparation": 4, 
-    "material__transformation": 5,
-
-    }, signal_0_name, signal_1_name, signal_2_name, signal_3_name, signal_4_name, signal_5_name
-
-
-
-
 def immaterial_3_Matteo_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name= "Immaterial__Preparation", 
 signal_2_name="Immaterial__Transformation"):
     return{
 
-    "immaterial__advocacy": 0, 
+    "immaterial__advocacy_old_def": 0, 
     "immaterial__preparation": 1, 
     "immaterial__transformation": 2,
 
@@ -163,7 +167,7 @@ def material_3_Matteo_Signals(signal_0_name="Material__Advocacy", signal_1_name=
 signal_2_name="Material__Transformation"):
     return{
 
-    "material__advocacy": 0, 
+    "material__advocacy_old_def": 0, 
     "material__preparation": 1, 
     "material__transformation": 2,
 

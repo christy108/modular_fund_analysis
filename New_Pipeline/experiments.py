@@ -435,7 +435,7 @@ def base_none():
 def base_materiality():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", min_portfolio_coverage=0.6))
+    return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
 
 def base_materiality_including_delisted():
@@ -460,10 +460,11 @@ def base_4_signals():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
     return make_experiment("4_signals_new", build_cfg(add_materiality=True, action_characterization = "4_signals_new"))
 
-
-def base_4_signals_V2A1():
+def base_3_signals():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
-    return make_experiment("4_signals_new", build_cfg(add_materiality=True, golden_data = "v_2A1", action_characterization = "4_signals_new"))
+    return make_experiment("3_signals_new", build_cfg(add_materiality=True, action_characterization = "original_matteo"))
+
+
 
 
 def base_materiality_4_Signals():
@@ -582,44 +583,12 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
-    "base_none_all_firms": base_none_all_firms, #base_none_delisted_present
-    "base_none_v_2A1_delisted_present":base_none_v_2A1_delisted_present,
-
-
-    "base_none_v_2A1_mcap_covered_99":base_none_v_2A1_mcap_covered_99,
-    "base_none_v_2A1_mcap_covered_99_9":base_none_v_2A1_mcap_covered_99_9,
-    "base_none_v_2A1_mcap_covered_100":base_none_v_2A1_mcap_covered_100,
-
-
-    "base_none_v_2A1_percent_stocks_5_100M_floor":base_none_v_2A1_percent_stocks_5_100M_floor,
-    "base_none_v_2A1_percent_stocks_20_100M_floor":base_none_v_2A1_percent_stocks_20_100M_floor,
-    "base_none_v_2A1_percent_stocks_50_200M_floor":base_none_v_2A1_percent_stocks_50_200M_floor,
-
-    #5
-    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms,
-    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10,
-    "base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5":base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5,
-
-    "base_none_v_2A1_no_mcap_filter_no_3filter":base_none_v_2A1_no_mcap_filter_no_3filter,
-    "base_none_v_2A1_no_3filter_with_delisted_firms":base_none_v_2A1_no_3filter_with_delisted_firms,
-    "base_none_v_2A1_no_mcap_filter_with_delisted_firms":base_none_v_2A1_no_mcap_filter_with_delisted_firms,
-
-
-  
 
 
 
 
 
 
-
-
-    "base_none_counts": base_none_counts,
-    "esg_refinitiv": esg_refinitiv,
-    "esg_msci": esg_msci,
-    "esg_snp": esg_snp,
-    "esg_full_universe": esg_full_universe,
-    "show_corr": show_corr,
 
 
     "base_materiality": base_materiality,
@@ -629,17 +598,12 @@ EXPERIMENTS = {
     "base_materiality_v_2A1":base_materiality_v_2A1,
     "base_materiality_including_delisted": base_materiality_including_delisted,
  
-     "4_signals_new": base_4_signals,
-    "base_materiality_4_Signals": base_materiality_4_Signals,
-    "base_immateriality_4_Signals": base_immateriality_4_Signals,
-    "base_immateriality_4_Signals_counts": base_immateriality_4_Signals_counts,
-    "base_materiality_4_Signals_counts":base_materiality_4_Signals_counts,
-    "base_materiality_combined_4_Signals": base_materiality_combined_4_Signals,
+    "4_signals_new": base_4_signals,
     "base_materiality_combined_4_Signals_counts": base_materiality_combined_4_Signals_counts,
-    "base_materiality_combined_3_Matteo_Signals": base_materiality_combined_3_Matteo_Signals,
-    "base_materiality_combined_3_Matteo_Signals_counts": base_materiality_combined_3_Matteo_Signals_counts,
 
-    "base_materiality_counts": base_materiality_counts,
+    "base_3_signals": base_3_signals,
+    "base_materiality_combined_3_Matteo_Signals": base_materiality_combined_3_Matteo_Signals,
+   
 
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
@@ -656,11 +620,6 @@ EXPERIMENTS = {
     "sdg_5_groups_brackets": sdg_5_groups_brackets,
     "sdg_climate_vs_each_sdg": sdg_climate_vs_each_sdg,
 
-
-
-
-    "base_4_signals_V2A1":base_4_signals_V2A1,
-    
 
 
 

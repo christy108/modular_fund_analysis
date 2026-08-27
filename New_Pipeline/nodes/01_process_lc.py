@@ -46,6 +46,13 @@ def _firms_and_initiatives(bundle):
     return bundle.get("firms_and_initiatives")
 
 
+def _materiality_coverage(bundle):
+    """Before/after the optional SASB materiality inner join: rows, unique firms, and
+    firm-year observations lost, plus each pair's drop as a percentage. Empty frame when
+    ``cfg.add_materiality`` is off for this run."""
+    return bundle.get("materiality_coverage")
+
+
 CONTRACT = Contract(
     name="process_lc",
     intent="""Load the Golden LC panel and produce an analysis-ready firm-fiscal-year table:
@@ -123,6 +130,26 @@ are computed BEFORE the ``process_lc`` call, which mutates its argument in place
                 "node's filters removed from that year. Years outside "
                 "`start_year`..`end_year` appear here and vanish below, which is usually "
                 "the largest single gap."
+            ),
+        ),
+        BundleTableViz(
+            _materiality_coverage,
+            title="SASB materiality merge — coverage",
+            key="table:materiality_coverage",
+            description=(
+                "Before/after this node's optional SASB materiality inner join "
+                "(`cfg.add_materiality`, default off — must stay off for `base_none` "
+                "parity, see CLAUDE.md). The join is on exact (gvkey, rfyear); any "
+                "firm-year absent from the SASB workbook is dropped here, not flagged. "
+                "The workbook only covers rfyear <= 2022, so this is also where the "
+                "post-2022 tail disappears when the flag is on.\n\n"
+                "- **rows_before/after** — raw row counts (a firm-year can have several "
+                "`report_type` rows).\n"
+                "- **unique_firms_before/after** — distinct gvkeys.\n"
+                "- **firm_year_obs_before/after** — rows deduped on (gvkey, rfyear).\n"
+                "- **pct_rows/firms/firm_years_dropped** — each pair's drop as a "
+                "percentage of the 'before' count.\n\n"
+                "Empty when `add_materiality` is off for this run."
             ),
         ),
         BundleTableViz(_sample_descriptives, title="Final sample descriptives",
@@ -402,12 +429,40 @@ def process_lc_v1(cfg):
     # Gated (default off): the inner join filters lc to firm-years present in the
     # materiality workbook, so it changes the sample and must stay off for base_none
     # parity. Runs last, once (gvkey, rfyear) are final.
+    materiality_coverage = None
     if C["add_materiality"]:
         from functions.data_functions.process_materiality import add_materiality_to_lc
+
+        _mat_rows_before = len(lc)
+        _mat_firms_before = count_firms(lc["gvkey"])
+        _mat_fy_before = lc[["gvkey", "rfyear"]].drop_duplicates().shape[0]
 
         print("Before Adding Materiality", lc.shape)
         lc = add_materiality_to_lc(lc, C["materiality_version"], C["golden_data"])
         print("After Adding Materiality", lc.shape)
+
+        _mat_rows_after = len(lc)
+        _mat_firms_after = count_firms(lc["gvkey"])
+        _mat_fy_after = lc[["gvkey", "rfyear"]].drop_duplicates().shape[0]
+
+        def _pct_dropped(before, after):
+            return round(100.0 * (before - after) / before, 2) if before else 0.0
+
+        materiality_coverage = pd.DataFrame([{
+            "materiality_version": C["materiality_version"],
+            "rows_before": _mat_rows_before,
+            "rows_after": _mat_rows_after,
+            "rows_dropped": _mat_rows_before - _mat_rows_after,
+            "pct_rows_dropped": _pct_dropped(_mat_rows_before, _mat_rows_after),
+            "unique_firms_before": _mat_firms_before,
+            "unique_firms_after": _mat_firms_after,
+            "firms_dropped": _mat_firms_before - _mat_firms_after,
+            "pct_firms_dropped": _pct_dropped(_mat_firms_before, _mat_firms_after),
+            "firm_year_obs_before": _mat_fy_before,
+            "firm_year_obs_after": _mat_fy_after,
+            "firm_years_dropped": _mat_fy_before - _mat_fy_after,
+            "pct_firm_years_dropped": _pct_dropped(_mat_fy_before, _mat_fy_after),
+        }])
     _stage(f"SASB materiality inner join (version {C['materiality_version']})",
            "01_process_lc.py:189 / add_materiality", active=C["add_materiality"])
 
@@ -465,6 +520,7 @@ def process_lc_v1(cfg):
         "raw_lc_firms_and_initiatives": raw_lc_firms_and_initiatives,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
+        "materiality_coverage": materiality_coverage,
         "funnel": funnel_frame(funnel_rows),
         "funnel_checks": funnel_checks,
     })
