@@ -47,7 +47,7 @@ def _default_location():
     )
 
 
-def load_materiality(materiality_location=None, *, version):
+def load_materiality(materiality_location=None, *, version, golden_data):
     """Read the SASB materiality file; return the join keys plus the 15 count columns.
 
     The keys are normalised to LC's formats so a later merge actually matches: gvkey
@@ -55,7 +55,7 @@ def load_materiality(materiality_location=None, *, version):
     rfyear) defensively (the file is already one row per firm-fiscal-year).
     """
 
-    filename = f"Matched_SASB_GOLDEN_long_matchings_v2c_FirmYear_17SDGs_matching_v{version}.csv"
+    filename = f"Matched_SASB_GOLDEN_long_matchings_{golden_data}_FirmYear_17SDGs_matching_v{version}.csv"
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
     sdg_columns = [c for c in MATERIALITY_SDG_COLUMNS if c in df.columns]
@@ -81,6 +81,15 @@ def merge_materiality_into_lc(lc, lc_materiality):
     return lc
 
 
-def add_materiality_to_lc(lc, version):
+def add_materiality_to_lc(lc, version, golden_data):
     """One-call convenience: load the materiality file and inner-merge it onto lc."""
-    return merge_materiality_into_lc(lc, load_materiality(version=version))
+    # Both are KEYWORD-ONLY on load_materiality (it takes materiality_location as its
+    # single positional), so passing them positionally binds version to the location
+    # and raises before the file is ever named.
+    return merge_materiality_into_lc(
+        lc, load_materiality(version=version, golden_data=golden_data)
+    )
+
+
+
+

@@ -23,6 +23,16 @@ from New_Pipeline.dashboard_viz import BundleDualAxisViz, BundleTableViz, config
 
 # ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
 
+def _raw_lc_descriptives(bundle):
+    """Descriptives of the Golden LC file exactly as loaded, before any filter."""
+    return bundle.get("raw_lc_descriptives")
+
+
+def _raw_lc_firms_and_initiatives(bundle):
+    """Per fiscal year, the raw file's companies / observations / initiatives."""
+    return bundle.get("raw_lc_firms_and_initiatives")
+
+
 def _sample_descriptives(bundle):
     """One row: unique gvkeys, unique gvkey-year observations, and total initiatives in
     the sample that survives this node (after all filters, and the materiality merge if
@@ -52,7 +62,14 @@ Mandatory measures (enforced by schema / audits):
 Surfaces: the run's full configuration as a parameter/value/description table
 (``BundleTableViz``); descriptives of the sample that survives this node — unique gvkeys, unique
 gvkey-year observations, total initiatives (``BundleTableViz``); and unique companies
-against total initiatives over time on separate y-axes (``BundleDualAxisViz``).""",
+against total initiatives over time on separate y-axes (``BundleDualAxisViz``).
+
+The same two audits are also computed on the RAW Golden file, exactly as loaded, and rendered
+FIRST (``raw_lc_descriptives`` / ``raw_lc_firms_and_initiatives``). The pair therefore reads as a
+before/after across this node, and the cost of its filtering is the difference between them. The
+raw table adds the context the filters are about to act on: duplicate firm-years, missing gvkey /
+rfyear, and the file's full fiscal-year span before ``start_year``/``end_year`` truncate it. Both
+are computed BEFORE the ``process_lc`` call, which mutates its argument in place.""",
     input_schema={"cfg": cfg_schema()},
     output_schema=open_schema(),
     audits=[
@@ -63,6 +80,51 @@ against total initiatives over time on separate y-axes (``BundleDualAxisViz``)."
                                    "the values derived from them (cells 8 and 11). Keys marked "
                                    "'provenance only' are hashed and name output files but are "
                                    "not read by any node."),
+        BundleTableViz(
+            _raw_lc_descriptives,
+            title="Raw LC dataset as loaded — descriptives",
+            key="table:raw_lc_descriptives",
+            description=(
+                "The Golden LC file exactly as read off disk, before a single filter runs. "
+                "The first three columns are the same measures the *Final sample "
+                "descriptives* table reports at the end of this node, so the pair reads as "
+                "a before/after and the whole cost of this node's filtering is the "
+                "difference between them.\n\n"
+                "- **unique_gvkeys** — distinct firms. gvkey is normalised by numeric "
+                "coercion *before* any counting here, and every measure in this table and "
+                "the chart below derives from that normalised key. A raw Golden column can "
+                "hold the same firm as a float (`1004.0`), an int or a string; counted "
+                "as-is that is one firm reported as several, with its firm-years split "
+                "across two dedupe keys. Normalising is also why this matches funnel "
+                "stage 1 exactly.\n"
+                "- **gvkey_year_obs** — rows after deduping on (gvkey, rfyear).\n"
+                "- **total_initiatives** — `n_predicted_initiatives` summed over those "
+                "deduped firm-years.\n"
+                "- **rows_raw** / **rows_duplicate_gvkey_year** — rows actually in the "
+                "file, and how many were duplicate firm-years. The raw file can carry "
+                "several `report_type` rows per firm-year.\n"
+                "- **rows_missing_gvkey** / **rows_missing_rfyear** — rows the first two "
+                "filters will drop outright. `rfyear` NaNs are excluded from the by-year "
+                "chart below, so this is where they are accounted for.\n"
+                "- **rfyear_min** / **rfyear_max** — the file's full fiscal-year span, "
+                "before `start_year` / `end_year` truncate it."
+            ),
+        ),
+        BundleDualAxisViz(
+            _raw_lc_firms_and_initiatives,
+            title="Raw LC — unique companies and total initiatives over time",
+            x_col="rfyear", left_col="unique_companies", right_col="total_initiatives",
+            left_label="Unique companies", right_label="Total initiatives",
+            x_label="Fiscal year",
+            key="dual_axis:raw_lc_firms_and_initiatives",
+            description=(
+                "The same two series as the post-filter chart below, on the untouched "
+                "file. Read them together: the difference at each fiscal year is what this "
+                "node's filters removed from that year. Years outside "
+                "`start_year`..`end_year` appear here and vanish below, which is usually "
+                "the largest single gap."
+            ),
+        ),
         BundleTableViz(_sample_descriptives, title="Final sample descriptives",
                        key="table:sample_descriptives"),
         BundleDualAxisViz(
@@ -134,6 +196,57 @@ def process_lc_v1(cfg):
         f"01_process_lc / {golden_files[C['golden_data']]}",
         count_firms(lc["gvkey"]),
     )]
+
+    # ---- audit: descriptives of the RAW file, exactly as loaded --------------------- #
+    # The same three measures the "Final sample descriptives" table reports at the END of
+    # this node, computed here on the untouched frame -- so the pair reads as before/after
+    # and every later filter's cost is visible as a difference. Must be computed BEFORE
+    # process_lc() below, which mutates its argument in place; afterwards the raw frame is
+    # unrecoverable.
+    #
+    # gvkey is NORMALISED ONCE here and every count below derives from it. A raw Golden
+    # column can hold the same firm as a float (1004.0), an int, or a string, and counting
+    # those as-is reports one firm as several -- and silently splits its firm-years across
+    # two dedupe keys. to_numeric is the format-independent normalisation (the same one
+    # count_firms uses), which is why unique_gvkeys equals funnel stage 1 exactly.
+    #
+    # NOTE _common.normalise_gvkeys is deliberately NOT used here: its
+    # .astype(str).str.zfill(6) leaves a float column as "1004.0", so on a raw CSV it is a
+    # no-op that would not fix the very problem this block has to solve.
+    _gv = pd.to_numeric(lc["gvkey"], errors="coerce")
+    _raw = lc.assign(_gvkey_norm=_gv)
+    _raw_dedup = _raw.drop_duplicates(subset=["_gvkey_norm", "rfyear"])
+    _raw_inits = (int(_raw_dedup["n_predicted_initiatives"].sum())
+                  if "n_predicted_initiatives" in lc.columns else -1)
+    raw_lc_descriptives = pd.DataFrame([{
+        "unique_gvkeys": int(_gv.nunique()),
+        "gvkey_year_obs": int(len(_raw_dedup)),
+        "total_initiatives": _raw_inits,
+        # Raw-only context: what the first filters are about to remove.
+        "rows_raw": int(len(lc)),
+        "rows_duplicate_gvkey_year": int(len(lc) - len(_raw_dedup)),
+        # Counts unparseable gvkeys too (a stray "n/a" coerces to NaN), not just blanks.
+        "rows_missing_gvkey": int(_gv.isna().sum()),
+        "rows_missing_rfyear": int(lc["rfyear"].isna().sum()),
+        "rfyear_min": (int(lc["rfyear"].min()) if lc["rfyear"].notna().any() else -1),
+        "rfyear_max": (int(lc["rfyear"].max()) if lc["rfyear"].notna().any() else -1),
+    }])
+    # Per fiscal year, same shape as the post-filter twin so the dual-axis widget renders
+    # identically. rfyear NaNs drop out of the groupby -- rows_missing_rfyear above is
+    # where they are accounted for.
+    raw_lc_firms_and_initiatives = (
+        _raw_dedup.dropna(subset=["rfyear"])
+        .assign(_y=lambda d: d["rfyear"].astype("Int64"))
+        .groupby("_y")
+        # nunique on the NORMALISED gvkey, not the raw column -- see above.
+        .agg(unique_companies=("_gvkey_norm", "nunique"),
+             firm_year_observations=("_gvkey_norm", "size"),
+             total_initiatives=("n_predicted_initiatives", "sum"))
+        .sort_index()
+        .reset_index()
+        .rename(columns={"_y": "rfyear"})
+    ) if "n_predicted_initiatives" in lc.columns else pd.DataFrame()
+    del _raw_dedup, _raw, _gv
 
     _key_cols = ["gvkey", "rfyear", "loc", "MacroRegion",
                  "GICS_level_1", "GICS_level_2", "GICS_level_3"]
@@ -293,7 +406,7 @@ def process_lc_v1(cfg):
         from functions.data_functions.process_materiality import add_materiality_to_lc
 
         print("Before Adding Materiality", lc.shape)
-        lc = add_materiality_to_lc(lc, C["materiality_version"])
+        lc = add_materiality_to_lc(lc, C["materiality_version"], C["golden_data"])
         print("After Adding Materiality", lc.shape)
     _stage(f"SASB materiality inner join (version {C['materiality_version']})",
            "01_process_lc.py:189 / add_materiality", active=C["add_materiality"])
@@ -348,6 +461,8 @@ def process_lc_v1(cfg):
         # -- no downstream node reads this key.
         "cfg_json": cfg["json"][0],
         "lc_raw_for_coverage": lc_raw_for_coverage,
+        "raw_lc_descriptives": raw_lc_descriptives,
+        "raw_lc_firms_and_initiatives": raw_lc_firms_and_initiatives,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
         "funnel": funnel_frame(funnel_rows),

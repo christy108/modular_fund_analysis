@@ -430,167 +430,7 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 def base_none():
     return make_experiment("base_none", build_cfg())
 
-
-def base_none_all_firms():
-    # base_none, but the universe retains securities that are INACTIVE as of the Compustat
-    # extract date (secstat != 'A') instead of dropping their entire price history. The
-    # survivorship arm to compare against base_none.
-    #
-    # Reads the same on-disk extract as base_none -- one download, filtered in memory --
-    # so the two arms cannot differ by data vintage, only by the filter. Removes the
-    # whole-firm erasure channel only: cshtrd/exchg still eject a surviving firm's worst
-    # months, and Compustat carries no delisting return, so terminal losses are still
-    # missing from both arms.
-    #
-    # Expect: more listings per currency-month pre-screen, weaker long-leg alpha, and a
-    # materially worse short leg. Per-region kept/dropped counts land in
-    # runs/<ts>_base_none_all_firms/debug_prints.log.
-    return make_experiment("base_none_all_firms",
-                           build_cfg(security_status="all_firms_even_delisted"))
-
-
-def base_pct_stocks():
-    # base_none, but the universe screen is the gentler count-based rule: drop a listing
-    # for the whole year iff its LAST cap in the previous year puts it in the smallest 1%
-    # of listings AND below $100mn. Expect single digits of listings dropped per month
-    # versus ~1,339 under the 95%-of-value rule -- and all of the first data year (2013)
-    # dropped, since no listing has a 2012 reference cap.
-    return make_experiment("base_pct_stocks", build_cfg(
-        market_cap_filter="percent_stocks",
-        percentage_stocks_removed_if_percent_stocks_true=0.2,
-        floor_if_percent_stocks_true=100e6,
-    ))
-
-
-#1
-def base_none_v_2A1():
-    return make_experiment("base_none_v_2A1", build_cfg(golden_data = "v_2A1", start_year = 2015))
-
-
-def base_none_v_2A1_2023():
-    return make_experiment("base_none_v_2A1_2023", build_cfg(golden_data = "v_2A1", start_year = 2015, end_year = 2023))
-
-
-def base_none_v_2A1_no_3_filters():
-    return make_experiment("base_none_v_2A1_no_3_filters", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = False, start_year = 2015))
-
-def base_none_v_2A1_no_3_filters_drop_fin():
-    return make_experiment("base_none_v_2A1_no_3_filters_drop_fin", build_cfg(golden_data = "v_2A1", execute_3_filters = False, drop_fin = True, start_year = 2015))
-
-
-
-
-#2
-def base_none_v_2A1_delisted_present():
-    return make_experiment("base_none_v_2A1_delisted_present", build_cfg(golden_data = "v_2A1", security_status="all_firms_even_delisted"))
-
-#3 
-def base_none_v_2A1_mcap_covered_99(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_mcap_covered_99", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 0.99, market_cap_filter="percent_total_mcap"))
-
-def base_none_v_2A1_mcap_covered_99_9(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_mcap_covered_99_9", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 0.999, market_cap_filter="percent_total_mcap"))
-
-def base_none_v_2A1_mcap_covered_100(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_mcap_covered_100", build_cfg(golden_data = "v_2A1", mktcap_covered_if_filter_by_cum_market_cap = 1, market_cap_filter="percent_total_mcap"))
-
-
-
-#4
-def base_none_v_2A1_percent_stocks_5_100M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_percent_stocks_5_100M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
-    percentage_stocks_removed_if_percent_stocks_true=0.05, floor_if_percent_stocks_true=100e6))
-
-def base_none_v_2A1_percent_stocks_20_100M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_percent_stocks_20_100M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
-    percentage_stocks_removed_if_percent_stocks_true=0.2, floor_if_percent_stocks_true=100e6))
-
-def base_none_v_2A1_percent_stocks_50_200M_floor(): #  market_cap_filter="percent_total_mcap",   # or "percent_stocks"
-    return make_experiment("base_none_v_2A1_percent_stocks_50_200M_floor", build_cfg(golden_data = "v_2A1", market_cap_filter="percent_stocks", 
-    percentage_stocks_removed_if_percent_stocks_true=0.5, floor_if_percent_stocks_true=200e6))
-
-
-
-
-
-def base_none_v_2A1_no_mcap_filter_no_3filter(): 
-    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter", build_cfg(golden_data = "v_2A1", 
-    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
-     market_cap_filter="percent_total_mcap"))
-
-
-
-
-
-def base_none_v_2A1_no_3filter_with_delisted_firms(): 
-    return make_experiment("base_none_v_2A1_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", execute_3_filters = False,
-     market_cap_filter="percent_total_mcap",  security_status="all_firms_even_delisted"))
-
-
-def base_none_v_2A1_no_mcap_filter_with_delisted_firms(): 
-    return make_experiment("base_none_v_2A1_no_mcap_filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
-    mktcap_covered_if_filter_by_cum_market_cap = 1,
-     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted" ))
-
-
-
-
-def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q10(): 
-    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
-    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
-     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted", no_simple_quantiles = 10 ))
-
-
-def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms_q5(): 
-    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
-    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
-     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted", no_simple_quantiles = 5 ))
-
-
-
-
-
-def base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms(): 
-    return make_experiment("base_none_v_2A1_no_mcap_filter_no_3filter_with_delisted_firms", build_cfg(golden_data = "v_2A1", 
-    mktcap_covered_if_filter_by_cum_market_cap = 1, execute_3_filters = False,
-     market_cap_filter="percent_total_mcap",   security_status="all_firms_even_delisted" ))
-
-
-
-
-
-
  
-
-
-def base_none_counts():
-    # base_none, but each signal is the raw total-initiative count for its group
-    # rather than that group's share of sum_activities.
-    return make_experiment("base_none_counts", build_cfg(signal_type="counts"))
- 
-
-
-def esg_refinitiv():
-    return make_experiment("esg_refinitiv", build_cfg(esg_choice="refinitiv"))
-
-
-def esg_msci():
-    return make_experiment("esg_msci", build_cfg(esg_choice="msci"))
-
-
-def esg_snp():
-    return make_experiment("esg_snp", build_cfg(esg_choice="s&p"))
-
-
-def esg_full_universe():
-    return make_experiment("esg_full_universe", build_cfg(esg_full_universe=True, esg_choice="msci"))
-
-
-def show_corr():
-    return make_experiment(
-        "show_corr", build_cfg(esg_choice="refinitiv", show_esg_corr_matricies=True, show_esg_coverage=True)
-    )
-
 
 def base_materiality():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
@@ -609,32 +449,11 @@ def base_materiality_v_2C():
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality_v_2C", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", golden_data = "v_2C"))
 
-
-
-
-def base_materiality_q3():
+def base_materiality_v_2A1():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality_q3", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", no_simple_quantiles = 3))
+    return make_experiment("base_materiality_v_2A1", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", golden_data = "v_2A1"))
 
-def base_materiality_q2():
-    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
-    # filters lc to firm-years present in the materiality workbook).
-    return make_experiment("base_materiality_q2", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", no_simple_quantiles = 2))
-
-
-
-
-
-
-
-
-def base_none_closed():
-    # base_none with closed quantile intervals. No complementary pair here, so no mirror to
-    # fix -- this arm just measures what the convention costs on its own: the Low legs are
-    # untouched (bucket 1 never executes the changed line) and each High leg gains its
-    # cutpoint tie block.
-    return make_experiment("base_none_closed", build_cfg(quantile_interval_bounds="closed"))
 
 
 def base_4_signals():
@@ -642,11 +461,9 @@ def base_4_signals():
     return make_experiment("4_signals_new", build_cfg(add_materiality=True, action_characterization = "4_signals_new"))
 
 
-
 def base_4_signals_V2A1():
     # base_materiality, but with the 4-signal "material" behavioural-signal characterization.
     return make_experiment("4_signals_new", build_cfg(add_materiality=True, golden_data = "v_2A1", action_characterization = "4_signals_new"))
-
 
 
 def base_materiality_4_Signals():
@@ -681,19 +498,8 @@ def base_materiality_combined_3_Matteo_Signals():
     # 3 material) in one combined quantile sort.
     return make_experiment("base_materiality_combined_3_Matteo_Signals", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals"))
 
-def base_materiality_combined_3_Matteo_Signals_counts():
-    return make_experiment("base_materiality_combined_3_Matteo_Signals_counts", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals", signal_type="counts"))
 
 
-
-def base_materiality_counts():
-    # base_materiality (2-signal Material_Immaterial_only), counts version.
-    return make_experiment(
-        "base_materiality_counts",
-        build_cfg(add_materiality=True,
-                  action_characterization="Material_Immaterial_only",
-                  signal_type="counts"),
-    )
 
 
 # ---- SDG-level materiality splits ---------------------------------------- #
@@ -777,14 +583,6 @@ def sdg_climate_vs_each_sdg():
 EXPERIMENTS = {
     "base_none": base_none,
     "base_none_all_firms": base_none_all_firms, #base_none_delisted_present
-    "base_pct_stocks": base_pct_stocks,
-
-    #V2A1
-    "base_none_v_2A1":base_none_v_2A1,
-    "base_none_v_2A1_2023":base_none_v_2A1_2023,
-    "base_none_v_2A1_no_3_filters":base_none_v_2A1_no_3_filters,
-    "base_none_v_2A1_no_3_filters_drop_fin":base_none_v_2A1_no_3_filters_drop_fin,
-
     "base_none_v_2A1_delisted_present":base_none_v_2A1_delisted_present,
 
 
@@ -828,11 +626,9 @@ EXPERIMENTS = {
 
 
     "base_materiality_v_2C":base_materiality_v_2C,
+    "base_materiality_v_2A1":base_materiality_v_2A1,
     "base_materiality_including_delisted": base_materiality_including_delisted,
  
-    "base_none_closed": base_none_closed,
-    "base_materiality_q3":base_materiality_q3,
-    "base_materiality_q2":base_materiality_q2,
      "4_signals_new": base_4_signals,
     "base_materiality_4_Signals": base_materiality_4_Signals,
     "base_immateriality_4_Signals": base_immateriality_4_Signals,

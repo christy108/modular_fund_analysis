@@ -82,7 +82,8 @@ def normalise_gvkeys(gvkeys: "pd.Series") -> "pd.Series":
     Assumes the input is already an integer-valued gvkey (int or int-string); a
     float-valued column would keep its ``.0`` — matching the pre-refactor behaviour.
     """
-    return gvkeys.astype(str).str.zfill(6)
+    return gvkeys.astype(str).str.strip().str.zfill(6)   #didnt have .str.strip()
+
 
 
 # ---- Sample filter funnel: shared measurement helpers -------------------------- #

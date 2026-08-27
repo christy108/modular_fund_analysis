@@ -187,6 +187,7 @@ class BundleDualAxisViz(DualAxisViz):
         right_label: str | None = None,
         x_label: str | None = None,
         key: str | None = None,
+        description: str = "",
     ):
         super().__init__(
             title=title,
@@ -196,6 +197,9 @@ class BundleDualAxisViz(DualAxisViz):
             key=key,
         )
         self._extract = extract
+        # DualAxisViz does not take `description`; set it directly on the VizSpec so
+        # Dashboard.build() picks it up -- same pattern as the table wrappers above.
+        self.description = description
         self._x_col = x_col
         self._left_col = left_col
         self._right_col = right_col
