@@ -55,6 +55,13 @@ export MATERIALITY_LOCATION=/path/to/Materiality
 .venv/bin/python -m New_Pipeline.dashboard base_none --port 8090  # run alongside another instance
 .venv/bin/python -m New_Pipeline.dashboard base_none --markdown   # text only, no server
 
+# parameter sweep -> one-page-per-experiment PDF + one-row-per-experiment CSV
+# (what to run lives in New_Pipeline/sweep_parameters.py; see "The sweep runner" below)
+.venv/bin/python -m New_Pipeline.sweep                    # run everything in sweep_parameters.py
+.venv/bin/python -m New_Pipeline.sweep --dry-run          # list what would run, run nothing
+.venv/bin/python -m New_Pipeline.sweep --only base_none   # named EXPERIMENTS entries instead
+.venv/bin/python -m New_Pipeline.sweep --rebuild          # rebuild PDF/CSV from the ledger only
+
 # tests (NOTE: currently broken — see "pipeline/ is dead" above)
 .venv/bin/python -m pytest tests/ -v
 ```
@@ -186,6 +193,22 @@ bundle `sample_descriptives`/`firms_and_initiatives` frames purely for dashboard
 never read by downstream numeric nodes. Adding more of these does not risk parity, but multiple
 unkeyed `BundleTableViz` instances on one Contract *will* collide (the default key always
 collapses to the same literal string) — always pass an explicit `key=`.
+
+**The sweep runner** (`New_Pipeline/sweep.py` + `sweep_report.py` + `sweep_parameters.py`) is a
+pure *consumer* of the pipeline — it adds no node, edits nothing existing, and cannot affect
+parity. Three things to know before touching it:
+- **`sweep_output/results.jsonl` is the database.** It is append-only, fsync'd after every
+  experiment; `results.pdf` and `results.csv` are *derived views* rebuilt from it in full (atomic
+  `os.replace`). The CSV is rebuilt rather than appended precisely because the column set grows —
+  a later `action_characterization` introduces `alpha__<portfolio>` columns earlier rows lack.
+  `--resume` (default) skips names already in the ledger, so a killed sweep resumes cleanly.
+- **Every page panel is an existing dashboard widget payload**, read back out of the run's
+  manifest via `manifest.record_for(node).audit_stats[key]` — the seven `(slug, node, key, title)`
+  entries in `sweep_report.SECTIONS`. Nothing is recomputed. If a Contract's `key=` changes, the
+  matching panel silently goes blank ("no data"); grep `SECTIONS` when renaming a VizSpec key.
+- **The sweep passes `--out sweep_output/artifacts/<name>` deliberately.** Without it `run.run`
+  would overwrite `parity/artifacts/new/<name>/`, and a 100-config sweep would bury the parity
+  area that `parity.compare` reads.
 
 ## Gotchas specific to this repo
 

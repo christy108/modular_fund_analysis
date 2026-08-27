@@ -40,7 +40,7 @@ def build_cfg(**overrides) -> dict:
         region_analysis="United_States",
         fama_factors_currency="JPY",
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
-        action_characterization="original_matteo",
+        action_characterization="Material_Immaterial_only",
         start_year=2016,
         end_year=2024,
         # Which Compustat securities enter the universe. "active_only" keeps
@@ -51,7 +51,7 @@ def build_cfg(**overrides) -> dict:
         # survivorship channel ONLY -- the cshtrd/exchg screens and the absent delisting
         # returns still bias the surviving names' tails. See
         # functions/data_functions/get_data.py::_apply_security_status.
-        security_status="active_only", #all_firms_even_delisted
+        security_status="all_firms_even_delisted", #all_firms_even_delisted
         no_simple_quantiles=7,
         # How a firm sitting exactly ON a quantile cutpoint is bucketed.
         #   "half_open" (frozen behaviour): buckets are (q_{i-1}, q_i] -- a tie block on a
@@ -99,7 +99,7 @@ def build_cfg(**overrides) -> dict:
         percentage_stocks_removed_if_percent_stocks_true=0.01,   # fraction, not percent
         floor_if_percent_stocks_true=100e6,      # absolute, in the mktcap currency
         add_accounting_data=False,
-        add_materiality=False,
+        add_materiality=True,
         materiality_version=2,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
@@ -278,13 +278,13 @@ def build_cfg(**overrides) -> dict:
         categories_dict, s0, s1 = Materiality_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1}
 
-    elif ac == "immaterial_4_Behavioural_Signals":
-        categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
-        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+    # elif ac == "immaterial_4_Behavioural_Signals":
+    #     categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
+    #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
 
-    elif ac == "material_4_Behavioural_Signals":
-        categories_dict, s0, s1, s2, s3 = material_4_Behavioural_Signals()
-        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+    # elif ac == "material_4_Behavioural_Signals":
+    #     categories_dict, s0, s1, s2, s3 = material_4_Behavioural_Signals()
+    #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
 
     # Combined material + immaterial in one sort: 8 signals (4 immaterial then 4
     # material behavioural signals), same categories_dict union as the two halves above.
@@ -293,14 +293,14 @@ def build_cfg(**overrides) -> dict:
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3,
                       "signal_4": s4, "signal_5": s5, "signal_6": s6, "signal_7": s7}
 
-    elif ac == "immaterial_3_Matteo_Signals":
-        categories_dict, s0, s1, s2 = immaterial_3_Matteo_Signals()
-        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
+    # elif ac == "immaterial_3_Matteo_Signals":
+    #     categories_dict, s0, s1, s2 = immaterial_3_Matteo_Signals()
+    #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
 
 
-    elif ac == "material_3_Matteo_Signals":
-        categories_dict, s0, s1, s2 = material_3_Matteo_Signals()
-        lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
+    # elif ac == "material_3_Matteo_Signals":
+    #     categories_dict, s0, s1, s2 = material_3_Matteo_Signals()
+    #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2}
 
     # Combined material + immaterial in one sort: 6 signals (3 immaterial then 3
     # material Matteo signals), same categories_dict union as the two halves above.
