@@ -326,13 +326,24 @@ def process_lc_v1(cfg):
     if C["show_esg_coverage"]:
         lc_raw_for_coverage = lc.copy()
 
-    if C["execute_3_filters"]:
-        lc = add_available_fyears(lc)
-        print(f"Before filtering companies with less than {C['min_available_fyears']} years of data: ", lc.shape)
-        lc = lc[lc["n_available_fyears"] >= C["min_available_fyears"]]
-        print(f"After filtering companies with less than {C['min_available_fyears']} years of data: ", lc.shape)
+    # cfg.execute_3_filters is a three-value mode, normalised in build_cfg:
+    #   "all"             -> filters 1, 2, 3
+    #   "suspicious_only" -> filter 2 only
+    #   "none"            -> nothing
+    # Compared explicitly, never by truthiness -- "none" is a truthy string.
+    # drop_suspicious_gvkeys still gates filter 2 inside the first two modes, so
+    # "suspicious_only" + drop_suspicious_gvkeys=False is a legal (and empty) config.
+    _mode = C["execute_3_filters"]
+    _all3 = _mode == "all"
+
+    if _mode != "none":
+        if _all3:
+            lc = add_available_fyears(lc)
+            print(f"Before filtering companies with less than {C['min_available_fyears']} years of data: ", lc.shape)
+            lc = lc[lc["n_available_fyears"] >= C["min_available_fyears"]]
+            print(f"After filtering companies with less than {C['min_available_fyears']} years of data: ", lc.shape)
         _stage(f">= min_available_fyears ({C['min_available_fyears']}) fiscal years",
-               "01_process_lc.py:120 / execute_3_filters")
+               "01_process_lc.py:120 / execute_3_filters", active=_all3)
 
         if C["drop_suspicious_gvkeys"]:
             print("Shape before: ", lc.shape)
@@ -356,20 +367,25 @@ def process_lc_v1(cfg):
         _stage("Drop suspicious gvkeys", "01_process_lc.py:140 / drop_suspicious_gvkeys",
                active=C["drop_suspicious_gvkeys"])
 
-        print("Before filtering Annual Reports: ", lc.shape)
-        
-        print(golden_files[C["golden_data"]] )
-        
-        if C["golden_data"] == "v_2A" or C["golden_data"] == "v_2A1":
-                    lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type_gpt2"] == "Annual Report"))]
+        if _all3:
+            print("Before filtering Annual Reports: ", lc.shape)
 
-        else:
-            lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type"] == "Annual Report"))]
+            print(golden_files[C["golden_data"]] )
 
-        print("After filtering Annual Reports: ", lc.shape)
+            if C["golden_data"] == "v_2A" or C["golden_data"] == "v_2A1":
+                lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type_gpt2"] == "Annual Report"))]
+
+            else:
+                lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports"]) & (lc["report_type"] == "Annual Report"))]
+
+            print("After filtering Annual Reports: ", lc.shape)
         _stage(f"Drop Annual Reports with < min_initatives_annual_reports "
                f"({C['min_initatives_annual_reports']}) initiatives",
-               "01_process_lc.py:148 / execute_3_filters")
+               "01_process_lc.py:148 / execute_3_filters", active=_all3)
+        # makedirs here, not only inside the drop_suspicious_gvkeys branch above: this
+        # dump runs whenever the block runs, so with that filter off (now reachable via
+        # "suspicious_only") the directory would not exist and to_csv would raise.
+        os.makedirs("./data/debug", exist_ok=True)
         lc.to_csv("./data/debug/lc_after_all_filter.csv")
     else:
         # The three stages of the block still get rows, all null: the funnel should show

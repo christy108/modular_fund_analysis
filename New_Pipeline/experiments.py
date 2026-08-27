@@ -103,7 +103,17 @@ def build_cfg(**overrides) -> dict:
         materiality_version=2,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
-        execute_3_filters=True,
+        # Which of the three LC sample filters run, in process_lc:
+        #   "all"             -- (1) >= min_available_fyears fiscal years, (2) drop
+        #                        suspicious gvkeys, (3) drop Annual Reports with
+        #                        < min_initatives_annual_reports initiatives
+        #   "suspicious_only" -- (2) only; filters 1 and 3 are skipped
+        #   "none"            -- none of the three
+        # True/False are accepted as aliases for "all"/"none" and normalised below, so
+        # every consumer downstream only ever sees one of the three strings.
+        # NOTE this defaults to "suspicious_only", NOT "all": base_none therefore no
+        # longer reproduces the frozen notebook's sample. Set "all" to get that back.
+        execute_3_filters="suspicious_only",
         min_available_fyears=3,
         min_initatives_annual_reports=5,
         drop_suspicious_gvkeys=True,
@@ -172,6 +182,22 @@ def build_cfg(**overrides) -> dict:
         raise ValueError(
             f"security_status must be 'active_only' or 'all_firms_even_delisted', "
             f"got {c['security_status']!r}"
+        )
+
+    # Normalise the bool aliases BEFORE validating, so the cfg that gets serialised (and
+    # hashed into the manifest) is always one of the three strings -- passing True and
+    # passing "all" must not produce two different content hashes for the same run.
+    # `is True` / `is False`, not truthiness: "none" is a truthy string, which is exactly
+    # the trap this knob's shape invites.
+    if c["execute_3_filters"] is True:
+        c["execute_3_filters"] = "all"
+    elif c["execute_3_filters"] is False:
+        c["execute_3_filters"] = "none"
+    if c["execute_3_filters"] not in ("all", "suspicious_only", "none"):
+        raise ValueError(
+            f"execute_3_filters must be 'all', 'suspicious_only' or 'none' "
+            f"(True/False accepted as aliases for 'all'/'none'), "
+            f"got {c['execute_3_filters']!r}"
         )
 
     # ---- cell 2: esg_choice end_year override (order matters; applied after

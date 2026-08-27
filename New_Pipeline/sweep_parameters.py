@@ -28,7 +28,7 @@ GRID: dict[str, list] = {
 # {
 #     "no_simple_quantiles": [3, 5, 7],
 #      "alpha_bound": [0, 0.05, 0.1],
-#     "action_characterization": ["Material_Immaterial_only", ,
+#     "action_characterization": ["Material_Immaterial_only", 
 #                                  "Materiality_3_groups_people_planet_prosperity_SDG", "Materiality_5_groups_SDG_brackets",
 #                                   "Materiality_Climate_Natural_Capital_vs_All_SDGS",
 #                                  "Combined_Material_Immaterial_3_Matteo_Signals",
