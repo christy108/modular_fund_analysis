@@ -156,14 +156,72 @@ def ledger_names(path: str | Path) -> set[str]:
 
 
 # --------------------------------------------------------------------------- #
+# Presentation order
+# --------------------------------------------------------------------------- #
+def _sort_key(record: dict, sort_by: list, value_order: dict):
+    """Sort key for one ledger record: cfg values in `sort_by` order.
+
+    For each key, a value listed in `value_order[key]` sorts by its position there --
+    which is how "group the PDF by action_characterization, in THIS order" is expressed.
+    Values not listed sort after those, by their natural order. The (rank, value) pair
+    keeps mixed types from ever being compared directly: an unlisted string and an
+    unlisted int both land in rank 1, so they are coerced to str before comparing.
+    """
+    key = []
+    for k in sort_by:
+        v = (record.get("cfg") or {}).get(k)
+        order = value_order.get(k) or []
+        if v in order:
+            key.append((0, order.index(v), ""))
+        else:
+            # Numbers keep numeric ordering among themselves; anything else compares as
+            # text. Both are wrapped so the tuple shapes stay comparable.
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                key.append((1, float(v), ""))
+            else:
+                key.append((2, 0.0, str(v)))
+    # Final tiebreak keeps the order deterministic (and stable under --jobs N, where
+    # records land in completion order rather than submission order).
+    key.append((0, 0.0, str(record.get("experiment", ""))))
+    return key
+
+
+def sorted_records(records: list, sort_by=None, value_order=None) -> list:
+    """Ledger records in presentation order. Falls back to ledger order if unconfigured.
+
+    build_pdf and build_csv BOTH call this, which is what keeps `row N <-> page N` true:
+    the two derived views must enumerate the same records in the same sequence.
+    """
+    if sort_by is None or value_order is None:
+        try:
+            from New_Pipeline import sweep_parameters as SP
+            sort_by = SP.SORT_BY if sort_by is None else sort_by
+            value_order = getattr(SP, "VALUE_ORDER", None) if value_order is None else value_order
+        except Exception:
+            sort_by, value_order = [], {}
+    if not sort_by:
+        return list(records)
+    if value_order is None:
+        value_order = {}
+    return sorted(records, key=lambda r: _sort_key(r, sort_by, value_order))
+
+
+# --------------------------------------------------------------------------- #
 # Page rendering
 # --------------------------------------------------------------------------- #
 # One page is 24x17in (~A2 landscape). Everything on it is vector, so the deliberately
 # small fonts stay sharp at any zoom -- the page is meant to be zoomed into, not read at
 # fit-to-window.
 _PAGE_W, _PAGE_H = 24, 17
-_MAX_TABLE_ROWS = 34          # beyond this a table is truncated with a "... N more" note
-_TABLE_FONT = 6.0
+# Nothing is dropped for want of space: a table that does not fit shrinks its rows and
+# its font until it does. 400 is a runaway guard, not a display choice -- the widest
+# design in the repo (Materiality_Climate_Natural_Capital_vs_All_SDGS, 30 signals) needs
+# 91 risk rows and 60 coverage rows, so a cap anywhere near those would silently hide
+# most of a page. Truncation only ever kicks in for something pathological.
+_MAX_TABLE_ROWS = 400
+_TABLE_FONT = 6.0             # upper bound; small tables never exceed it
+_TABLE_FONT_MIN = 1.1         # lower bound; vector output, so this stays sharp zoomed in
+_TABLE_ROW_H_MAX = 0.050      # a 4-row table stays compact instead of filling a tall slot
 
 
 def _num(v):
@@ -231,14 +289,22 @@ def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
     # stretching to fill a tall slot, and shrinks below the cap once the rows stop fitting.
     n = len(shown) + 1                       # + header
     foot = 0.035 if truncated else 0.0
-    row_h = min(0.050, (1.0 - foot) / n)
+    row_h = min(_TABLE_ROW_H_MAX, (1.0 - foot) / n)
     h = n * row_h
     tbl = ax.table(cellText=cells, colLabels=cols, cellLoc="left",
                    bbox=[0.0, 1.0 - h, 1.0, h])
     tbl.auto_set_font_size(False)
-    tbl.set_fontsize(max(3.4, min(_TABLE_FONT, row_h * 145)))
+    # Font follows row height, so a 91-row risk table (the 30-signal design) simply
+    # renders smaller rather than losing rows. The floor is deliberately tiny: the page
+    # is vector and meant to be zoomed, so unreadable-at-fit-to-window beats truncated.
+    font = max(_TABLE_FONT_MIN, min(_TABLE_FONT, row_h * 145))
+    tbl.set_fontsize(font)
+    # Cell borders and padding have to come down with the font or they dominate the text
+    # and the rows visually merge into a grey block.
+    lw = 0.30 if font >= 4.0 else 0.12
     for (r, _c), cell in tbl.get_celld().items():
-        cell.set_linewidth(0.3)
+        cell.set_linewidth(lw)
+        cell.PAD = 0.04 if font >= 4.0 else 0.015
         cell.set_edgecolor("#cccccc")
         if r == 0:
             cell.set_facecolor("#e8eaf0")
@@ -262,9 +328,16 @@ def _lines_panel(ax, payload, title) -> None:
         _panel_note(ax, "no series (window may not have been fitted for this config)", title)
         return
 
-    for s in series:
+    # 30-signal designs put up to 90 lines here, far past the ~10 colours in the default
+    # cycle, so the same colour recurs every 10 lines. Cycling linestyle underneath the
+    # colour makes a line identifiable against its legend entry again.
+    n = len(series)
+    styles = ("-", "--", ":", "-.")
+    lw = 1.1 if n <= 12 else (0.8 if n <= 40 else 0.6)
+    for i, s in enumerate(series):
         x = pd.to_datetime(pd.Series(s["x"]), errors="coerce")
-        ax.plot(x, s["y"], linewidth=1.1, label=str(s.get("name", "")))
+        ax.plot(x, s["y"], linewidth=lw, linestyle=styles[(i // 10) % len(styles)],
+                label=str(s.get("name", "")))
 
     ax.set_title(title, fontsize=10, fontweight="bold", loc="left")
     ax.grid(True, linewidth=0.3, alpha=0.5)
@@ -275,8 +348,19 @@ def _lines_panel(ax, payload, title) -> None:
     loc = mdates.AutoDateLocator(minticks=4, maxticks=10)
     ax.xaxis.set_major_locator(loc)
     ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
-    ncol = 2 if len(series) > 6 else 1
-    ax.legend(fontsize=6, ncol=ncol, loc="best", framealpha=0.85)
+    # A 90-entry legend at a readable size would cover the plot it labels, so it shrinks
+    # and spreads into columns instead of being dropped -- same principle as the tables.
+    if n <= 6:
+        ncol, lfont = 1, 6.0
+    elif n <= 12:
+        ncol, lfont = 2, 5.0
+    elif n <= 30:
+        ncol, lfont = 3, 3.6
+    else:
+        ncol, lfont = 4, 2.6
+    ax.legend(fontsize=lfont, ncol=ncol, loc="best", framealpha=0.85,
+              handlelength=1.4, labelspacing=0.25, columnspacing=0.8,
+              borderpad=0.3, handletextpad=0.4)
 
 
 def _signal_map_text(record: dict) -> str:
@@ -362,12 +446,16 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
             ax_map = fig.add_subplot(sub[0])
             ax_map.axis("off")
             ax_map.set_title(panel_title, fontsize=10, fontweight="bold", loc="left")
-            mapping = _signal_map_text(record)
-            ax_map.text(0.0, 1.0, mapping or "(no categories_dict in cfg)",
-                        transform=ax_map.transAxes, fontsize=6.2, va="top",
-                        family="monospace", color="#222222", linespacing=1.5)
+            mapping = _signal_map_text(record) or "(no categories_dict in cfg)"
+            # Same rule as the tables: shrink rather than spill. A 30-signal design needs
+            # ~45 wrapped lines here, which at a fixed 6.2pt runs straight over the
+            # statistics table below. ~11 lines fit comfortably at 6.2pt in this sub-slot.
+            _lines_n = mapping.count("\n") + 1
+            ax_map.text(0.0, 1.0, mapping, transform=ax_map.transAxes, va="top",
+                        fontsize=max(1.1, min(6.2, 6.2 * 11 / max(_lines_n, 1))),
+                        family="monospace", color="#222222", linespacing=1.4)
             _table_panel(fig.add_subplot(sub[1]), payload,
-                         "     column statistics", max_rows=34)
+                         "     column statistics")
             continue
 
         if slug == "parameters":
@@ -380,7 +468,7 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
             for i, chunk in enumerate((rows[:half], rows[half:])):
                 _table_panel(fig.add_subplot(sub[i]), {"rows": chunk},
                              panel_title if i == 0 else "",
-                             max_rows=40, drop_cols=("description",), cell_chars=44)
+                             drop_cols=("description",), cell_chars=44)
             continue
 
         ax = fig.add_subplot(slots[slug])
@@ -399,7 +487,7 @@ def build_pdf(ledger_path: str | Path, pdf_path: str | Path) -> int:
     matplotlib.use("Agg")           # no display needed, and safe under nohup/cron
     from matplotlib.backends.backend_pdf import PdfPages
 
-    records = read_ledger(ledger_path)
+    records = sorted_records(read_ledger(ledger_path))
     pdf_path = Path(pdf_path)
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = pdf_path.with_suffix(".pdf.tmp")
@@ -486,7 +574,8 @@ def build_csv(ledger_path: str | Path, csv_path: str | Path) -> int:
     cfg knobs, then the full cfg as one JSON cell) -- results on the left, config on the
     right, matching the PDF page's own layout.
     """
-    records = read_ledger(ledger_path)
+    # Same ordering function build_pdf uses -- row N must describe page N.
+    records = sorted_records(read_ledger(ledger_path))
     rows = [_row_for(r, page_num=i) for i, r in enumerate(records, start=1)]
 
     risk_cols, param_cols = [], []

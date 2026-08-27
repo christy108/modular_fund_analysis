@@ -104,9 +104,9 @@ def build_cfg(**overrides) -> dict:
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
         # Which of the three LC sample filters run, in process_lc:
-        #   "all"             -- (1) >= min_available_fyears fiscal years, (2) drop
+        #   "all"             -- (1) >= min_available_rfyears_if_execute_3_filters_true fiscal years, (2) drop
         #                        suspicious gvkeys, (3) drop Annual Reports with
-        #                        < min_initatives_annual_reports initiatives
+        #                        < min_initatives_annual_reports_if_execute_3_filters_true initiatives
         #   "suspicious_only" -- (2) only; filters 1 and 3 are skipped
         #   "none"            -- none of the three
         # True/False are accepted as aliases for "all"/"none" and normalised below, so
@@ -114,8 +114,13 @@ def build_cfg(**overrides) -> dict:
         # NOTE this defaults to "suspicious_only", NOT "all": base_none therefore no
         # longer reproduces the frozen notebook's sample. Set "all" to get that back.
         execute_3_filters="suspicious_only",
-        min_available_fyears=3,
-        min_initatives_annual_reports=5,
+        min_available_rfyears_if_execute_3_filters_true=3,
+        min_initatives_annual_reports_if_execute_3_filters_true=5,
+        # Dump lc to ./data/debug/*.csv inside process_lc. Default OFF: the two dumps are
+        # ~128MB of CSV serialisation per run that nothing reads back, and because the
+        # paths are FIXED they are also the one place concurrent runs would collide --
+        # `New_Pipeline.sweep --jobs N` needs this off. Turn on to inspect one run by hand.
+        write_debug_csv=False,
         drop_suspicious_gvkeys=True,
         drop_real_estate=True,
         drop_fin=False,

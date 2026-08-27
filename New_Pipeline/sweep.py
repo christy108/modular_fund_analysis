@@ -1,6 +1,8 @@
 """Run many parameter combinations and accumulate the results on disk.
 
     python -m New_Pipeline.sweep                      # run everything in sweep_parameters.py
+    python -m New_Pipeline.sweep --jobs 4             # 4 experiments at a time
+    python -m New_Pipeline.sweep --jobs 1             # force serial
     python -m New_Pipeline.sweep --pdf-every 2        # rebuild PDF/CSV more often
     python -m New_Pipeline.sweep --only base_none     # a single named EXPERIMENTS entry
     python -m New_Pipeline.sweep --dry-run            # list what would run, run nothing
@@ -198,6 +200,59 @@ def _rebuild(paths: dict) -> None:
     print(f"[sweep] rebuilt {paths['pdf']} ({pages} pages) and {paths['csv']} ({rows} rows)")
 
 
+def _run_serial(todo, paths, pdf_every) -> int:
+    completed = 0
+    for i, (name, title, cfg) in enumerate(todo, 1):
+        print(f"\n[sweep] ({i}/{len(todo)}) {name}\n[sweep]     {title}")
+        record = run_one(name, title, cfg, paths)
+        append_ledger(paths["ledger"], record)      # committed before anything else
+        completed += 1
+        if completed % pdf_every == 0:
+            _rebuild(paths)
+    return completed
+
+
+def _run_parallel(todo, paths, pdf_every, jobs) -> int:
+    """Run `jobs` experiments at a time, each in its own process.
+
+    Processes, not threads: a pipeline run is CPU-bound pandas/numpy work that holds the
+    GIL, so threads would serialise it. Each worker is a fresh interpreter that loads its
+    own copy of the Golden panel and the Compustat universe -- which is why `jobs` is
+    bounded by RAM as much as by cores.
+
+    THE LEDGER STAYS SINGLE-WRITER: workers only compute and return their record; this
+    parent process is the only thing that ever appends, so the fsync-per-record guarantee
+    is exactly the same as in serial mode. Records land in COMPLETION order, which is why
+    the PDF/CSV sort themselves (sweep_report.sorted_records) rather than trusting it.
+    """
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    # Populate the content-addressed process store ONCE, here, before any worker starts.
+    # Every run() calls register_processes() itself; doing it up front means the workers
+    # find the store already warm instead of N processes writing it simultaneously.
+    from New_Pipeline.registry import register_processes
+    register_processes()
+
+    completed = 0
+    with ProcessPoolExecutor(max_workers=jobs) as ex:
+        futures = {ex.submit(run_one, n, t, c, paths): n for n, t, c in todo}
+        print(f"[sweep] submitted {len(futures)} experiment(s) to {jobs} worker process(es)")
+        try:
+            for fut in as_completed(futures):
+                record = fut.result()      # run_one catches its own errors; never raises
+                append_ledger(paths["ledger"], record)
+                completed += 1
+                print(f"[sweep] ({completed}/{len(todo)}) done: {record['experiment']} "
+                      f"[{record.get('status')}]")
+                if completed % pdf_every == 0:
+                    _rebuild(paths)
+        except KeyboardInterrupt:
+            # Stop handing out new work; in-flight children die with the process group.
+            ex.shutdown(wait=False, cancel_futures=True)
+            raise
+    return completed
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -214,6 +269,7 @@ def main(argv: list[str]) -> None:
 
     output_dir = flag_value("--out", SP.OUTPUT_DIR)
     pdf_every = max(1, int(flag_value("--pdf-every", SP.PDF_EVERY)))
+    jobs = max(1, int(flag_value("--jobs", getattr(SP, "JOBS", 1))))
     no_resume = "--no-resume" in argv
     dry_run = "--dry-run" in argv
     paths = _paths(output_dir)
@@ -237,7 +293,8 @@ def main(argv: list[str]) -> None:
 
     print(f"[sweep] {len(planned)} experiment(s) planned; "
           f"{len(planned) - len(todo)} already in ledger; {len(todo)} to run")
-    print(f"[sweep] output -> {paths['base']}/  (rebuild PDF/CSV every {pdf_every})")
+    print(f"[sweep] output -> {paths['base']}/  (rebuild PDF/CSV every {pdf_every}, "
+          f"{jobs} job(s))")
     if dry_run:
         for name, title, _cfg in planned:
             mark = "skip" if name in done else "RUN "
@@ -249,15 +306,20 @@ def main(argv: list[str]) -> None:
         _rebuild(paths)
         return
 
-    completed = 0
+    # cfg.write_debug_csv sends ~128MB of CSV to FIXED paths under ./data/debug/, so
+    # concurrent workers would overwrite each other's dumps. Serial runs are unaffected.
+    if jobs > 1 and any(c.get("write_debug_csv") for _n, _t, c in todo):
+        raise SystemExit(
+            "write_debug_csv=True is incompatible with --jobs > 1: the dumps go to fixed "
+            "paths under ./data/debug/ and parallel workers would clobber each other. "
+            "Either set write_debug_csv=False (the default) or run with --jobs 1."
+        )
+
     try:
-        for i, (name, title, cfg) in enumerate(todo, 1):
-            print(f"\n[sweep] ({i}/{len(todo)}) {name}\n[sweep]     {title}")
-            record = run_one(name, title, cfg, paths)
-            append_ledger(paths["ledger"], record)      # committed before anything else
-            completed += 1
-            if completed % pdf_every == 0:
-                _rebuild(paths)
+        if jobs > 1:
+            _run_parallel(todo, paths, pdf_every, jobs)
+        else:
+            _run_serial(todo, paths, pdf_every)
     except KeyboardInterrupt:
         print("\n[sweep] interrupted -- every completed experiment is already in the ledger")
     finally:

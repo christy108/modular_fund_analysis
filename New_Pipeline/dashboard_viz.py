@@ -413,8 +413,8 @@ _PARAM_DOCS: dict[str, str] = {
     "japan_year_adjustment_split_month_for_two_or_one": "Japan fiscal-year alignment: the month that splits fiscal year Y-2 from Y-1.",
     # ---- cell 2: sample filters --------------------------------------------
     "execute_3_filters": "Which sample filters run: 'all' (min fyears + suspicious gvkeys + min initiatives), 'suspicious_only' (filter 2 alone), or 'none'.",
-    "min_available_fyears": "Filter 1: minimum distinct fiscal years a firm must have to stay in the sample.",
-    "min_initatives_annual_reports": "Filter 3: minimum initiatives an Annual Report row must carry. (Key spelling is as in the config.)",
+    "min_available_rfyears_if_execute_3_filters_true": "Filter 1: minimum distinct fiscal years a firm must have to stay in the sample.",
+    "min_initatives_annual_reports_if_execute_3_filters_true": "Filter 3: minimum initiatives an Annual Report row must carry. (Key spelling is as in the config.)",
     "drop_suspicious_gvkeys": "Filter 2: drop the hand-listed suspicious gvkeys.",
     "drop_real_estate": "Exclude real estate from the LC sample.",
     "drop_fin": "Exclude financials from the LC sample.",
