@@ -52,6 +52,12 @@ SECTIONS = [
 # Panels drawn as line charts rather than tables.
 _LINE_SLUGS = {"cumulative", "spreads", "rolling40"}
 
+# Risk-table rows whose FF3 alpha has p < this are shaded green on the page. 0.10 is the
+# 10% significance level -- deliberately the loosest conventional threshold, because the
+# point here is to make candidates jump out of a 222-page sweep, not to assert a result.
+_ALPHA_SIGNIF_P = 0.10
+_GREEN, _GREEN_ALT = "#cdeccd", "#c2e6c2"      # two shades so zebra striping survives
+
 
 # --------------------------------------------------------------------------- #
 # Config diffing
@@ -101,7 +107,14 @@ def page_title(diff: dict) -> str:
 
 
 def experiment_name(diff: dict) -> str:
-    """Filesystem/registry-safe experiment name derived from the same diff."""
+    """Filesystem/registry-safe experiment name derived from the same diff.
+
+    MUST be deterministic across processes: the name is the key `--resume` matches
+    against the ledger, and it names `runs/<ts>_<name>/`. Python's builtin hash() is
+    salted per interpreter (PYTHONHASHSEED), so using it here made long names differ on
+    every invocation -- a resumed sweep would re-run those configs forever under fresh
+    names. blake2b is stable across processes and machines.
+    """
     if not diff:
         return "base_parameters"
     parts = []
@@ -110,7 +123,12 @@ def experiment_name(diff: dict) -> str:
         parts.append(f"{k}-{val}")
     name = "sweep__" + "__".join(parts)
     # Long action_characterization names can blow past filesystem limits once combined.
-    return name if len(name) <= 150 else name[:140] + f"__h{abs(hash(name)) % 10**6}"
+    if len(name) <= 150:
+        return name
+    import hashlib
+
+    digest = hashlib.blake2b(name.encode("utf-8"), digest_size=4).hexdigest()
+    return name[:140] + f"__h{digest}"
 
 
 # --------------------------------------------------------------------------- #
@@ -252,8 +270,19 @@ def _panel_note(ax, text: str, title: str) -> None:
             style="italic", color="#888888", transform=ax.transAxes)
 
 
+def _significant_alpha(row: dict) -> bool:
+    """True when this portfolio's FF3 alpha is significant at the 10% level.
+
+    The risk-table payload carries `p-value(alpha)` as a PRE-FORMATTED string ("0.04",
+    and "" for the Market row, which has no alpha), so it goes through _num rather than
+    being compared directly. A missing / unparseable p-value is not significant.
+    """
+    p = _num(row.get("p-value(alpha)"))
+    return p is not None and p < _ALPHA_SIGNIF_P
+
+
 def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
-                 cell_chars=38) -> None:
+                 cell_chars=38, highlight=None) -> None:
     ax.axis("off")
     rows = (payload or {}).get("rows") or []
     if not rows:
@@ -302,6 +331,10 @@ def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
     # Cell borders and padding have to come down with the font or they dominate the text
     # and the rows visually merge into a grey block.
     lw = 0.30 if font >= 4.0 else 0.12
+    # Rows the caller wants flagged. Computed once here, then looked up per cell: the
+    # celld loop visits every cell, and re-running the predicate for each column of a
+    # 91-row table would be wasteful.
+    flagged = {i for i, row in enumerate(shown) if highlight and highlight(row)}
     for (r, _c), cell in tbl.get_celld().items():
         cell.set_linewidth(lw)
         cell.PAD = 0.04 if font >= 4.0 else 0.015
@@ -309,6 +342,9 @@ def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
         if r == 0:
             cell.set_facecolor("#e8eaf0")
             cell.set_text_props(fontweight="bold")
+        elif (r - 1) in flagged:                 # data row r maps to shown[r-1]
+            # Two greens so the zebra striping still reads underneath the highlight.
+            cell.set_facecolor(_GREEN_ALT if r % 2 == 0 else _GREEN)
         elif r % 2 == 0:
             cell.set_facecolor("#f7f7f9")
 
@@ -474,6 +510,12 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
         ax = fig.add_subplot(slots[slug])
         if slug in _LINE_SLUGS:
             _lines_panel(ax, payload, panel_title)
+        elif slug == "risk":
+            # Green rows = alpha significant at the 10% level, so a page worth a second
+            # look is identifiable while flicking through the sweep.
+            _table_panel(ax, payload, f"{panel_title}   (green: p-value(alpha) < "
+                                      f"{_ALPHA_SIGNIF_P:g})",
+                         highlight=_significant_alpha)
         else:
             _table_panel(ax, payload, panel_title)
 

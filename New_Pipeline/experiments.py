@@ -468,6 +468,11 @@ def base_materiality():
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
+def base_materiality_counts():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_counts", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", signal_type="counts"))
+
 
 def base_materiality_including_delisted():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
@@ -529,6 +534,12 @@ def base_materiality_combined_3_Matteo_Signals():
     # base_materiality, but sorting on all 6 Matteo signals together (3 immaterial +
     # 3 material) in one combined quantile sort.
     return make_experiment("base_materiality_combined_3_Matteo_Signals", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals"))
+
+def base_materiality_combined_3_Matteo_Signals_counts():
+    # base_materiality, but sorting on all 6 Matteo signals together (3 immaterial +
+    # 3 material) in one combined quantile sort.
+    return make_experiment("base_materiality_combined_3_Matteo_Signals_counts", build_cfg(add_materiality=True, action_characterization = "Combined_Material_Immaterial_3_Matteo_Signals", signal_type="counts"))
+
 
 
 
@@ -616,13 +627,8 @@ EXPERIMENTS = {
     "base_none": base_none,
 
 
-
-
-
-
-
-
     "base_materiality": base_materiality,
+    "base_materiality_counts":base_materiality_counts,
 
 
     "base_materiality_v_2C":base_materiality_v_2C,
@@ -634,6 +640,7 @@ EXPERIMENTS = {
 
     "base_3_signals": base_3_signals,
     "base_materiality_combined_3_Matteo_Signals": base_materiality_combined_3_Matteo_Signals,
+    "base_materiality_combined_3_Matteo_Signals_counts": base_materiality_combined_3_Matteo_Signals_counts,
    
 
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
