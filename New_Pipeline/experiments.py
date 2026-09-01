@@ -492,6 +492,30 @@ def base_materiality_counts():
     return make_experiment("base_materiality_counts", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", signal_type="counts"))
 
 
+def base_materiality_per_revenue():
+    # base_materiality_counts with revenue as the denominator instead of no denominator:
+    # signal_i = material__total / sale_usd (and immaterial__total / sale_usd), i.e. the
+    # SAME numerator as base_materiality_counts, scaled to strip out firm size.
+    #
+    # add_sales attaches data/sales_all_regions.csv (built by scripts.download_sales) with
+    # a LEFT join, so the merge itself changes nothing; only signal_type="per_revenue"
+    # consumes it. Firm-years with no revenue become a NaN signal and leave the sort --
+    # ~93.6% are usable on this config, reported by the "Annual revenue merge — coverage"
+    # widget on process_lc.
+    #
+    # Read this one against base_materiality_counts: same firms, same initiative counts,
+    # the only difference is dividing by revenue. Because that puts size in the
+    # denominator, check beta_smb in the FF3 table before attributing the spread to
+    # behaviour rather than to a size tilt.
+    return make_experiment(
+        "base_materiality_per_revenue",
+        build_cfg(add_materiality=True,
+                  action_characterization="Material_Immaterial_only",
+                  add_sales=True,
+                  signal_type="per_revenue"),
+    )
+
+
 def base_materiality_including_delisted():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
@@ -647,6 +671,7 @@ EXPERIMENTS = {
 
     "base_materiality": base_materiality,
     "base_materiality_counts":base_materiality_counts,
+    "base_materiality_per_revenue": base_materiality_per_revenue,
 
 
     "base_materiality_v_2C":base_materiality_v_2C,
