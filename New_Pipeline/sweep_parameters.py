@@ -14,24 +14,34 @@ typo raises in the first second rather than forty minutes in.
 from __future__ import annotations
 
 # --------------------------------------------------------------------------- #
+# SWEEP_NAME: names this sweep's output folder, `sweep_output/<UTC stamp>_<name>/`.
+# Change it to start a NEW sweep; re-running with the same name RESUMES the existing
+# folder (that is what makes --resume work). `--new-run` forces a fresh folder anyway,
+# and `--out DIR` overrides the whole thing.
+# --------------------------------------------------------------------------- #
+SWEEP_NAME: str = "per_revenue_winsorise"
+
+
+# --------------------------------------------------------------------------- #
 # GRID: expanded to its full cartesian product.
 #   {"a": [1, 2], "b": ["x", "y"]}  ->  4 experiments (a=1,b=x), (a=1,b=y), ...
 # Set to {} to disable and use EXPLICIT only.
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {
-  
- "action_characterization": ["Material_Immaterial_only", 
-                                 "Materiality_3_groups_people_planet_prosperity_SDG", "Materiality_5_groups_SDG_brackets",
-                                  "Materiality_Climate_Natural_Capital_vs_All_SDGS",
-                                 "Combined_Material_Immaterial_3_Matteo_Signals",
-                                 "Combined_Material_Immaterial_4_Behavioural_Signals"],
-
-    "no_simple_quantiles": [3, 5, 7],
-     "alpha_bound": [0, 0.05, 0.1],
-   
-
-    "mktcap_covered_if_filter_by_cum_market_cap": [0.95, 0.99, 0.999, 1.0],
-   
+    # Every signal design, each at three winsorisation levels. signal_type is pinned to
+    # "per_revenue" in FIXED, so this measures what winsorising does to an UNBOUNDED,
+    # right-skewed signal -- the case it was built for. (On "weights", a share bounded in
+    # [0,1], it clipped ~0.9% of values and moved std by only ~2.4%.)
+    "action_characterization": [
+        "Material_Immaterial_only",
+        "Materiality_3_groups_people_planet_prosperity_SDG",
+        "Materiality_5_groups_SDG_brackets",
+        "Materiality_Climate_Natural_Capital_vs_All_SDGS",
+        "Combined_Material_Immaterial_3_Matteo_Signals",
+        "Combined_Material_Immaterial_4_Behavioural_Signals",
+        "total_initiatives",
+    ],
+    "winsorise_signal_pct": [0.0, 0.01, 0.02],
 }
 
 # --------------------------------------------------------------------------- #
@@ -39,59 +49,15 @@ GRID: dict[str, list] = {
 # For knobs that must move together (add_materiality + a materiality-only
 # action_characterization, say) a grid cannot express the constraint — put them here.
 # --------------------------------------------------------------------------- #
-# Every signal design once more with signal_type="counts", at BASE parameters only --
-# these deliberately do NOT set no_simple_quantiles / alpha_bound /
-# mktcap_covered_if_filter_by_cum_market_cap, so each takes its build_cfg default (7 /
-# 0.1 / 0.95). The grid above sweeps those axes for "weights"; this adds one counts
-# reference point per design rather than another 216-cell cross product.
-# add_materiality comes from FIXED below, so it is not repeated here.
 EXPLICIT: list[dict] = [
-
-
-    {"action_characterization": ac, "signal_type": "counts"}
-    for ac in [
-        "Material_Immaterial_only",
-        "Materiality_3_groups_people_planet_prosperity_SDG",
-        "Materiality_5_groups_SDG_brackets",
-        "Materiality_Climate_Natural_Capital_vs_All_SDGS",
-        "Combined_Material_Immaterial_3_Matteo_Signals",
-        "Combined_Material_Immaterial_4_Behavioural_Signals",
-    ]
-
-    
-] + [
-    # The ORIGINAL base_none, as a reproducibility check: the 3-signal "original_matteo"
-    # design on the v_2C Golden vintage, exactly as build_cfg's defaults stood in the
-    # first commit of the modular pipeline (git a2de34f, pipeline/experiments.py).
-    #
-    # The first four keys are knobs whose DEFAULT has since moved. The last four did not
-    # exist at all back then, and today's defaults are NOT the old behaviour -- each one
-    # has to be pinned explicitly or this stops being the original config:
-    #   security_status          -- "active_only" is the frozen secstat=='A' behaviour
-    #   quantile_interval_bounds -- "half_open" is the frozen bucketing
-    #   add_materiality          -- there was no SASB merge originally
-    #   min_stocks_per_portfolio -- the thin-portfolio gate did not exist; 0 disables it
-    #                               (presentation only, changes no number)
-    # add_materiality=False here deliberately overrides FIXED below -- an EXPLICIT entry
-    # wins over FIXED for the same key.
-    #
-    # Three keys were RENAMED since and keep their original values, so they need no
-    # override: mktcap_covered -> mktcap_covered_if_filter_by_cum_market_cap,
-    # min_available_fyears / min_initatives_annual_reports -> *_if_execute_3_filters_true.
-    #
-    # NOTE the numbers will NOT match the original run: the Compustat universe has been
-    # re-downloaded since, and the parity oracle is vintage-locked. This reproduces the
-    # original SETTINGS, not the original data vintage.
-    {
-        "golden_data": "v_2C",
-        "action_characterization": "original_matteo",
-        "start_year": 2015,
-        "execute_3_filters": "all",
-        "security_status": "active_only",
-        "quantile_interval_bounds": "half_open",
-        "add_materiality": False,
-        "min_stocks_per_portfolio": 0,
-    },
+    # total_initiatives as a raw COUNT, at the same three winsorise levels. Identical
+    # numerator to its per_revenue twin in the grid, so each pair isolates exactly one
+    # thing: the revenue denominator.
+    # (total_initiatives + signal_type="weights" is rejected by build_cfg -- one group
+    # covering every initiative gives sum_with_0/sum_activities == 1.0 for every firm.)
+    {"action_characterization": "total_initiatives",
+     "signal_type": "counts", "winsorise_signal_pct": w}
+    for w in [0.0, 0.01, 0.02]
 ]
 
 # --------------------------------------------------------------------------- #
@@ -99,7 +65,13 @@ EXPLICIT: list[dict] = [
 # held constant across the whole sweep without repeating them in each entry.
 # An entry in GRID/EXPLICIT wins over FIXED for the same key.
 # --------------------------------------------------------------------------- #
-FIXED: dict = {"add_materiality": True}
+FIXED: dict = {
+    "add_materiality": True,
+    # per_revenue REQUIRES add_sales -- the denominator is the `sale_usd` column the
+    # sales merge attaches in process_lc (build_cfg raises otherwise).
+    "add_sales": True,
+    "signal_type": "per_revenue",
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -146,14 +118,16 @@ JOBS: int = 2
 SORT_BY: list[str] = [
     "action_characterization",
     "signal_type",
+    "winsorise_signal_pct",
     "no_simple_quantiles",
     "alpha_bound",
     "mktcap_covered_if_filter_by_cum_market_cap",
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # "weights" pages first, then the single "counts" reference page, within each design.
-    "signal_type": ["weights", "counts"],
+    # Within each design: the per_revenue pages (this sweep's subject) first, then the
+    # counts reference. "weights" is listed for older ledgers that still contain it.
+    "signal_type": ["per_revenue", "counts", "weights"],
     # Pages group by signal design, in this order; within each group they run through
     # every no_simple_quantiles x alpha_bound combination.
     "action_characterization": [
@@ -163,5 +137,6 @@ VALUE_ORDER: dict[str, list] = {
         "Materiality_Climate_Natural_Capital_vs_All_SDGS",
         "Combined_Material_Immaterial_3_Matteo_Signals",
         "Combined_Material_Immaterial_4_Behavioural_Signals",
+        "total_initiatives",
     ],
 }

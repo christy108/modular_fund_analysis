@@ -42,6 +42,12 @@ def _signal_summary_stats(bundle):
     return bundle["signal_summary_stats"]
 
 
+def _winsorise_stats(bundle):
+    """Per signal, how much the winsorise clip actually bit: values capped at each tail,
+    and std/max before vs after. Empty frame when cfg.winsorise_signal_pct is 0."""
+    return bundle.get("winsorise_stats")
+
+
 def _signal_correlation_matrix(bundle):
     """Pearson correlation matrix between the behavioural signals."""
     return bundle["signal_correlation_matrix"]
@@ -137,6 +143,27 @@ fiscal years pooled, not a single year. Columns:
                        key="table:sum_activities_outlier_stats"),
         BundleTableViz(_signal_summary_stats, title="Signal summary statistics",
                        key="table:signal_summary_stats"),
+        BundleTableViz(
+            _winsorise_stats,
+            title="Signal winsorisation — what was clipped",
+            key="table:winsorise_stats",
+            description=(
+                "Effect of `cfg.winsorise_signal_pct` (0 = off, so this table is empty "
+                "for most configs). Each signal is capped above its (1-p) quantile and "
+                "floored below its p quantile, WITHIN each rfyear.\n\n"
+                "- **n_clipped_low / n_clipped_high** — firm-years pulled up to the floor "
+                "and down to the cap.\n"
+                "- **std_before / std_after** — the point of the exercise: clipping a "
+                "handful of extremes can halve a signal's dispersion.\n"
+                "- **max_before / max_after** — max_after is the (1-p) quantile itself.\n\n"
+                "Clipping is rank-preserving, so it does NOT move the quantile sort "
+                "directly. It acts only through the (rfyear, curcdd, Industry) "
+                "standardisation, where a smaller within-group std spreads that group out "
+                "relative to the other groups the sort pools it with. Expect a real effect "
+                "under `signal_type='per_revenue'` (unbounded, right-skewed) and almost "
+                "none under `'weights'` (a share bounded in [0,1])."
+            ),
+        ),
         BundleHeatmapViz(_signal_correlation_matrix, title="Signal correlation matrix",
                          key="heatmap:signal_correlation_matrix"),
         BundleColoredTableViz(_category_column_stats,
@@ -351,6 +378,46 @@ def derive_signals_v1(lc, cfg):
         else:
             lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"] / lc_df["sum_activities"]
 
+    # ---- optional: winsorise each signal within its fiscal year ------------- #
+    # Cap above the (1 - p) quantile, floor below p, per rfyear. Runs BEFORE the audit
+    # tables below so they describe the signal as actually used downstream.
+    #
+    # Grouped on rfyear alone, matching the convention
+    # filter_sum_activities_by_fiscal_year_quantiles already uses. Deliberately NOT
+    # (rfyear, Industry) even though that would match standardize_pivot's groups exactly
+    # for a single-currency run: at industry_level=2 those cells get small enough that a
+    # 1% quantile is interpolation noise rather than a percentile.
+    #
+    # Clipping is monotonic, so this cannot reorder anything and the quantile sort is
+    # untouched. It acts only through standardize_pivot's (x - mean)/std -- see the
+    # cfg comment in experiments.py.
+    winsorise_pct = float(C.get("winsorise_signal_pct", 0.0))
+    winsorise_stats = None
+    if winsorise_pct > 0:
+        _rows = []
+        for col in signal_cols:
+            g = lc_df.groupby("rfyear")[col]
+            lo = g.transform(lambda x: x.quantile(winsorise_pct))
+            hi = g.transform(lambda x: x.quantile(1.0 - winsorise_pct))
+            before = lc_df[col]
+            after = before.clip(lo, hi)
+            _rows.append({
+                "signal": col,
+                "n_clipped_low": int((after > before).sum()),
+                "n_clipped_high": int((after < before).sum()),
+                "pct_clipped": round(100.0 * (after != before).sum() / max(before.notna().sum(), 1), 2),
+                "std_before": float(before.std()),
+                "std_after": float(after.std()),
+                "max_before": float(before.max()),
+                "max_after": float(after.max()),
+            })
+            lc_df[col] = after
+        winsorise_stats = pd.DataFrame(_rows)
+        winsorise_stats["signal"] = winsorise_stats["signal"].map(
+            lambda c: C.get("lc_signals", {}).get(c, c))
+        print(f"[derive_signals] winsorised {len(signal_cols)} signal(s) at "
+              f"{winsorise_pct:.1%} per tail, per rfyear")
+
     # Human-readable label per signal column (e.g. "signal_2" -> "transformation"), from
     # cfg.lc_signals — the same {column: name} mapping used to name portfolios downstream
     # (functions/portfolio_strategy_design/univariate_sorting_preprocess.py). Generalised
@@ -495,6 +562,7 @@ def derive_signals_v1(lc, cfg):
         "funnel_checks": L.get("funnel_checks"),
         "sum_activities_outlier_stats": sum_activities_outlier_stats,
         "signal_summary_stats": signal_summary_stats,
+        "winsorise_stats": winsorise_stats,
         "signal_correlation_matrix": signal_correlation_matrix,
         "category_column_stats": category_column_stats,
         "signal_sparsity": signal_sparsity,

@@ -42,6 +42,7 @@ from New_Pipeline.sweep_report import (
     append_ledger,
     build_csv,
     build_pdf,
+    build_xlsx,
     experiment_name,
     ledger_names,
     page_title,
@@ -56,9 +57,43 @@ def _paths(output_dir: str) -> dict:
         "ledger": base / "results.jsonl",
         "pdf": base / "results.pdf",
         "csv": base / "results.csv",
+        "xlsx": base / "results.xlsx",
         "artifacts": base / "artifacts",
         "failures": base / "failures",
     }
+
+
+def resolve_output_dir(parent: str, sweep_name: str, new_run: bool = False) -> Path:
+    """Pick the folder this sweep writes to: ``<parent>/<UTC stamp>_<sweep_name>/``.
+
+    Each sweep gets its own folder so one can never overwrite another's results.pdf.
+    But a bare timestamp per invocation would break --resume, which is the whole point of
+    the ledger -- re-running the same command must CONTINUE the sweep, not start an empty
+    one beside it. So an existing folder for this name is reused, and a new stamp is
+    minted only when there is nothing to resume (or --new-run says so explicitly).
+
+    Net effect: editing SWEEP_NAME starts a new sweep; re-running resumes the current one.
+    """
+    p = Path(parent)
+    if not new_run:
+        # Ordered by mtime, NOT by name: the collision suffix below makes
+        # "<stamp>-2_name" sort BEFORE "<stamp>_name" ('-' < '_'), so a lexicographic
+        # max would resume the older folder. mtime is also the better question anyway --
+        # "the one being written to" is what a resume should continue.
+        existing = sorted((d for d in p.glob(f"*_{sweep_name}") if d.is_dir()),
+                          key=lambda d: d.stat().st_mtime)
+        if existing:
+            return existing[-1]
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = p / f"{stamp}_{sweep_name}"
+    # The stamp resolves to the second, so --new-run within a second of the previous
+    # folder's creation would hand back that same folder and silently append to a sweep
+    # it was asked to start fresh. Suffix until the name is genuinely unused.
+    n = 2
+    while out.exists():
+        out = p / f"{stamp}-{n}_{sweep_name}"
+        n += 1
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -197,7 +232,9 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
 def _rebuild(paths: dict) -> None:
     pages = build_pdf(paths["ledger"], paths["pdf"])
     rows = build_csv(paths["ledger"], paths["csv"])
-    print(f"[sweep] rebuilt {paths['pdf']} ({pages} pages) and {paths['csv']} ({rows} rows)")
+    build_xlsx(paths["ledger"], paths["xlsx"])
+    print(f"[sweep] rebuilt {paths['base']}/results.{{pdf,csv,xlsx}} "
+          f"({pages} pages, {rows} rows)")
 
 
 def _run_serial(todo, paths, pdf_every) -> int:
@@ -267,11 +304,16 @@ def main(argv: list[str]) -> None:
     def flag_value(flag, default):
         return argv[argv.index(flag) + 1] if flag in argv else default
 
-    output_dir = flag_value("--out", SP.OUTPUT_DIR)
     pdf_every = max(1, int(flag_value("--pdf-every", SP.PDF_EVERY)))
     jobs = max(1, int(flag_value("--jobs", getattr(SP, "JOBS", 1))))
     no_resume = "--no-resume" in argv
     dry_run = "--dry-run" in argv
+    # --out names the folder outright; otherwise it is derived from SWEEP_NAME, reusing
+    # an existing folder for that name so a re-run resumes rather than starting over.
+    output_dir = (argv[argv.index("--out") + 1] if "--out" in argv else
+                  str(resolve_output_dir(SP.OUTPUT_DIR,
+                                         getattr(SP, "SWEEP_NAME", "sweep"),
+                                         new_run="--new-run" in argv)))
     paths = _paths(output_dir)
 
     if "--rebuild" in argv:
@@ -293,7 +335,7 @@ def main(argv: list[str]) -> None:
 
     print(f"[sweep] {len(planned)} experiment(s) planned; "
           f"{len(planned) - len(todo)} already in ledger; {len(todo)} to run")
-    print(f"[sweep] output -> {paths['base']}/  (rebuild PDF/CSV every {pdf_every}, "
+    print(f"[sweep] output -> {paths['base']}/  (rebuild PDF/CSV/XLSX every {pdf_every}, "
           f"{jobs} job(s))")
     if dry_run:
         for name, title, _cfg in planned:

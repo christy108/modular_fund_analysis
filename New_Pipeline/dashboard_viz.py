@@ -399,6 +399,7 @@ _PARAM_DOCS: dict[str, str] = {
     "signal_denominator": "Denominator for signal_i: 'Sum_All_Signals' or 'Sum_All_Initiatives' (02_derive_signals).",
     "signal_type": "'weights' = signal_i is the group's share of sum_activities; 'counts' = the raw initiative total, and signal names gain a _counts suffix.",
     "alpha_bound": "Trim fraction applied to the signal tails when use_alpha_bound is on.",
+    "winsorise_signal_pct": "Per-tail fraction of each signal CLIPPED (not dropped) within its rfyear. 0 = off. Rank-preserving, so it moves results only via the standardisation, not the sort.",
     # ---- cell 2: market-cap screen -----------------------------------------
     "market_cap_filter": "Which universe size screen runs: 'percent_total_mcap' (per currency-MONTH, share of aggregate cap VALUE) or 'percent_stocks' (per currency-YEAR, share of listing COUNT plus an absolute floor).",
     "mktcap_covered_if_filter_by_cum_market_cap": "percent_total_mcap only: fraction of each currency-month's total cap to retain. 0.95 is a share of value, so it discards roughly 65% of listings.",

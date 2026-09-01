@@ -101,6 +101,22 @@ def build_cfg(**overrides) -> dict:
         add_sales=False,
         sales_path="data/sales_all_regions.csv",
         alpha_bound=0.1,
+        # Winsorise each signal_i within its rfyear: values above the (1 - p) quantile are
+        # CAPPED at it and values below p are FLOORED at it. 0.0 = off (the default, so
+        # every existing config is bit-identical).
+        #
+        # Distinct from alpha_bound, which TRIMS (drops) rows on sum_activities -- the
+        # signal's *denominator* under "weights", and untouched under "per_revenue". This
+        # clips the signal itself and keeps every firm-year.
+        #
+        # It is RANK-PRESERVING, so it cannot move the quantile sort directly: the same
+        # firms land in the same buckets. Its only channel is standardize_pivot's
+        # (x - mean)/std, where one extreme value inflates its group's std and so
+        # compresses that group relative to the others the sort pools it with.
+        # Consequently it matters most for signal_type="per_revenue" (unbounded, right-
+        # skewed -- a small denominator gives a huge ratio) and barely at all for
+        # "weights", which is a share bounded in [0, 1].
+        winsorise_signal_pct=0.0,
         # Which market-cap screen process_global_universe applies, and the knobs each
         # one owns. NOTE the two percentages are NOT comparable: mktcap_covered_... is a
         # share of aggregate market-cap VALUE (0.95 discards ~65% of listings), while
@@ -182,6 +198,15 @@ def build_cfg(**overrides) -> dict:
         raise ValueError(
             f"quantile_interval_bounds must be 'half_open' or 'closed', "
             f"got {c['quantile_interval_bounds']!r}"
+        )
+
+    # Per-TAIL fraction, so 0.5 would clip everything to the median and anything above it
+    # is nonsense (the lower cap would exceed the upper). Rejected here rather than
+    # producing a silently degenerate signal minutes into a run.
+    if not 0.0 <= c["winsorise_signal_pct"] < 0.5:
+        raise ValueError(
+            f"winsorise_signal_pct is a PER-TAIL fraction in [0, 0.5), got "
+            f"{c['winsorise_signal_pct']!r} (0.01 clips the top and bottom 1%)"
         )
     # Fast fail: univariate_portfolio_sorting raises on this too, but only once a run is
     # already minutes deep in loading data. At K=2 the single breakpoint is both the Low
@@ -320,6 +345,23 @@ def build_cfg(**overrides) -> dict:
         categories_dict, s0, s1 = Materiality_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1}
 
+    # ONE signal, the firm-year's whole initiative count -- no split by category,
+    # materiality or SDG. Defined inline rather than in functions/signal_design/ because
+    # it is a single column mapped to a single group, and functions/ is the frozen core.
+    #
+    # `n_predicted_initiatives` IS the total (mean 31, max 783 -- the same max
+    # sum_activities reaches), so with signal_denominator="Sum_All_Signals" this also
+    # makes sum_activities equal that total, which is what the alpha-bound trim then
+    # operates on. Sensible: the trim drops firm-years with extreme total activity.
+    #
+    # Only meaningful with signal_type "counts" (signal = total initiatives) or
+    # "per_revenue" (= total initiatives / revenue). Under "weights" the signal would be
+    # sum_with_0 / sum_activities == 1.0 for every firm -- a constant, and an unsortable
+    # signal -- so that combination is rejected below.
+    elif ac == "total_initiatives":
+        categories_dict = {"n_predicted_initiatives": 0}
+        lc_signals = {"signal_0": "Total_Initiatives"}
+
     # elif ac == "immaterial_4_Behavioural_Signals":
     #     categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
     #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
@@ -377,6 +419,14 @@ def build_cfg(**overrides) -> dict:
     signal_type = c["signal_type"]
     if signal_type not in ("weights", "counts", "per_revenue"):
         raise ValueError(f"unknown signal_type {signal_type!r}")
+    if ac == "total_initiatives" and signal_type == "weights":
+        raise ValueError(
+            "action_characterization='total_initiatives' has a single group covering every "
+            "initiative, so signal_type='weights' would give sum_with_0 / sum_activities "
+            "== 1.0 for every firm -- a constant, which cannot be sorted. Use "
+            "signal_type='counts' (total initiatives) or 'per_revenue' (total initiatives "
+            "/ revenue)."
+        )
     if signal_type == "per_revenue" and not c["add_sales"]:
         raise ValueError(
             "signal_type='per_revenue' needs add_sales=True -- the denominator is the "
@@ -490,6 +540,35 @@ def base_materiality_counts():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality_counts", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", signal_type="counts"))
+
+
+def base_total_initiatives_counts():
+    # ONE signal: the firm-year's whole initiative count, unsplit.
+    # signal_0 = n_predicted_initiatives.
+    #
+    # add_materiality=True is NOT needed for the signal (n_predicted_initiatives is a raw
+    # LC column) but is kept so this runs on the SAME sample as base_materiality_counts
+    # and base_materiality_per_revenue -- otherwise the comparison would confound the
+    # signal change with a sample change.
+    return make_experiment(
+        "base_total_initiatives_counts",
+        build_cfg(add_materiality=True,
+                  action_characterization="total_initiatives",
+                  signal_type="counts"),
+    )
+
+
+def base_total_initiatives_per_revenue():
+    # The same single total, scaled by revenue: signal_0 = n_predicted_initiatives / sale_usd.
+    # Read against base_total_initiatives_counts -- identical numerator, the only
+    # difference is the denominator, so any change in the spread is the size scaling.
+    return make_experiment(
+        "base_total_initiatives_per_revenue",
+        build_cfg(add_materiality=True,
+                  action_characterization="total_initiatives",
+                  add_sales=True,
+                  signal_type="per_revenue"),
+    )
 
 
 def base_materiality_per_revenue():
@@ -672,6 +751,8 @@ EXPERIMENTS = {
     "base_materiality": base_materiality,
     "base_materiality_counts":base_materiality_counts,
     "base_materiality_per_revenue": base_materiality_per_revenue,
+    "base_total_initiatives_counts": base_total_initiatives_counts,
+    "base_total_initiatives_per_revenue": base_total_initiatives_per_revenue,
 
 
     "base_materiality_v_2C":base_materiality_v_2C,

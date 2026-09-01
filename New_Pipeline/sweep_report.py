@@ -604,19 +604,12 @@ def _row_for(record: dict, page_num: int) -> dict:
 _LEAD_COLS = ["experiment", "page", "timestamp", "status", "run_dir", "param_diff"]
 
 
-def build_csv(ledger_path: str | Path, csv_path: str | Path) -> int:
-    """Rebuild results.csv from the ledger. Returns the row count.
+def _rows_and_cols(ledger_path: str | Path) -> tuple[list[dict], list[str]]:
+    """The table both build_csv and build_xlsx write -- one place, so they cannot drift.
 
-    Rebuilt rather than appended precisely because the column set grows: a later
-    experiment with a different action_characterization introduces portfolio columns the
-    earlier rows never had, and only a full rewrite can take the union safely.
-
-    Column layout, left to right: identifying columns, then the RISK TABLE (alpha /
-    p-value / coverage per portfolio -- the run's results), then PARAMETERS (the scalar
-    cfg knobs, then the full cfg as one JSON cell) -- results on the left, config on the
-    right, matching the PDF page's own layout.
+    Ordering is the same `sorted_records` build_pdf uses, which is what keeps
+    `row N <-> page N` true across all three derived views.
     """
-    # Same ordering function build_pdf uses -- row N must describe page N.
     records = sorted_records(read_ledger(ledger_path))
     rows = [_row_for(r, page_num=i) for i, r in enumerate(records, start=1)]
 
@@ -635,7 +628,22 @@ def build_csv(ledger_path: str | Path, csv_path: str | Path) -> int:
     for tail in ("cfg_json", "error"):
         if any(tail in r for r in rows):
             cols.append(tail)
+    return rows, cols
 
+
+def build_csv(ledger_path: str | Path, csv_path: str | Path) -> int:
+    """Rebuild results.csv from the ledger. Returns the row count.
+
+    Rebuilt rather than appended precisely because the column set grows: a later
+    experiment with a different action_characterization introduces portfolio columns the
+    earlier rows never had, and only a full rewrite can take the union safely.
+
+    Column layout, left to right: identifying columns, then the RISK TABLE (alpha /
+    p-value / coverage per portfolio -- the run's results), then PARAMETERS (the scalar
+    cfg knobs, then the full cfg as one JSON cell) -- results on the left, config on the
+    right, matching the PDF page's own layout.
+    """
+    rows, cols = _rows_and_cols(ledger_path)
     csv_path = Path(csv_path)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = csv_path.with_suffix(".csv.tmp")
@@ -645,4 +653,52 @@ def build_csv(ledger_path: str | Path, csv_path: str | Path) -> int:
         for r in rows:
             w.writerow(r)
     os.replace(tmp, csv_path)
+    return len(rows)
+
+
+def build_xlsx(ledger_path: str | Path, xlsx_path: str | Path) -> int:
+    """Rebuild results.xlsx from the ledger. Returns the row count.
+
+    Same rows and same column order as build_csv -- both call `_rows_and_cols`, so the
+    two files cannot disagree about what row N says. The CSV stays the authoritative,
+    diffable artifact; this adds only what a CSV cannot carry: a frozen header row and
+    fitted column widths, so 100+ columns are navigable without resizing anything.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    rows, cols = _rows_and_cols(ledger_path)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "results"
+    ws.append(cols)
+    for r in rows:
+        ws.append([r.get(c) for c in cols])
+
+    head_fill = PatternFill("solid", fgColor="E8EAF0")
+    for i, name in enumerate(cols, start=1):
+        c = ws.cell(row=1, column=i)
+        c.font = Font(bold=True)
+        c.fill = head_fill
+        c.alignment = Alignment(vertical="top", wrap_text=False)
+        # Width from the header plus a sample of the body -- scanning every cell of a
+        # 200-row x 120-col sheet to size columns costs more than it is worth.
+        body = (len(str(r.get(name, ""))) for r in rows[:50])
+        width = max([len(name)] + list(body)) + 2
+        # cfg_json is one very long cell; letting it size itself would push every other
+        # column off-screen. It sits at the far right, so a narrow fixed width is fine.
+        ws.column_dimensions[get_column_letter(i)].width = (
+            18 if name == "cfg_json" else min(max(width, 8), 42)
+        )
+
+    ws.freeze_panes = "A2"           # header stays put while scrolling 200 rows
+    ws.auto_filter.ref = ws.dimensions
+
+    xlsx_path = Path(xlsx_path)
+    xlsx_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = xlsx_path.with_suffix(".xlsx.tmp")
+    wb.save(tmp)
+    os.replace(tmp, xlsx_path)       # atomic, matching build_csv/build_pdf
     return len(rows)
