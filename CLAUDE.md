@@ -62,6 +62,10 @@ export MATERIALITY_LOCATION=/path/to/Materiality
 .venv/bin/python -m New_Pipeline.sweep --only base_none   # named EXPERIMENTS entries instead
 .venv/bin/python -m New_Pipeline.sweep --rebuild          # rebuild PDF/CSV from the ledger only
 
+# one-off WRDS pulls (run by hand, need credentials; NOT part of any pipeline run)
+.venv/bin/python -m scripts.download_sales                # annual Compustat sale for the
+                                                          # three universes -> data/sales_all_regions.csv
+
 # tests (NOTE: currently broken — see "pipeline/ is dead" above)
 .venv/bin/python -m pytest tests/ -v
 ```
@@ -238,3 +242,19 @@ parity. Three things to know before touching it:
   `run.run()`, so this covers it too) and writes it to `runs/<ts>_<config>/debug_prints.log`
   instead, even on failure. If you need to see what a node printed (shapes, `value_counts`, the
   FF/returns date-alignment table), read that file rather than expecting it on screen.
+- **Compustat's "standard record" codes differ between the North-American and Global
+  fundamentals files.** `comp_na_daily_all.funda` uses `datafmt='STD'`, `popsrc='D'`;
+  `comp_global_daily.g_funda` uses `datafmt='HIST_STD'`, `popsrc='I'`. Both are `indfmt='INDL'`,
+  `consol='C'`. Applying the NA codes to `g_funda` matches **zero rows** — and because
+  `scripts/download_sales.py` prints an empty region and carries on, that reads as "RoW has no
+  data" rather than as an error, so a mixed-region extract can silently come back USA-only.
+  Conversely, omitting these filters entirely (as `functions/data_functions/get_data.py`'s
+  `get_accounting_data` does on its global call) leaves several rows per firm-year in, which fans
+  out any merge — on the daily universe that is an out-of-memory crash, not a subtle bug.
+- **`data/sales_all_regions.csv` is a one-off artifact, not pipeline output.** No node reads it;
+  it exists for the `initiatives / revenue` signal work. Its gvkey inclusion criteria are copied
+  from the universe queries in `get_data.py` (primary-issue join + tpci/prccd/cshtrd/exchg/currency
+  filters) — if those change, `scripts/download_sales.py` must change with them or the two panels
+  silently describe different firm sets. It carries both `sale` (as reported, with `curcd`) and
+  `sale_usd`; the reasoning for the fiscal-year-average FX window and the `sale > 0` filter is in
+  that script's module docstring.

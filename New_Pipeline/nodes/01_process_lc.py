@@ -53,6 +53,12 @@ def _materiality_coverage(bundle):
     return bundle.get("materiality_coverage")
 
 
+def _sales_coverage(bundle):
+    """Coverage of the optional revenue merge: how many firm-years matched, and how many
+    are actually usable as a denominator. Empty frame when ``cfg.add_sales`` is off."""
+    return bundle.get("sales_coverage")
+
+
 CONTRACT = Contract(
     name="process_lc",
     intent="""Load the Golden LC panel and produce an analysis-ready firm-fiscal-year table:
@@ -152,6 +158,24 @@ are computed BEFORE the ``process_lc`` call, which mutates its argument in place
                 "Empty when `add_materiality` is off for this run."
             ),
         ),
+        BundleTableViz(
+            _sales_coverage,
+            title="Annual revenue merge — coverage",
+            key="table:sales_coverage",
+            description=(
+                "Coverage of the optional Compustat revenue merge (`cfg.add_sales`). A "
+                "LEFT join, so it never drops a firm-year — but `signal_type=\"per_revenue\"` "
+                "divides by `sale_usd`, and anything unmatched or non-positive becomes a "
+                "NaN signal that leaves the sort. **pct_usable is therefore the real "
+                "sample cost of that signal type.**\n\n"
+                "- **pct_matched** — firm-years that found a revenue row at all.\n"
+                "- **pct_usable** — those with `sale_usd > 0`. The gap to pct_matched is "
+                "rows whose reporting currency has no FRB H.10 rate (CAD and ~27 exotic "
+                "RoW currencies) or whose fiscal year is past the FX file's 2024 end.\n"
+                "- **missing_no_match** / **missing_no_fx** — the two causes, split.\n\n"
+                "Measured on ~93% usable for a US-only config. Empty when add_sales is off."
+            ),
+        ),
         BundleTableViz(_sample_descriptives, title="Final sample descriptives",
                        key="table:sample_descriptives"),
         BundleDualAxisViz(
@@ -179,7 +203,7 @@ def process_lc_v1(cfg):
         map_sectors,
         process_lc,
     )
-    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys
+    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys  # noqa: F401
     from New_Pipeline.boundary import pack_obj
 
     C = json.loads(cfg["json"][0])
@@ -484,6 +508,65 @@ def process_lc_v1(cfg):
     _stage(f"SASB materiality inner join (version {C['materiality_version']})",
            "01_process_lc.py:189 / add_materiality", active=C["add_materiality"])
 
+    # ---- optional: LEFT-merge annual Compustat revenue onto lc ----------- #
+    # Runs last, for the same reason the materiality merge does: (gvkey, rfyear) is final
+    # here, after every sample/region/industry filter.
+    #
+    # LEFT, not inner: this must not change the sample. A firm-year with no revenue keeps
+    # its row and gets NaN, so only signal_type="per_revenue" (which divides by it) loses
+    # it -- every other config is bit-identical with add_sales on or off.
+    #
+    # Keyed rfyear <-> fyear with NO lag: both are FISCAL years, so this is a like-for-like
+    # match, and the point-in-time lag is applied downstream by
+    # merge_lc_into_global_universe's last_year <-> rfyear join. Because numerator and
+    # denominator then ride the same lc row, initiatives and revenue are always the same
+    # fiscal year as each other.
+    sales_coverage = None
+    if C["add_sales"]:
+        _sales = pd.read_csv(C["sales_path"], usecols=["gvkey", "fyear", "curcd",
+                                                       "sale", "sale_usd"])
+        # gvkey format on the lc side is CONDITIONAL: process_lc.py:44 leaves it unpadded,
+        # but the drop_suspicious_gvkeys branch above has already zero-padded it. Normalise
+        # BOTH sides here rather than assume -- otherwise the merge silently matches
+        # nothing on exactly one of the two config paths. Same hazard the materiality
+        # merge documents at process_materiality.py:81.
+        _sales["_k"] = normalise_gvkeys(pd.to_numeric(_sales["gvkey"], errors="coerce")
+                                          .astype("Int64").astype(str))
+        _sales["_y"] = pd.to_numeric(_sales["fyear"], errors="coerce").astype("Int64")
+        # A dual-listed firm appears once per region with identical figures; keeping both
+        # would fan lc out and double that firm's weight in the per-rfyear quantile trim.
+        _sales = (_sales.dropna(subset=["_k", "_y"])
+                        .drop_duplicates(subset=["_k", "_y"], keep="first")
+                        .drop(columns=["gvkey", "fyear"]))
+
+        lc["_k"] = normalise_gvkeys(lc["gvkey"].astype(str))
+        lc["_y"] = pd.to_numeric(lc["rfyear"], errors="coerce").astype("Int64")
+
+        _rows_before, _fy_before = len(lc), lc[["_k", "_y"]].drop_duplicates().shape[0]
+        lc = lc.merge(_sales, on=["_k", "_y"], how="left", validate="m:1")
+        assert len(lc) == _rows_before, f"sales merge fanned out: {_rows_before} -> {len(lc)}"
+
+        _fy = lc[["_k", "_y", "sale", "sale_usd"]].drop_duplicates(subset=["_k", "_y"])
+        sales_coverage = pd.DataFrame([{
+            "sales_file": C["sales_path"],
+            "firm_years": _fy_before,
+            "matched_any_sale": int(_fy["sale"].notna().sum()),
+            "pct_matched": round(100.0 * _fy["sale"].notna().mean(), 2),
+            "usable_sale_usd_gt0": int((_fy["sale_usd"] > 0).sum()),
+            # THE number that matters for per_revenue: anything else becomes a NaN signal
+            # and drops out of the sort.
+            "pct_usable": round(100.0 * (_fy["sale_usd"] > 0).mean(), 2),
+            "missing_no_match": int(_fy["sale"].isna().sum()),
+            "missing_no_fx": int((_fy["sale"].notna() & _fy["sale_usd"].isna()).sum()),
+            "median_sale_usd_mn": round(float(_fy["sale_usd"].median()), 1),
+        }])
+        print(f"[process_lc] sales merge: {sales_coverage.at[0, 'pct_matched']}% of "
+              f"{_fy_before} firm-years matched, "
+              f"{sales_coverage.at[0, 'pct_usable']}% usable (sale_usd > 0)")
+        lc = lc.drop(columns=["_k", "_y"])
+    _stage("Merge annual revenue (LEFT join, sample unchanged)",
+           "01_process_lc.py / add_sales", active=C["add_sales"])
+
     # ---- audit: descriptives of the sample that survives this node ------------------ #
     # No universe-intersection step exists here (that's node 06) — lc itself is the
     # surviving sample. Dedupe on (gvkey, rfyear) defensively: multiple report_type rows
@@ -539,6 +622,7 @@ def process_lc_v1(cfg):
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
         "materiality_coverage": materiality_coverage,
+        "sales_coverage": sales_coverage,
         "funnel": funnel_frame(funnel_rows),
         "funnel_checks": funnel_checks,
     })

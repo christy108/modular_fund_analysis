@@ -87,8 +87,19 @@ def build_cfg(**overrides) -> dict:
         drop_utilities_Full_ESG=True,
         download_gics_data=False,
         signal_denominator="Sum_All_Signals",
-        signal_type="weights",    # "weights": signal_i = sum_with_i / sum_activities
-                                   # "counts":  signal_i = sum_with_i (raw initiative total, no denominator)
+        signal_type="weights",    # "weights":     signal_i = sum_with_i / sum_activities
+                                   # "counts":      signal_i = sum_with_i (raw initiative total)
+                                   # "per_revenue": signal_i = sum_with_i / sale_usd -- the same
+                                   #   count as "counts", scaled by revenue to strip firm size.
+                                   #   Requires add_sales=True. NOTE this puts size in the
+                                   #   denominator, so the sort partly inverts size: check the
+                                   #   beta_smb row of the FF3 table before reading anything into it.
+        # Merge annual Compustat revenue (data/sales_all_regions.csv, built by
+        # scripts.download_sales) onto lc at (gvkey, rfyear) <- (gvkey, fyear). Additive:
+        # a LEFT join, so it adds `sale`/`sale_usd` columns without dropping firm-years.
+        # Only signal_type="per_revenue" consumes it; otherwise it just rides along.
+        add_sales=False,
+        sales_path="data/sales_all_regions.csv",
         alpha_bound=0.1,
         # Which market-cap screen process_global_universe applies, and the knobs each
         # one owns. NOTE the two percentages are NOT comparable: mktcap_covered_... is a
@@ -364,10 +375,17 @@ def build_cfg(**overrides) -> dict:
     # weights, and it is compared as an exact string in the cumulative_table/risk_table
     # parity artifacts — suffixing it too would fail base_none parity on labels alone.
     signal_type = c["signal_type"]
-    if signal_type not in ("weights", "counts"):
+    if signal_type not in ("weights", "counts", "per_revenue"):
         raise ValueError(f"unknown signal_type {signal_type!r}")
+    if signal_type == "per_revenue" and not c["add_sales"]:
+        raise ValueError(
+            "signal_type='per_revenue' needs add_sales=True -- the denominator is the "
+            "`sale_usd` column that the sales merge in process_lc attaches."
+        )
     if signal_type == "counts":
         lc_signals = {k: f"{v}_counts" for k, v in lc_signals.items()}
+    elif signal_type == "per_revenue":
+        lc_signals = {k: f"{v}_per_rev" for k, v in lc_signals.items()}
 
     if c["esg_full_universe"]:
         if c["esg_choice"] == "none":

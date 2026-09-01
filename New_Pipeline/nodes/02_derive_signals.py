@@ -336,6 +336,18 @@ def derive_signals_v1(lc, cfg):
             # sum_activities is still computed above — it drives the cell-18 alpha-bound
             # trim — it just doesn't divide anything here.
             lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"]
+        elif signal_type == "per_revenue":
+            # Same numerator as "counts" (the group's total initiatives), scaled by annual
+            # revenue in USD millions to strip out firm size. `sale_usd` is attached by the
+            # add_sales merge in process_lc; build_cfg refuses this signal_type without it.
+            #
+            # A firm-year with no revenue becomes NaN and leaves the sort — that is the
+            # intended behaviour and its cost is reported by the "Annual revenue merge —
+            # coverage" audit on node 01. Non-positive revenue never reaches here: the
+            # download enforces sale > 0 in SQL, because 0 would give inf (filling the TOP
+            # bucket with pre-revenue shells) and a negative would flip the ratio's sign
+            # (sending high-initiative firms to the BOTTOM bucket).
+            lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"] / lc_df["sale_usd"]
         else:
             lc_df[f"signal_{i}"] = lc_df[f"sum_with_{i}"] / lc_df["sum_activities"]
 
