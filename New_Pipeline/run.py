@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -130,6 +131,22 @@ def run(name: str, out_dir: str | None = None):
     dash = OrderedDashboard(manifests={name: manifest}, pipeline=build_pipeline()).build()
     dashboard_md = dash.to_markdown() + "\n\n```mermaid\n" + dash.pipeline_graph_mermaid() + "\n```\n"
     (run_dir / "dashboard.md").write_text(dashboard_md)
+
+    # Optional PDF of the material-initiative area plots, in the run's own archive next to
+    # dashboard.md. Read back out of the manifest's audit payloads -- the same values the
+    # dashboard renders -- so nothing is recomputed and the two can never disagree.
+    # Deliberately NOT written to `latest` below: it is a report, like dashboard.md, and a
+    # sweep passing --out should not scatter PDFs through the parity area.
+    _cfg = json.loads(next(iter(exp.inputs.values()))["json"][0])
+    if _cfg.get("area_initatives_plots_per_portfolio_to_PDF"):
+        from New_Pipeline.decomposition_pdf import build_decomposition_pdf
+
+        _pdf = run_dir / "initiative_decomposition.pdf"
+        # 0 pages = this config produced no decomposition (not Material_Immaterial_only, or
+        # add_materiality off). Skip silently rather than leaving an empty PDF behind.
+        _n_pages = build_decomposition_pdf(manifest, name, _pdf)
+        if _n_pages:
+            print(f"[run] decomposition PDF    -> {_pdf}  ({_n_pages} pages)")
 
     # 2. "Latest" snapshot for parity.compare / parity.show (overwritten each run).
     latest = Path(out_dir) if out_dir else Path("parity/artifacts/new") / name

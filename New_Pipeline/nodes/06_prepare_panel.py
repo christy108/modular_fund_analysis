@@ -82,6 +82,11 @@ Every figure is computed per formation month and then aggregated over the year, 
 recomputes its cutpoints from one cross-section at a time. Audit-only: nothing downstream
 reads it.
 
+Also carries (no widget of its own) the raw per-firm-year SASB materiality COUNT columns as
+``materiality_counts``, purely so ``build_analyse_portfolios`` can decompose each portfolio leg's
+material initiatives without needing an ``lc`` edge of its own. Audit plumbing: no numeric path
+reads it, and it is None unless ``cfg.add_materiality``.
+
 All the LC-derived tables above are empty on the
 ESG-universe path, which carries no LC data.""",
     input_schema={
@@ -289,6 +294,26 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         .reset_index()
     )
 
+    # ---- audit plumbing: raw materiality counts for node 07's decomposition ---------- #
+    # Node 07 decomposes each portfolio leg's MATERIAL initiatives into behavioural/SDG
+    # brackets, which needs the per-firm-year count columns. Those live on lc, which node 07
+    # does not receive -- and giving it an lc edge would change the DAG for an audit widget.
+    # This node already has lc in hand, so carry a slim (gvkey, rfyear) -> counts frame in the
+    # bundle instead. Same shape as the two descriptive frames above: audit-only, no numeric
+    # path reads it, and adding a bundle key creates no parquet (run.py's _MERGED_EXPORTS is an
+    # explicit allow-list covering node 07 only), so parity cannot move.
+    #
+    # lc_df here is POST node-02's alpha-bound trim, so it is exactly the firm-year sample the
+    # sort ran on. None when add_materiality is off -- node 07 .get()s it and renders empty.
+    _mat_cols = [c for c in lc_df.columns
+                 if c.startswith(("material__", "immaterial__", "unmapped__"))]
+    materiality_counts = None
+    if _mat_cols:
+        _keep = ["gvkey", "rfyear", "n_predicted_initiatives"] + _mat_cols
+        materiality_counts = lc_df[_keep].drop_duplicates(subset=["gvkey", "rfyear"])
+        print(f"[prepare_panel] materiality_counts: {len(materiality_counts)} firm-years x "
+              f"{len(_mat_cols)} count columns")
+
     print("[prepare_panel] final sample — unique gvkeys:", sample_descriptives.at[0, "unique_gvkeys"])
     print("[prepare_panel] final sample — gvkey-year observations:", sample_descriptives.at[0, "gvkey_year_obs"])
     print("[prepare_panel] final sample — total initiatives:", sample_descriptives.at[0, "total_initiatives"])
@@ -307,6 +332,9 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         "fama_french": prep.fama_french,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
+        # Audit-only: feeds node 07's material-initiative decomposition. None without
+        # add_materiality.
+        "materiality_counts": materiality_counts,
         "funnel": funnel,
         "funnel_checks": L.get("funnel_checks"),
     })

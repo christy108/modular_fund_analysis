@@ -21,7 +21,13 @@ from leonardo_nodes.viz import BarComparisonViz
 
 from New_Pipeline._common import cfg_schema, open_schema, store
 from New_Pipeline.boundary import unpack_obj
-from New_Pipeline.dashboard_viz import BundleMultiSeriesViz, BundleSeriesViz, BundleTableViz
+from New_Pipeline.dashboard_viz import (
+    BundleMultiSeriesViz,
+    BundleSeriesViz,
+    BundleStackedAreaViz,
+    BundleTableViz,
+)
+from New_Pipeline.initiative_brackets import SCHEME_SLUGS, scheme_title
 
 
 # ---- Row-count stats (real, unpack the bundle) --------------------------------------- #
@@ -248,6 +254,187 @@ def _bucket_audits() -> list:
     return audits
 
 
+# ---- Material-initiative decomposition: extractors + widget grid --------------------- #
+# Every payload below is read straight out of the bundle the Process already built; nothing
+# is computed here. Empty when the run is not a Material_Immaterial_only + add_materiality
+# one, in which case each widget renders blank rather than erroring.
+
+_DECOMP_BUCKETS = ("High", "Low")
+_DECOMP_WEIGHTINGS = (
+    ("pooled", "pooled"),
+    ("equal_weight", "equal-weight"),
+)
+
+
+def _decomp(bundle) -> dict:
+    return bundle.get("initiative_decomposition") or {}
+
+
+def _decomp_area_series(weighting: str, slug: str, bucket: str):
+    """Extractor: one stacked band per bracket, as % of the leg's material initiatives."""
+
+    def extract(bundle) -> list[dict]:
+        import pandas as pd
+
+        frame = (_decomp(bundle).get(weighting) or {}).get(slug, {}).get(bucket)
+        if frame is None or len(frame) == 0:
+            return []
+        dates = [str(d)[:10] for d in frame.index]
+        # frame.columns is the scheme's DECLARATION order (residual last). Never re-sort:
+        # bands that swap places between months make an area chart unreadable.
+        return [
+            {
+                "name": str(band),
+                "x": dates,
+                "y": [None if pd.isna(v) else float(v) for v in frame[band]],
+            }
+            for band in frame.columns
+        ]
+
+    return extract
+
+
+def _decomp_levels_series(bucket: str):
+    """Extractor: the LEVELS behind the shares - total material vs total initiatives."""
+
+    def extract(bundle) -> list[dict]:
+        frame = (_decomp(bundle).get("levels") or {}).get(bucket)
+        if frame is None or len(frame) == 0:
+            return []
+        dates = [str(d)[:10] for d in frame.index]
+        return [
+            {"name": label, "x": dates, "y": [float(v) for v in frame[col]]}
+            for col, label in (
+                ("total_initiatives", "All initiatives (SASB workbook)"),
+                ("total_material_initiatives", "Material initiatives"),
+                # Same holdings, lc's own count. It disagrees with the workbook because the
+                # two were built from different Golden vintages; plotting both makes the
+                # size of that gap visible instead of leaving it inside a ratio.
+                ("total_initiatives_lc", "All initiatives (LC)"),
+            )
+            if col in frame.columns
+        ]
+
+    return extract
+
+
+def _decomp_coverage(bundle):
+    return _decomp(bundle).get("coverage_summary")
+
+
+# One per weighting: the two charts look similar and mean different things, so the
+# difference has to be stated on each rather than once somewhere else on the page.
+_WEIGHTING_DESCRIPTION = {
+    "pooled": (
+        "**Pooled sum** — add up every holding's initiatives, then take shares. This is "
+        "literally *the initiatives that make up this portfolio*, so it answers \"what did "
+        "this leg's reporting consist of\". Because firms report anywhere from 1 to 100+ "
+        "initiatives, a handful of heavy reporters can set the whole mix; a shift in this "
+        "chart can mean one large firm entered the leg rather than that its firms changed "
+        "behaviour."
+    ),
+    "equal_weight": (
+        "**Equal-weight across firms** — compute each holding's own mix first, then average "
+        "across holdings. Every firm counts once regardless of how much it reports, which "
+        "matches how the portfolio is actually weighted in returns, so this is the mix to "
+        "read when attributing the leg's alpha. Holdings with no material initiatives are "
+        "undefined and excluded (see `pct_holdings_zero_material`).\n\n"
+        "Where this and the pooled chart disagree, the pooled mix is being driven by the "
+        "biggest reporters rather than by the typical holding."
+    ),
+}
+
+_DECOMP_DESCRIPTION = (
+    "Composition of the **material** initiatives held by this leg, by formation month, as "
+    "a share of `material__total`. Read it with the coverage table above: the denominator "
+    "counts only material initiatives, so a holding with none contributes nothing to this "
+    "chart."
+)
+
+
+def _decomposition_audits() -> list:
+    """Coverage table, the two level charts, then the 20 area charts.
+
+    Generated unconditionally: the Contract is built at import time, so the keys must be
+    static. A run that does not produce the decomposition just renders them empty.
+    """
+    audits: list = [
+        BundleTableViz(
+            _decomp_coverage,
+            title="Material-initiative decomposition — coverage",
+            key="table:decomposition_coverage",
+            description=(
+                "The denominator behind every area chart below, and the reason to distrust "
+                "one of them.\n\n"
+                "Those charts decompose each leg's **material** initiatives, so a holding "
+                "with `material__total == 0` contributes nothing at all — it is in the "
+                "portfolio and absent from the chart. That is not rare on the Low leg, "
+                "which is by construction the firms whose material share is lowest.\n\n"
+                "- **pct_holdings_matched** — share of holdings that found a "
+                "`(gvkey, rfyear)` row in the materiality workbook. Should be near 100; a "
+                "shortfall means firm-years the universe kept but the LC trim dropped.\n"
+                "- **pct_holdings_zero_material** — **the one to read.** Share of holdings "
+                "with no material initiatives. The area charts describe the *complement* "
+                "of this, so at 30% the chart is speaking for 70% of the leg.\n"
+                "- **median_holdings_with_material** — the typical month's effective "
+                "sample size for the equal-weight charts.\n"
+                "- **pct_initiatives_material** — material as a share of "
+                "`total_initiatives`. The sort's own target, aggregated to the leg; High "
+                "should sit far above Low or the sort is not separating anything.\n"
+                "- **total_initiatives** vs **total_initiatives_lc** — the SAME holdings "
+                "counted two ways: material+immaterial+unmapped from the SASB workbook, "
+                "and `n_predicted_initiatives` from LC. Not a vintage difference — the "
+                "workbook is built from exactly this LC file. It is the **gvkey "
+                "zero-padding alias**: LC stores some firm-years twice, under `1075` and "
+                "`001075`. Both sides pad to one key, then Matchings *sums* the pair while "
+                "this pipeline `drop_duplicates(keep=\"first\")` — the "
+                "`WARNING: lc had N duplicate (gvkey, rfyear) rows` lines in "
+                "`debug_prints.log`. So the workbook figure counts both reports and the LC "
+                "one counts a single report.\n"
+                "- **lc_vs_workbook_pct** — how much LC is missing. 3.3% of firm-years are "
+                "affected and 4.7% of initiatives overall, but nearer 15% here, because "
+                "the firms with duplicate identifier history are the large ones a "
+                "market-cap-filtered universe holds. Only the workbook figure is a valid "
+                "denominator against a workbook numerator; the LC one puts the High leg's "
+                "material share above 100%.\n\n"
+                "Audit-only. Nothing downstream reads it and it is not exported."
+            ),
+        ),
+    ]
+    for _bkt in _DECOMP_BUCKETS:
+        audits.append(
+            BundleMultiSeriesViz(
+                _decomp_levels_series(_bkt),
+                title=f"Initiatives in portfolio over time — {_bkt} Material",
+                key=f"lines:decomp_levels:{_bkt}",
+                collapsible=True,
+                expanded=False,
+                description=(
+                    "Counts, not shares — the levels the area charts below normalise away. "
+                    "A composition shift means something different when the underlying "
+                    "count is also moving."
+                ),
+            )
+        )
+    # Bucket-major, then weighting, then scheme: keeps a leg's ten charts contiguous.
+    for _bkt in _DECOMP_BUCKETS:
+        for _w_key, _w_label in _DECOMP_WEIGHTINGS:
+            for _slug in SCHEME_SLUGS:
+                audits.append(
+                    BundleStackedAreaViz(
+                        _decomp_area_series(_w_key, _slug, _bkt),
+                        title=(f"Material initiative mix (%) — {scheme_title(_slug)} — "
+                               f"{_bkt} Material [{_w_label}]"),
+                        key=f"area:decomp:{_w_key}:{_slug}:{_bkt}",
+                        collapsible=True,
+                        expanded=False,
+                        description=(_DECOMP_DESCRIPTION + "\n\n"
+                                     + _WEIGHTING_DESCRIPTION[_w_key]),
+                    )
+                )
+    return audits
+
+
 CONTRACT = Contract(
     name="build_analyse_portfolios",
     intent="""Build quantile portfolios from the prepared panel and, in the SAME stage, produce every
@@ -295,7 +482,21 @@ the per-leg numbers and ``portfolio_gate_summary`` the one-line verdict.
 
 The gate is PRESENTATION ONLY: filtering happens in the dashboard extractors, never in the
 bundle, so every exported parquet still carries every portfolio and the gate cannot move a parity
-artifact. A hidden leg's numbers remain in ``risk_table.parquet``.""",
+artifact. A hidden leg's numbers remain in ``risk_table.parquet``.
+
+Finally, on ``Material_Immaterial_only`` runs carrying the SASB counts, decomposes each leg's
+MATERIAL initiatives into behavioural and SDG brackets over time (``BundleStackedAreaViz``, five
+schemes x High/Low x pooled/equal-weight), with the underlying counts (``BundleMultiSeriesViz``)
+and a coverage table (``BundleTableViz``). ``material__total`` is an opaque count, so the High-Low
+alpha cannot otherwise be attributed to a behaviour or an SDG; this says what the leg's material
+initiatives actually ARE and whether that mix drifts. Every scheme is normalised by
+``material__total`` — including the old 3-way split, which covers only ~91% of it and therefore
+carries an explicit ``Unclassified`` band rather than being rescaled to its own smaller total.
+Each holding's fiscal year is read back off ``global_universe``'s ``rfyear``, the same point-in-time
+key the signal merge used, so the initiatives shown for a formation month are the ones that month's
+sort actually saw. Only ``signal_0`` is decomposed: under this characterization ``signal_1`` is its
+exact mirror, so ``High signal_1`` and ``Low signal_0`` are the same portfolio. Audit-only —
+nothing downstream reads it, no parquet is written, and it is empty for every other config.""",
     input_schema={"prep": open_schema(), "cfg": cfg_schema()},
     output_schema=open_schema(),
     audits=[
@@ -377,6 +578,9 @@ artifact. A hidden leg's numbers remain in ``risk_table.parquet``.""",
         # Per-bucket constituent widgets — all collapsed by default so the page
         # stays scannable; expand the ones you care about.
         *_bucket_audits(),
+        # Material-initiative decomposition, directly beneath the sector-share charts it
+        # is the sibling of. Empty outside Material_Immaterial_only + add_materiality.
+        *_decomposition_audits(),
     ],
 )
 
@@ -703,6 +907,241 @@ def build_analyse_portfolios_v1(prep, cfg):
             _label = f"{_bucket_to_prefix[_bkt]} {_sig}"  # raw signal key, cfg-independent
             _per_bucket[_label] = _wide  # sectors x date (cols = sectors, index = date)
 
+    # ---- material-initiative decomposition (AUDIT-ONLY) ------------------ #
+    # What ARE the material initiatives each leg holds? `material__total` is an opaque
+    # count, so the High-Low alpha cannot be attributed to a behaviour or an SDG. This
+    # cuts that total five ways (see New_Pipeline/initiative_brackets.py) per leg per
+    # formation month. Nothing downstream reads it and it is not exported, so it cannot
+    # move a parity artifact.
+    #
+    # NO LOOKAHEAD, and no date arithmetic: `global_universe` already carries, per
+    # (gvkey_iid, date), the exact `rfyear` whose LC row produced that month's signal --
+    # it is a merge key in merge_lc_into_global_universe (left_on ["gvkey","last_year"],
+    # right_on ["gvkey","rfyear"]) and survives in _LC_MERGE_FIXED. Reading it back is
+    # therefore point-in-time correct BY CONSTRUCTION, and automatically right for Japan,
+    # whose split month differs. Re-deriving the Jan-Jun/Jul-Dec rule here would be a
+    # second copy of it, free to drift.
+    initiative_decomposition = None
+    _mat_counts = P.get("materiality_counts")
+    _DECOMP_SIGNAL = "signal_0"
+    if (_mat_counts is not None
+            and C.get("action_characterization") == "Material_Immaterial_only"
+            and _DECOMP_SIGNAL in signal_quantile_constituents):
+        from New_Pipeline.initiative_brackets import (
+            RESIDUAL_BAND,
+            SCHEME_SLUGS,
+            TOTAL_COLUMN,
+            bands_for,
+            required_columns,
+        )
+
+        # signal_0 ONLY. Under Material_Immaterial_only, sum_activities is
+        # material__total + immaterial__total, so signal_1 == 1 - signal_0 exactly;
+        # standardize_pivot's (x-mean)/std preserves the mirror, so "High signal_1" and
+        # "Low signal_0" are the SAME portfolio. Doing both would duplicate every chart.
+        # (The mirror itself is reported by the sort_cutpoint_audit node.)
+        _rows = []
+        for _bkt, _idx in (("High", K - 1), ("Low", 0)):
+            for _ms in signal_quantile_constituents[_DECOMP_SIGNAL]:
+                _dt = pd.to_datetime(_ms.name)
+                for _gi in pd.Index(_ms.iloc[_idx]):
+                    _rows.append({"bucket": _bkt, "date": _dt, "gvkey_iid": str(_gi)})
+        _h = pd.DataFrame(_rows, columns=["bucket", "date", "gvkey_iid"])
+
+        # 1. holdings -> point-in-time (gvkey, rfyear)
+        _gu_key = global_universe[["gvkey_iid", "date", "gvkey", "rfyear"]].copy()
+        _gu_key["date"] = pd.to_datetime(_gu_key["date"])
+        _gu_key["gvkey_iid"] = _gu_key["gvkey_iid"].astype(str)
+        _gu_key = _gu_key.drop_duplicates(subset=["gvkey_iid", "date"])
+        _h = _h.merge(_gu_key, on=["gvkey_iid", "date"], how="left")
+        if _h["rfyear"].isna().any():
+            # Every holding came from a signal pivot built off these same rows, so a miss
+            # is a key-format bug, not a data gap.
+            raise ValueError(
+                f"{int(_h['rfyear'].isna().sum())} of {len(_h)} holdings found no "
+                "(gvkey_iid, date) row in global_universe - cannot date their initiatives"
+            )
+        # rfyear reaches the panel through a LEFT merge so it is float64; lc's is integer.
+        # Without this cast the join below matches nothing and every share reads 0.
+        _h["rfyear"] = _h["rfyear"].astype("int64")
+
+        # NO-LOOKAHEAD CANARY. Deliberately a BOUND, not a restatement of the Jan-Jun/Jul-Dec
+        # rule: asserting "rfyear is Y-2 or Y-1" holds for every region including Japan
+        # (whose split month is configurable), while asserting the rule itself would be a
+        # second copy of it, free to drift from the one in process_data.py. What matters for
+        # this widget is only that no initiative shown for month M was reported after M --
+        # guaranteed by rfyear being at least a full year behind.
+        _lag = _h["date"].dt.year - _h["rfyear"]
+        if not _lag.isin((1, 2)).all():
+            _bad = _h.loc[~_lag.isin((1, 2)), ["date", "gvkey", "rfyear"]].head()
+            raise ValueError(
+                f"LOOKAHEAD: {int((~_lag.isin((1, 2))).sum())} holdings have rfyear outside "
+                f"[year-2, year-1] of their formation month:\n{_bad}"
+            )
+        _h1 = _h["date"].dt.month <= 6
+        print(f"[decomposition] point-in-time lag OK — Jan-Jun: "
+              f"{sorted(_lag[_h1].unique().tolist())}, "
+              f"Jul-Dec: {sorted(_lag[~_h1].unique().tolist())} "
+              f"(years behind formation month)")
+
+        # 2. (gvkey, rfyear) -> the raw materiality counts
+        _need = [c for c in required_columns() if c in _mat_counts.columns]
+        _missing = [c for c in required_columns() if c not in _mat_counts.columns]
+        if _missing:
+            raise KeyError(
+                f"materiality_counts is missing bracket columns {_missing} - the workbook "
+                "vintage does not carry the per-SDG breakdown these schemes need"
+            )
+        # The other two materiality groups are not band sources -- they are what makes an
+        # internally consistent "all initiatives" denominator possible (see _wb_total below).
+        _totals = [c for c in ("immaterial__total", "unmapped__total")
+                   if c in _mat_counts.columns and c not in _need]
+        _mc = _mat_counts[["gvkey", "rfyear", "n_predicted_initiatives"] + _need + _totals].copy()
+        _mc["rfyear"] = _mc["rfyear"].astype("int64")
+        _h = _h.merge(_mc, on=["gvkey", "rfyear"], how="left")
+
+        # An unmatched holding is a real coverage fact (its firm-year was trimmed out of lc
+        # after the universe merge), reported below rather than silently dropped. Zero
+        # matches, though, is a broken key -- fail loudly.
+        _matched = _h[_h[TOTAL_COLUMN].notna()].copy()
+        if _matched.empty:
+            raise ValueError(
+                "no holding matched materiality_counts on (gvkey, rfyear) - check gvkey "
+                "zero-padding / rfyear dtype"
+            )
+
+        _pooled: dict = {}
+        _equal: dict = {}
+        _max_dev = 0.0
+        for _slug in SCHEME_SLUGS:
+            _bands = bands_for(_slug)
+            # Row-level band counts, in declaration order. An area chart whose bands
+            # reorder between months is unreadable, so this order is preserved throughout.
+            _bf = pd.DataFrame(
+                {_label: _matched[_cols].sum(axis=1) for _label, _cols in _bands.items()},
+                index=_matched.index,
+            )
+            # Explicit residual instead of rescaling to the scheme's own smaller total: the
+            # old 3-way split covers only ~91% of material initiatives, and rescaling would
+            # hide that AND make its bands incomparable with the other four schemes. Every
+            # scheme therefore sums to material__total exactly.
+            _resid = _matched[TOTAL_COLUMN] - _bf.sum(axis=1)
+            if float(_resid.abs().max()) > 0:
+                if float(_resid.min()) < 0:
+                    raise ValueError(
+                        f"scheme {_slug!r} DOUBLE-COUNTS: its bands exceed {TOTAL_COLUMN} "
+                        f"on {int((_resid < 0).sum())} holdings"
+                    )
+                _bf[RESIDUAL_BAND] = _resid
+            _dev = float((_bf.sum(axis=1) - _matched[TOTAL_COLUMN]).abs().max())
+            if _dev > 0:
+                raise ValueError(f"scheme {_slug!r} bands do not sum to {TOTAL_COLUMN} (max dev {_dev})")
+
+            _keyed = pd.concat([_matched[["bucket", "date", TOTAL_COLUMN]], _bf], axis=1)
+
+            # POOLED: sum every holding's initiatives, then share. Literally "the
+            # initiatives that make up this portfolio" -- but set by the heaviest reporters.
+            _g = _keyed.groupby(["bucket", "date"], sort=True)
+            _num = _g[list(_bf.columns)].sum()
+            _den = _g[TOTAL_COLUMN].sum()
+            _pool_pct = _num.div(_den.where(_den > 0), axis=0) * 100.0
+
+            # EQUAL-WEIGHT: each firm's own mix, then average across holdings. Matches how
+            # the portfolio is weighted in returns. Undefined for a holding with no material
+            # initiatives at all, which is why _keyed is filtered here and not above.
+            _nz = _keyed[_keyed[TOTAL_COLUMN] > 0]
+            _ew_pct = (
+                _nz[list(_bf.columns)].div(_nz[TOTAL_COLUMN], axis=0)
+                .groupby([_nz["bucket"], _nz["date"]], sort=True).mean() * 100.0
+            )
+            _ew_pct.index.names = ["bucket", "date"]
+
+            _pooled[_slug] = {}
+            _equal[_slug] = {}
+            for _bkt in ("High", "Low"):
+                for _store, _frame in ((_pooled, _pool_pct), (_equal, _ew_pct)):
+                    _sub = (_frame.xs(_bkt, level="bucket").sort_index()
+                            if _bkt in _frame.index.get_level_values("bucket")
+                            else pd.DataFrame(columns=list(_bf.columns)))
+                    _store[_slug][_bkt] = _sub
+                    if len(_sub):
+                        _max_dev = max(_max_dev, float((_sub.sum(axis=1) - 100.0).abs().max()))
+
+        # Levels + coverage. With a material-only denominator a holding with zero material
+        # initiatives contributes NOTHING, so how many of those a leg holds decides whether
+        # its chart describes the leg or a minority of it. Belongs next to the charts.
+        _h["_matched"] = _h[TOTAL_COLUMN].notna()
+        _h["_has_material"] = _h[TOTAL_COLUMN].fillna(0) > 0
+        # "All initiatives" must come from the SASB workbook, NOT from lc's
+        # n_predicted_initiatives, and the reason is NOT a vintage mismatch -- the workbook
+        # is built from exactly the LC file this pipeline loads. It is the gvkey
+        # zero-padding alias: LC stores some firm-years TWICE, under "1075" and "001075".
+        # Both sides zfill to one key, then the Matchings pipeline SUMS the pair while
+        # process_lc/prepare_panel drop_duplicates(keep="first") -- see the
+        # "WARNING: lc had N duplicate (gvkey, rfyear) rows" lines in debug_prints.log.
+        # So material__total covers both reports and n_predicted_initiatives covers one.
+        # Verified: wb_total == the summed LC rows for all 72,412 firm-years, exactly.
+        #
+        # 2,423 firm-years (3.3%) are affected, 4.7% of all initiatives -- but nearer 15%
+        # inside a portfolio, because the firms with duplicate identifier history are the
+        # large ones a market-cap-filtered universe holds. Against an alias-summed
+        # numerator, lc's count puts the High leg's material share ABOVE 100%.
+        # material/immaterial/unmapped partition the workbook's own total exactly, so
+        # summing them is the only internally consistent denominator here. lc's count stays
+        # beside it as `total_initiatives_lc` so the size of the loss is visible.
+        #
+        # The SIGNAL is unaffected: under Material_Immaterial_only sum_activities is
+        # material__total + immaterial__total, both alias-summed. But
+        # signal_denominator="Sum_All_Initiatives" would divide an alias-summed numerator by
+        # this first-alias-only count and produce shares above 1 -- no registered config
+        # uses it, and this is the reason not to.
+        _h["_wb_total"] = _h[TOTAL_COLUMN].fillna(0)
+        for _c in ("immaterial__total", "unmapped__total"):
+            if _c in _h.columns:
+                _h["_wb_total"] = _h["_wb_total"] + _h[_c].fillna(0)
+        _levels: dict = {}
+        _cov_rows = []
+        for _bkt in ("High", "Low"):
+            _b = _h[_h["bucket"] == _bkt]
+            if _b.empty:
+                continue
+            _lv = _b.groupby("date", sort=True).agg(
+                n_holdings=("gvkey_iid", "size"),
+                n_matched=("_matched", "sum"),
+                n_with_material=("_has_material", "sum"),
+                total_material_initiatives=(TOTAL_COLUMN, "sum"),
+                total_initiatives=("_wb_total", "sum"),
+                total_initiatives_lc=("n_predicted_initiatives", "sum"),
+            )
+            _levels[_bkt] = _lv
+            _wb = float(_b["_wb_total"].sum())
+            _lc_tot = float(_b["n_predicted_initiatives"].fillna(0).sum())
+            _cov_rows.append({
+                "bucket": _bkt,
+                "n_months": int(len(_lv)),
+                "median_holdings": int(_lv["n_holdings"].median()),
+                "pct_holdings_matched": round(float(_b["_matched"].mean()) * 100, 1),
+                "median_holdings_with_material": int(_lv["n_with_material"].median()),
+                "pct_holdings_zero_material": round(
+                    float((~_b["_has_material"]).mean()) * 100, 1),
+                "total_material_initiatives": int(_b[TOTAL_COLUMN].fillna(0).sum()),
+                "total_initiatives": int(_wb),
+                "pct_initiatives_material": round(
+                    float(_b[TOTAL_COLUMN].fillna(0).sum()) / max(_wb, 1.0) * 100, 1),
+                "total_initiatives_lc": int(_lc_tot),
+                "lc_vs_workbook_pct": round(_lc_tot / max(_wb, 1.0) * 100, 1),
+            })
+
+        initiative_decomposition = {
+            "pooled": _pooled,
+            "equal_weight": _equal,
+            "levels": _levels,
+            "coverage_summary": pd.DataFrame(_cov_rows),
+        }
+        print(f"[decomposition] {len(SCHEME_SLUGS)} schemes x 2 buckets x 2 weightings; "
+              f"max |band sum - 100| = {_max_dev:.10f}")
+        print(initiative_decomposition["coverage_summary"].to_string(index=False))
+
     return pack_obj({
         # portfolio-construction outputs (unchanged from the old build_portfolios bundle)
         "signal_quantiles": signal_quantiles,
@@ -733,6 +1172,9 @@ def build_analyse_portfolios_v1(prep, cfg):
         # per-bucket Industry counts: label -> DataFrame(date x sector). Drives the
         # per-bucket count and sector-share dashboard widgets. Not written to parquet.
         "per_bucket_industry": _per_bucket,
+        # Material-initiative decomposition (audit-only, not written to parquet). None
+        # unless add_materiality and action_characterization == "Material_Immaterial_only".
+        "initiative_decomposition": initiative_decomposition,
         # Thin-portfolio gate. The frames are audit output; dropped_portfolio_labels is the
         # drop set the dashboard extractors filter on. Every other bundle key stays COMPLETE
         # so the exported parquets are unaffected.

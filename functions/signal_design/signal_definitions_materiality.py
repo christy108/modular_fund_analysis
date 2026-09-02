@@ -54,6 +54,9 @@ def Materiality_Signals_3_groups_people_planet_prosperity_SDG():
     return _signals_from_groups(PEOPLE_PLANET_PROSPERITY)
 
 
+    
+
+
 def Materiality_Signals_5_groups_SDG_brackets():
     """10 signals: material/immaterial x the five SDG_BRACKETS."""
     return _signals_from_groups(SDG_5_BRACKETS)

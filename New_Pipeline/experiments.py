@@ -167,6 +167,13 @@ def build_cfg(**overrides) -> dict:
         # its rows are contributed by the nodes that already ran the filters, so it costs
         # a handful of nunique() calls rather than a replay.
         show_sample_funnel_audit=True,
+        # Save build_analyse_portfolios' material-initiative area plots as a PDF in the
+        # run's archive directory (runs/<ts>_<config>/initiative_decomposition.pdf),
+        # alongside dashboard.md. Rendered by run.py from the same widget payloads the
+        # dashboard draws, so the two can never disagree. No-op unless the run actually
+        # produces the decomposition (add_materiality + Material_Immaterial_only), and
+        # deliberately NOT written to the --out snapshot: it is a report, not an artifact.
+        area_initatives_plots_per_portfolio_to_PDF=True,
         include_all_signals_in_cum_risk_table=True,
     )
     # Reject unknown override keys. `c.update` would otherwise accept a typo (or a key

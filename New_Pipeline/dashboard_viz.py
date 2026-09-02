@@ -34,6 +34,22 @@ from leonardo_nodes.viz import (
 # Order within this tuple is the order they render in (see _ordered_nodes below).
 _DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit", "sort_cutpoint_audit")
 
+# Palette for stacked-area bands. Not the framework's _CHART_COLORS: that one is tuned for
+# thin lines on white and its adjacent entries (blue/amber/emerald/red) vibrate badly as
+# large filled blocks. These are ordered so neighbouring bands stay distinguishable when
+# one of them is a sliver.
+#
+# 18 entries because the widest scheme (Climate & Natural Capital vs each SDG) has 15 bands
+# and any scheme may gain an Unclassified residual. Beyond ~8 bands an area chart is at the
+# limit of what colour alone can separate -- read those against the coarser schemes rather
+# than trying to identify a 2%-tall band by hue.
+_AREA_COLORS = (
+    "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444",
+    "#06b6d4", "#84cc16", "#ec4899", "#64748b", "#a16207",
+    "#1e3a8a", "#047857", "#b45309", "#5b21b6", "#991b1b",
+    "#0e7490", "#4d7c0f", "#9d174d",
+)
+
 
 class OrderedDashboard(Dashboard):
     """Dashboard that renders ``_DEFERRED_SECTIONS`` last, whatever the DAG says.
@@ -57,6 +73,80 @@ class OrderedDashboard(Dashboard):
         if not deferred:
             return nodes
         return [n for n in nodes if n.name not in _DEFERRED_SECTIONS] + deferred
+
+    def _lines_figure(self, c):
+        """Draw STACKED AREA when ``options["stack"]`` is set; otherwise the normal lines.
+
+        The framework has no area chart: ``Dashboard._lines_figure`` hardcodes
+        ``mode="lines"``, and a ``DashboardComponent`` with an unrecognised ``kind`` falls
+        through to a table. It is called as ``self._lines_figure(c)`` though, so overriding
+        it here adds the one chart type this repo needs without touching ``leonardo-nodes``
+        -- and any node in any pipeline built on that framework keeps the old behaviour.
+
+        Layout deliberately mirrors the base implementation exactly (one subplot per
+        experiment, shared y, one legend entry per series NAME with a stable colour across
+        subplots) so a stacked chart sits beside the line charts without looking foreign.
+        The y-axis is pinned to 0-100 because these payloads are percentages that sum to
+        100 by construction -- letting Plotly autoscale would make a band look like it grew
+        when only the axis moved.
+        """
+        if not (c.options or {}).get("stack"):
+            return super()._lines_figure(c)
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            return None
+
+        gathered = c.data if isinstance(c.data, dict) else {}
+        experiments = [
+            exp for exp, payload in gathered.items()
+            if isinstance(payload, dict) and payload.get("series")
+        ]
+        if not experiments:
+            return go.Figure()
+
+        fig = make_subplots(
+            rows=1, cols=len(experiments), subplot_titles=experiments, shared_yaxes=True
+        )
+        names: list[str] = []
+        for exp in experiments:
+            for s in gathered[exp]["series"]:
+                name = str(s.get("name"))
+                if name not in names:
+                    names.append(name)
+        color_of = {n: _AREA_COLORS[i % len(_AREA_COLORS)] for i, n in enumerate(names)}
+
+        for col, exp in enumerate(experiments, start=1):
+            # stackgroup is per-subplot: sharing one across subplots would stack every
+            # experiment's bands on top of each other into a single 100*N-tall pile.
+            group = f"stack{col}"
+            for s in gathered[exp]["series"]:
+                name = str(s.get("name"))
+                fig.add_trace(
+                    go.Scatter(
+                        x=s.get("x") or [],
+                        y=s.get("y") or [],
+                        mode="lines",
+                        name=name,
+                        legendgroup=name,
+                        showlegend=(col == 1),
+                        stackgroup=group,
+                        fillcolor=color_of.get(name),
+                        line={"color": color_of.get(name), "width": 0.5},
+                        hovertemplate="%{y:.1f}%<extra>%{fullData.name}</extra>",
+                    ),
+                    row=1,
+                    col=col,
+                )
+            fig.update_yaxes(range=[0, 100], row=1, col=col)
+        fig.update_layout(
+            title=c.title,
+            height=420,
+            margin={"t": 60, "b": 40},
+            hoverlabel={"namelength": -1},
+        )
+        return fig
 
 
 class BundleTableViz(SampleTableViz):
@@ -323,6 +413,27 @@ class BundleMultiSeriesViz(LineChartViz):
             opts["collapsible"] = True
             opts["expanded"] = self._expanded
         return DashboardComponent(kind="lines", title=self.title, data=gathered, options=opts)
+
+
+class BundleStackedAreaViz(BundleMultiSeriesViz):
+    """A STACKED AREA chart -- same payload as ``BundleMultiSeriesViz``, drawn filled.
+
+    ``extract(bundle_dict) -> [{"name": str, "x": [...], "y": [...]}, ...]``, one entry per
+    band, where the y-values at each x are PERCENTAGES summing to 100. Setting
+    ``options["stack"]`` is what ``OrderedDashboard._lines_figure`` keys off; against the
+    stock framework ``Dashboard`` the flag is simply ignored and the same data renders as
+    ordinary overlaid lines, which is a degraded view rather than a broken one.
+
+    Normalise in the EXTRACTOR, not with Plotly's ``groupnorm``: the percentages are an
+    analytical result that belongs in the bundle where it can be asserted, not a rendering
+    side effect. Band ORDER is the extractor's order and is never re-sorted -- an area chart
+    whose bands swap places between months is unreadable.
+    """
+
+    def render(self, gathered: dict) -> DashboardComponent:
+        component = super().render(gathered)
+        component.options["stack"] = True
+        return component
 
 
 class BundleSeriesViz(LineChartViz):
