@@ -580,6 +580,23 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 def base_none():
     return make_experiment("base_none", build_cfg())
 
+
+def base_none_half_open():
+    # base_none with the ONLY change being the cutpoint tie-break convention, so this pair
+    # isolates the tie mass and nothing else: same sample, same signal, same cutpoints.
+    #
+    # The signal is a ratio of small integer counts, so its support is a sparse set of
+    # simple fractions and a cutpoint lands on a block of identical values routinely
+    # (sort_cutpoint_summary reports months_tie_on_high_cut). Which way that block goes is
+    # decided by convention, not by the data:
+    #   base_none            "closed"    -> High = {z >= q_{K-1}}, block INCLUDED
+    #   base_none_half_open  "half_open" -> High = {z >  q_{K-1}}, block EXCLUDED
+    # The Low leg is {z <= q_1} in both, so it must come out bit-identical -- that is the
+    # parity check on this pair. Any Low-leg difference means something other than the
+    # tie-break moved, and the comparison is invalid.
+    return make_experiment("base_none_half_open",
+                           build_cfg(quantile_interval_bounds="half_open"))
+
  
 
 def base_materiality():
@@ -833,6 +850,7 @@ def sdg_climate_vs_each_sdg():
 
 EXPERIMENTS = {
     "base_none": base_none,
+    "base_none_half_open": base_none_half_open,
 
 
     "base_materiality": base_materiality,

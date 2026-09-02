@@ -19,45 +19,64 @@ from __future__ import annotations
 # folder (that is what makes --resume work). `--new-run` forces a fresh folder anyway,
 # and `--out DIR` overrides the whole thing.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "per_revenue_winsorise"
+SWEEP_NAME: str = "sdg_designs_alpha_quantile_mcap"
 
+
+# --------------------------------------------------------------------------- #
+# The seven signal designs this sweep covers:
+#   - three one-group materiality designs (each a mirror pair: signal_0 is that
+#     group's material share, signal_1 its exact complement)
+#   - Materiality_SDG_X for SDG 1, 3, 5, 10 (the single-SDG design, via the cfg knob
+#     materiality_single_sdg rather than a distinct action_characterization per SDG --
+#     see functions/signal_design/signal_definitions_materiality.py)
+#
+# materiality_single_sdg is ignored by every action_characterization except
+# "Materiality_single_SDG" (build_cfg does not raise on the unused key for the other
+# six), but a GRID cross of action_characterization x materiality_single_sdg would still
+# waste 3 designs x 4 SDGs = 12 runs re-deriving identical cfgs. That is exactly the
+# "knobs that must move together" case the EXPLICIT section below exists for.
+# --------------------------------------------------------------------------- #
+_SDGS_TO_SWEEP: list[int] = [3, 5, 10]
+
+DESIGNS: list[dict] = [
+    {"action_characterization": "Materiality_People_SDG"},
+    {"action_characterization": "Materiality_People_Plus_Prosperity_SDG"},
+    {"action_characterization": "Materiality_People_Plus_Prosperity_VS_Planet_SDG"},
+] + [
+    {"action_characterization": "Materiality_single_SDG", "materiality_single_sdg": sdg}
+    for sdg in _SDGS_TO_SWEEP
+]
 
 # --------------------------------------------------------------------------- #
 # GRID: expanded to its full cartesian product.
-#   {"a": [1, 2], "b": ["x", "y"]}  ->  4 experiments (a=1,b=x), (a=1,b=y), ...
-# Set to {} to disable and use EXPLICIT only.
+# Left empty and disabled here -- the design/SDG pairing above has to move together with
+# each design, which GRID cannot express; EXPLICIT does the full cross instead.
 # --------------------------------------------------------------------------- #
-GRID: dict[str, list] = {
-    # Every signal design, each at three winsorisation levels. signal_type is pinned to
-    # "per_revenue" in FIXED, so this measures what winsorising does to an UNBOUNDED,
-    # right-skewed signal -- the case it was built for. (On "weights", a share bounded in
-    # [0,1], it clipped ~0.9% of values and moved std by only ~2.4%.)
-    "action_characterization": [
-        "Material_Immaterial_only",
-        "Materiality_3_groups_people_planet_prosperity_SDG",
-        "Materiality_5_groups_SDG_brackets",
-        "Materiality_Climate_Natural_Capital_vs_All_SDGS",
-        "Combined_Material_Immaterial_3_Matteo_Signals",
-        "Combined_Material_Immaterial_4_Behavioural_Signals",
-        "total_initiatives",
-    ],
-    "winsorise_signal_pct": [0.0, 0.01, 0.02],
-}
+GRID: dict[str, list] = {}
+
+# The three sweep parameters, each requested at these levels:
+_ALPHA_BOUNDS: list[float] = [0.5, 0.1]
+_QUANTILES: list[int] = [3, 5, 7]
+_MCAP_COVERED: list[float] = [0.95, 0.99]
 
 # --------------------------------------------------------------------------- #
 # EXPLICIT: hand-picked combinations, appended after the grid, used verbatim.
 # For knobs that must move together (add_materiality + a materiality-only
 # action_characterization, say) a grid cannot express the constraint — put them here.
+#
+# Full cross of DESIGNS x alpha_bound x no_simple_quantiles x mcap_covered:
+# 7 designs x 2 x 3 x 2 = 84 experiments. At JOBS=2 that is a long sweep -- raise
+# --jobs if you have the RAM (each worker loads the full Golden LC + Compustat universe
+# independently; see the JOBS comment below), or trim _SDGS_TO_SWEEP / the parameter
+# lists above for a quicker pass.
 # --------------------------------------------------------------------------- #
 EXPLICIT: list[dict] = [
-    # total_initiatives as a raw COUNT, at the same three winsorise levels. Identical
-    # numerator to its per_revenue twin in the grid, so each pair isolates exactly one
-    # thing: the revenue denominator.
-    # (total_initiatives + signal_type="weights" is rejected by build_cfg -- one group
-    # covering every initiative gives sum_with_0/sum_activities == 1.0 for every firm.)
-    {"action_characterization": "total_initiatives",
-     "signal_type": "counts", "winsorise_signal_pct": w}
-    for w in [0.0, 0.01, 0.02]
+    {**design, "alpha_bound": alpha, "no_simple_quantiles": k,
+     "mktcap_covered_if_filter_by_cum_market_cap": mcap}
+    for design in DESIGNS
+    for alpha in _ALPHA_BOUNDS
+    for k in _QUANTILES
+    for mcap in _MCAP_COVERED
 ]
 
 # --------------------------------------------------------------------------- #
@@ -66,11 +85,11 @@ EXPLICIT: list[dict] = [
 # An entry in GRID/EXPLICIT wins over FIXED for the same key.
 # --------------------------------------------------------------------------- #
 FIXED: dict = {
+    # Already the build_cfg baseline, but pinned explicitly: every design in this sweep
+    # keys on the per-SDG material__total__SDG_N / immaterial__total__SDG_N columns,
+    # which only the v2 SASB workbook carries.
     "add_materiality": True,
-    # per_revenue REQUIRES add_sales -- the denominator is the `sale_usd` column the
-    # sales merge attaches in process_lc (build_cfg raises otherwise).
-    "add_sales": True,
-    "signal_type": "per_revenue",
+    "materiality_version": 2,
 }
 
 
@@ -117,26 +136,22 @@ JOBS: int = 2
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
     "action_characterization",
-    "signal_type",
-    "winsorise_signal_pct",
-    "no_simple_quantiles",
+    # None for the three group designs, 1/3/5/10 for Materiality_single_SDG -- _sort_key
+    # coerces None to the string "None" and groups it with the other unlisted values, so
+    # it sorts safely alongside the SDG numbers without a value_order entry.
+    "materiality_single_sdg",
     "alpha_bound",
+    "no_simple_quantiles",
     "mktcap_covered_if_filter_by_cum_market_cap",
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Within each design: the per_revenue pages (this sweep's subject) first, then the
-    # counts reference. "weights" is listed for older ledgers that still contain it.
-    "signal_type": ["per_revenue", "counts", "weights"],
     # Pages group by signal design, in this order; within each group they run through
-    # every no_simple_quantiles x alpha_bound combination.
+    # every SDG (where applicable) x alpha_bound x no_simple_quantiles x mcap combination.
     "action_characterization": [
-        "Material_Immaterial_only",
-        "Materiality_3_groups_people_planet_prosperity_SDG",
-        "Materiality_5_groups_SDG_brackets",
-        "Materiality_Climate_Natural_Capital_vs_All_SDGS",
-        "Combined_Material_Immaterial_3_Matteo_Signals",
-        "Combined_Material_Immaterial_4_Behavioural_Signals",
-        "total_initiatives",
+        "Materiality_People_SDG",
+        "Materiality_People_Plus_Prosperity_SDG",
+        "Materiality_People_Plus_Prosperity_VS_Planet_SDG",
+        "Materiality_single_SDG",
     ],
 }
