@@ -21,7 +21,9 @@ from New_Pipeline._common import cfg_schema, open_schema, store
 from New_Pipeline.dashboard_viz import (
     BundleColoredTableViz,
     BundleDualAxisViz,
+    BundleHistogramViz,
     BundleTableViz,
+    histogram_series,
 )
 
 
@@ -37,6 +39,12 @@ def _firms_and_initiatives(bundle):
     """Per-fiscal-year unique companies / firm-year observations / total initiatives for
     the surviving sample. None on the ESG-universe path (no LC, no rfyear)."""
     return bundle.get("firms_and_initiatives")
+
+
+def _signal_histograms_std(bundle):
+    """Before/after histograms across ``standardize_pivot`` — two grid rows (raw, then
+    standardised) x one column per signal, over the SAME monthly cells."""
+    return histogram_series(bundle.get("signal_histograms_std"))
 
 
 def _signal_sparsity_standardized(bundle):
@@ -67,6 +75,12 @@ Surfaces: final-sample descriptives — unique gvkeys, unique gvkey-year observa
 initiatives (``BundleTableViz``); the same three measures per fiscal year (``BundleTableViz``);
 and unique companies against total initiatives over time on separate y-axes
 (``BundleDualAxisViz``, since the two differ by orders of magnitude).
+
+Also surfaces the signal DISTRIBUTIONS before vs after ``standardize_pivot``
+(``BundleHistogramViz``): raw on the top row, z-score on the bottom, one column per signal,
+both measured over the same monthly cells so the difference is the z-score alone. This is
+where the raw zero atom visibly shatters into a per-group cloud, and where a tie block that
+standardisation did NOT break shows up as a surviving spike.
 
 Also surfaces post-standardisation sortability per signal per calendar year
 (``BundleColoredTableViz``): the twin of node 02's raw ``signal_sparsity_by_year``, measured on
@@ -111,6 +125,42 @@ ESG-universe path, which carries no LC data.""",
         ),
         BundleTableViz(_firms_and_initiatives, title="Firms and initiatives by year",
                        key="table:firms_and_initiatives"),
+        BundleHistogramViz(
+            _signal_histograms_std,
+            title="Signal distributions — before vs after standardisation",
+            key="histogram:signal_histograms_std",
+            description=(
+                "What `standardize_pivot` does to the shape of each signal. **Top row** is "
+                "the raw signal, **bottom row** the z-score the sort actually cuts; one "
+                "column per signal. 40 bins over each panel's own observed range, bars in "
+                "% of observations.\n\n"
+                "Both rows are measured on the **same unit and the same cells** — the "
+                "(date, gvkey_iid) monthly cross-section cells that survive into the sort. "
+                "The raw row is re-pivoted out of `global_universe` (which still carries "
+                "the raw signal columns) and then masked by the standardised pivot's own "
+                "NaN pattern, so a shape difference between the rows is the z-score and "
+                "nothing else. Note this makes the top row **not** the same picture as node "
+                "02's *Signal distributions*, which is over firm-years — a firm-year "
+                "appears here roughly twelve times per share issue.\n\n"
+                "The x-axes are deliberately **not** shared between rows: a raw share "
+                "lives in [0, 1] while a z-score is unbounded and centred on 0, so a "
+                "common axis would flatten one row into a spike. Compare by shape.\n\n"
+                "What to look for:\n"
+                "- **The zero atom shatters.** Standardisation happens within (rfyear, "
+                "curcdd, Industry), so a raw 0 becomes `-mean_g/std_g` — a *different* "
+                "value in every group. A single tall bar at 0 in the top row should spread "
+                "into a left-hand cloud in the bottom row. That is why exactly-empty "
+                "buckets are rarer than the raw `pct_zero` implies.\n"
+                "- **A surviving spike** in the bottom row is a tie block that z-scoring "
+                "did *not* break — a whole standardisation group at the same value. "
+                "That block can swallow a cutpoint; `largest_tie_pct` in the table below "
+                "measures it.\n"
+                "- **Heavy z-score tails** (well beyond ±3) come from small "
+                "standardisation groups, where one firm's deviation is divided by a tiny "
+                "within-group std. Those are the observations most likely to occupy a "
+                "corner bucket on their own."
+            ),
+        ),
         BundleColoredTableViz(
             _signal_sparsity_standardized,
             title="Signal sparsity by year — AFTER standardisation (as sorted)",
@@ -171,7 +221,13 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_univariate_sorting_inputs,
     )
-    from New_Pipeline._common import count_firms, funnel_frame, normalise_gvkeys, standardized_sparsity_by_year
+    from New_Pipeline._common import (
+        count_firms,
+        funnel_frame,
+        normalise_gvkeys,
+        raw_vs_standardized_histograms,
+        standardized_sparsity_by_year,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -328,6 +384,11 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         "signal_sparsity_standardized": standardized_sparsity_by_year(
             prep.signals, prep.signal_names, C["no_simple_quantiles"]
         ),
+        # Audit-only: the signal distributions BEFORE vs AFTER standardize_pivot, on the
+        # same monthly cells. Nothing reads it.
+        "signal_histograms_std": raw_vs_standardized_histograms(
+            prep.global_universe, prep.signals, prep.signal_names
+        ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,
         "sample_descriptives": sample_descriptives,
@@ -350,7 +411,12 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
         prepare_esg_universe_sorting_inputs,
     )
-    from New_Pipeline._common import count_firms, funnel_frame, standardized_sparsity_by_year
+    from New_Pipeline._common import (
+        count_firms,
+        funnel_frame,
+        raw_vs_standardized_histograms,
+        standardized_sparsity_by_year,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -433,6 +499,11 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         # Audit-only: sortability of the standardized cross-sections. Nothing reads it.
         "signal_sparsity_standardized": standardized_sparsity_by_year(
             prep.signals, prep.signal_names, C["no_simple_quantiles"]
+        ),
+        # Audit-only: the signal distributions BEFORE vs AFTER standardize_pivot, on the
+        # same monthly cells. Nothing reads it.
+        "signal_histograms_std": raw_vs_standardized_histograms(
+            prep.global_universe, prep.signals, prep.signal_names
         ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,

@@ -255,3 +255,124 @@ def standardized_sparsity_by_year(signals, signal_names, n_quantiles):
                 "pct_at_max": round(float(g["pct_at_max"].median()), 1),
             })
     return pd.DataFrame(rows)
+
+
+HISTOGRAM_BINS = 40
+
+
+def histogram_frame(values_by_name, *, bins=HISTOGRAM_BINS, stage=None):
+    """Tidy long histogram frame: one row per (name, bin), ready for BundleHistogramViz.
+
+    ``values_by_name`` is ``{display name: 1-D array-like}``; insertion order is preserved
+    and becomes the panel order on the dashboard.
+
+    Bins are per-NAME over that name's own finite ``[min, max]``, not a shared range.
+    Signal ranges differ by construction -- a "weights" share lives in [0, 1], a "counts"
+    or "per_revenue" signal does not, and a z-score is unbounded and centred on 0 -- so a
+    shared range would leave most panels empty. The trade-off is that bin WIDTH differs
+    between panels, which is why ``pct`` (share of observations) is the plotted quantity
+    rather than the raw count.
+
+    Pass ``stage`` to tag every row with a comparison stage (e.g. raw vs standardised);
+    the viz turns distinct stages into rows of the panel grid.
+    """
+    import numpy as np
+    import pandas as pd
+
+    rows = []
+    for name, values in (values_by_name or {}).items():
+        v = np.asarray(values, dtype="float64").ravel()
+        v = v[np.isfinite(v)]
+        if v.size == 0:
+            continue
+        lo, hi = float(v.min()), float(v.max())
+        if hi <= lo:
+            # Degenerate (constant, usually all-zero): one bin, so the panel shows a
+            # single full-height bar instead of raising inside np.histogram.
+            edges = np.array([lo, lo + 1.0])
+        else:
+            edges = np.linspace(lo, hi, int(bins) + 1)
+        counts, edges = np.histogram(v, bins=edges)
+        n = int(counts.sum())
+        for i, c in enumerate(counts):
+            row = {
+                "signal": str(name),
+                "bin_left": float(edges[i]),
+                "bin_right": float(edges[i + 1]),
+                "bin_center": float((edges[i] + edges[i + 1]) / 2),
+                "n": int(c),
+                "pct": (100.0 * int(c) / n) if n else 0.0,
+            }
+            if stage is not None:
+                row["stage"] = str(stage)
+            rows.append(row)
+
+    cols = ["signal", "bin_left", "bin_right", "bin_center", "n", "pct"]
+    if stage is not None:
+        cols.insert(1, "stage")
+    return pd.DataFrame(rows, columns=cols)
+
+
+def raw_vs_standardized_histograms(global_universe, signals, signal_names,
+                                   bins=HISTOGRAM_BINS):
+    """Before/after histograms of the sorting signals, across ``standardize_pivot``.
+
+    Two stages, one tidy frame (see ``histogram_frame``), for the raw-vs-standardised
+    panel grid on the ``prepare_panel`` dashboard section.
+
+    Both stages are measured on the **same unit and the same cells**: the (date,
+    gvkey_iid) monthly cross-section cells that survive into the sort. That is what makes
+    the comparison honest, and it takes two deliberate steps:
+
+    * the "before" values are re-pivoted out of ``global_universe``, which still carries
+      the RAW signal columns — ``standardize_pivot`` returns new frames and never mutates
+      its input, and this is the same pivot ``dropna_std_cols_and_build_pivots`` builds.
+    * that raw pivot is then masked by the standardised pivot's own NaN pattern. Without
+      it the "before" panel would be over MORE cells than the "after": the cross-signal
+      NaN mask is applied to the pivots only, and z-scoring adds NaNs of its own wherever
+      a standardisation group is a singleton (std=0). Masking makes the two cell-for-cell
+      identical, so a shape difference is the z-score and nothing else.
+
+    Note the units are monthly cells, not firm-years, so this is NOT directly comparable
+    to node 02's raw firm-year histogram: a firm-year appears here roughly twelve times
+    per share issue. The raw stage here is the like-for-like baseline for the standardised
+    one; node 02's is the like-for-like baseline for the trim.
+    """
+    import numpy as np
+    import pandas as pd
+
+    label = dict(signal_names or {})
+    raw_vals: dict = {}
+    std_vals: dict = {}
+    for col, std in (signals or {}).items():
+        if std is None or getattr(std, "empty", True):
+            continue
+        name = str(label.get(col, col))
+        std_vals[name] = std.to_numpy(dtype="float64").ravel()
+        if col in getattr(global_universe, "columns", []):
+            raw = global_universe.pivot(index="date", columns="gvkey_iid", values=col)
+            raw = raw.reindex(index=std.index, columns=std.columns).where(std.notna())
+            raw_vals[name] = raw.to_numpy(dtype="float64").ravel()
+
+    # The masking above should make the two stages cover the SAME cells. It is true by
+    # construction (the standardised pivot is derived FROM the raw one, so its non-NaN set
+    # can only be a subset), but printed rather than asserted: a mismatch makes the
+    # before/after comparison misleading without corrupting anything -- `pct` is
+    # normalised within each stage -- and an audit widget should not be able to fail a run.
+    for _name in std_vals:
+        if _name in raw_vals:
+            _nb = int(np.isfinite(np.asarray(raw_vals[_name], dtype="float64")).sum())
+            _na = int(np.isfinite(np.asarray(std_vals[_name], dtype="float64")).sum())
+            flag = "" if _nb == _na else "   <-- MISMATCH, stages are not the same cells"
+            print(f"[prepare_panel] histogram cells {_name}: before={_nb} after={_na}{flag}")
+
+    frames = []
+    # Raw first: stage order here is the panel-grid ROW order on the dashboard, and
+    # "before" above "after" is the only arrangement that reads correctly.
+    if raw_vals:
+        frames.append(histogram_frame(raw_vals, bins=bins, stage="before — raw"))
+    if std_vals:
+        frames.append(histogram_frame(std_vals, bins=bins, stage="after — standardised"))
+    if not frames:
+        return histogram_frame({}, bins=bins, stage="before — raw")
+    return pd.concat(frames, ignore_index=True)

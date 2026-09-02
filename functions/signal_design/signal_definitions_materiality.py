@@ -84,6 +84,52 @@ def Materiality_People_Plus_Prosperity_SDG():
 
 
 
+def Materiality_People_Plus_Prosperity_VS_Planet_SDG():
+    """4 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity,
+    Material_Planet, Immaterial_Planet.
+
+    PEOPLE_Plus_PROSPERITY_VS_PLANET is already {group: [sdg, ...]}, so it goes to
+    _signals_from_groups bare -- wrapping it in braces builds a set holding a dict,
+    which is a TypeError (dicts are unhashable).
+
+    NOTE the denominator changes relative to Materiality_People_Plus_Prosperity_SDG.
+    Both groups together cover all 17 SDGs, so with signal_denominator="Sum_All_Signals"
+    sum_activities is every material+immaterial SDG count and signal_0 is
+    "material People+Prosperity as a share of ALL initiatives", not "...of the firm's
+    People+Prosperity initiatives". The four signals sum to 1 across the row, so no two
+    of them are an exact mirror pair -- unlike the one-group designs above.
+    """
+    return _signals_from_groups(PEOPLE_Plus_PROSPERITY_VS_PLANET)
+
+
+
+
+
+def Materiality_SDG_X(x):
+    """2 signals: Material_SDG_<x>, Immaterial_SDG_<x> -- one SDG, material vs immaterial.
+
+    Goes through _signals_from_groups rather than writing the dict by hand so the column
+    spelling and the signal naming come from the same place as every other design here.
+    Names come out "Material_SDG_5", matching the group naming
+    CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG already uses -- not the raw column name, which
+    would put "material__total__SDG_5" into every portfolio label and parity artifact.
+
+    Single group, so with signal_denominator="Sum_All_Signals" the denominator is this
+    SDG's material + immaterial count: signal_0 is the SDG's material share and signal_1
+    its exact mirror. Sort on signal_0 only.
+
+    Raises on an SDG outside 1-17: the LC frame has no such column, so the merge would
+    hand every firm-year a NaN signal and the sort would silently come back empty.
+    """
+    valid = {sdg for sdgs in SDG_5_BRACKETS.values() for sdg in sdgs}
+    if x not in valid:
+        raise ValueError(f"SDG {x!r} is not one of {sorted(valid)}")
+    return _signals_from_groups({f"SDG_{x}": [x]})
+
+
+
+
+
 
 def Materiality_Signals_5_groups_SDG_brackets():
     """10 signals: material/immaterial x the five SDG_BRACKETS."""

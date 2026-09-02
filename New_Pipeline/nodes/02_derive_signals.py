@@ -30,6 +30,7 @@ from New_Pipeline.dashboard_viz import (
     BundleHeatmapViz,
     BundleHistogramViz,
     BundleTableViz,
+    histogram_series,
 )
 
 
@@ -50,21 +51,9 @@ def _signal_summary_stats(bundle):
 def _signal_histograms(bundle):
     """One small histogram per signal: bin centres and the % of firm-years in each bin.
 
-    Payload is ``[{"name", "x", "y", "width"}, ...]`` — one entry per signal, in the frame's
-    own signal order, so a signal keeps its panel position across experiments."""
-    df = bundle.get("signal_histograms")
-    if df is None or getattr(df, "empty", True):
-        return []
-    series = []
-    for name, g in df.groupby("signal", sort=False):
-        widths = (g["bin_right"] - g["bin_left"]).tolist()
-        series.append({
-            "name": str(name),
-            "x": [float(v) for v in g["bin_center"]],
-            "y": [float(v) for v in g["pct"]],
-            "width": widths,
-        })
-    return series
+    This is the RAW signal on firm-years. Its post-standardisation twin — the same signals
+    as the sort actually sees them — is on the ``prepare_panel`` section."""
+    return histogram_series(bundle.get("signal_histograms"))
 
 
 def _winsorise_stats(bundle):
@@ -338,7 +327,7 @@ def derive_signals_v1(lc, cfg):
     from functions.data_functions.process_lc import (
         filter_sum_activities_by_fiscal_year_quantiles,
     )
-    from New_Pipeline._common import count_firms, funnel_frame
+    from New_Pipeline._common import count_firms, funnel_frame, histogram_frame
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -485,42 +474,13 @@ def derive_signals_v1(lc, cfg):
     signal_summary_stats["signal"] = signal_summary_stats["signal"].map(signal_label)
 
     # ---- audit: per-signal histogram (the shape describe() cannot show) ----- #
-    # Tidy long frame, one row per (signal, bin): the dashboard draws one small panel
-    # per signal from it. Bins are per-signal over that signal's own [min, max] — signal
-    # ranges differ by construction (a "weights" share lives in [0, 1], a "counts" or
-    # "per_revenue" signal does not), so a shared range would leave most panels empty.
-    # Under Material_Immaterial_only the mirror pair share [0, 1] anyway, so their panels
-    # remain directly comparable.
-    import numpy as np
-
-    _HIST_BINS = 40
-    _hist_rows = []
-    for _col in signal_cols:
-        _vals = lc_df[_col].to_numpy(dtype="float64")
-        _vals = _vals[np.isfinite(_vals)]
-        if _vals.size == 0:
-            continue
-        _lo, _hi = float(_vals.min()), float(_vals.max())
-        if _hi <= _lo:
-            # Degenerate signal (constant, usually all-zero): one bin, so the panel shows
-            # a single full-height bar rather than raising inside np.histogram.
-            _edges = np.array([_lo, _lo + 1.0])
-        else:
-            _edges = np.linspace(_lo, _hi, _HIST_BINS + 1)
-        _counts, _edges = np.histogram(_vals, bins=_edges)
-        _n = int(_counts.sum())
-        for _i, _c in enumerate(_counts):
-            _hist_rows.append({
-                "signal": signal_label[_col],
-                "bin_left": float(_edges[_i]),
-                "bin_right": float(_edges[_i + 1]),
-                "bin_center": float((_edges[_i] + _edges[_i + 1]) / 2),
-                "n": int(_c),
-                "pct": (100.0 * int(_c) / _n) if _n else 0.0,
-            })
-    signal_histograms = pd.DataFrame(
-        _hist_rows,
-        columns=["signal", "bin_left", "bin_right", "bin_center", "n", "pct"],
+    # Binning lives in _common.histogram_frame so this node and prepare_panel's
+    # raw-vs-standardised twin bin identically -- otherwise the two widgets would not be
+    # comparable. Stage is named rather than left blank because prepare_panel shows two
+    # stages of its own, and a reader needs to know which sample each panel is over.
+    signal_histograms = histogram_frame(
+        {signal_label[c]: lc_df[c].to_numpy(dtype="float64") for c in signal_cols},
+        stage="raw signal (firm-year, post-trim)",
     )
 
     # ---- audit: signal correlation matrix ------------------------------------ #

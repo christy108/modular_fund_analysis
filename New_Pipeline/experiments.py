@@ -128,6 +128,12 @@ def build_cfg(**overrides) -> dict:
         add_accounting_data=False,
         add_materiality=True,
         materiality_version=2,
+        # Which single SDG action_characterization="Materiality_single_SDG" sorts on
+        # (1-17). Ignored by every other characterization; required by that one, which
+        # raises if it is still None. A cfg key rather than 17 separate
+        # action_characterization strings, so the choice is visible in the manifest and
+        # hashes into the cfg frame like any other knob.
+        materiality_single_sdg=None,
         industry_level=0,
         japan_year_adjustment_split_month_for_two_or_one=3,
         # Which of the three LC sample filters run, in process_lc:
@@ -306,6 +312,8 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
         Materiality_People_SDG,
         Materiality_People_Plus_Prosperity_SDG,
+        Materiality_People_Plus_Prosperity_VS_Planet_SDG,
+        Materiality_SDG_X,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
         Combined_Material_Immaterial_4_Behavioural_Signals,
@@ -422,6 +430,25 @@ def build_cfg(**overrides) -> dict:
     # except the Planet SDGs (6, 7, 12, 13, 14, 15).
     elif ac == "Materiality_People_Plus_Prosperity_SDG":
         categories_dict, *names = Materiality_People_Plus_Prosperity_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # Two groups covering all 17 SDGs, so unlike the one-group designs above the
+    # denominator is every SDG count and each signal is that group's material (or
+    # immaterial) share of ALL initiatives. The four sum to 1, so no mirror pair.
+    elif ac == "Materiality_People_Plus_Prosperity_VS_Planet_SDG":
+        categories_dict, *names = Materiality_People_Plus_Prosperity_VS_Planet_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One SDG only, material vs immaterial. WHICH SDG comes from the cfg key rather
+    # than from `ac`, so this single branch covers all 17.
+    elif ac == "Materiality_single_SDG":
+        _sdg = c["materiality_single_sdg"]
+        if _sdg is None:
+            raise ValueError(
+                "action_characterization='Materiality_single_SDG' needs "
+                "materiality_single_sdg=<1-17>; got None"
+            )
+        categories_dict, *names = Materiality_SDG_X(_sdg)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     elif ac == "Materiality_5_groups_SDG_brackets":
@@ -729,6 +756,27 @@ def base_materiality_people_plus_prosperity_only():
                             "Materiality_People_Plus_Prosperity_SDG")
 
 
+def base_materiality_people_plus_prosperity_vs_planet():
+    # 4 signals: material/immaterial x (People+Prosperity, Planet). Covers all 17 SDGs,
+    # so each signal is a share of ALL initiatives -- not comparable one-for-one with
+    # base_materiality_people_plus_prosperity_only, which has a within-group denominator.
+    return _sdg_materiality("base_materiality_people_plus_prosperity_vs_planet",
+                            "Materiality_People_Plus_Prosperity_VS_Planet_SDG")
+
+
+def base_materiality_single_sdg(x: int, **overrides):
+    """One SDG, material vs immaterial. `x` is the SDG number (1-17).
+
+    Registered below as base_materiality_sdg_1 .. _sdg_17, so
+    `python -m New_Pipeline.run base_materiality_sdg_13` just works. Call this directly
+    for a variant the loop does not cover, e.g.
+    base_materiality_single_sdg(13, signal_type="counts").
+    """
+    return _sdg_materiality(f"base_materiality_sdg_{x}",
+                            "Materiality_single_SDG",
+                            materiality_single_sdg=x, **overrides)
+
+
 def base_materiality_5_groups_brackets():
     # 10 signals: material/immaterial x the five SDG brackets.
     return _sdg_materiality("base_materiality_5_groups_brackets",
@@ -810,6 +858,7 @@ EXPERIMENTS = {
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
     "base_materiality_people_only": base_materiality_people_only,
     "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
+    "Materiality_People_Plus_Prosperity_VS_Planet_SDG": base_materiality_people_plus_prosperity_vs_planet,
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
@@ -829,3 +878,24 @@ EXPERIMENTS = {
 
    
 }
+
+
+# ---- one entry per SDG --------------------------------------------------- #
+# base_materiality_sdg_1 .. base_materiality_sdg_17: material vs immaterial for a single
+# SDG. Registered in a loop rather than as 17 hand-written thunks -- run.py only needs
+# EXPERIMENTS[name] to be a zero-arg callable, and sweep.register_config already adds
+# entries programmatically the same way. `x=_x` binds the value at definition time; a
+# bare closure over the loop variable would leave all 17 pointing at SDG 17.
+def _register_single_sdg_experiments():
+    # SDG_5_BRACKETS is the authority on which SDGs exist (build_cfg imports the signal
+    # definitions lazily, so it is not in module scope), keeping this loop and
+    # Materiality_SDG_X's validation on the same source.
+    from functions.signal_design.signal_definitions import SDG_5_BRACKETS
+
+    for x in sorted({sdg for sdgs in SDG_5_BRACKETS.values() for sdg in sdgs}):
+        EXPERIMENTS[f"base_materiality_sdg_{x}"] = (
+            lambda x=x: base_materiality_single_sdg(x)
+        )
+
+
+_register_single_sdg_experiments()

@@ -51,6 +51,36 @@ _AREA_COLORS = (
 )
 
 
+def histogram_series(df) -> list:
+    """Turn a ``_common.histogram_frame`` table into a ``BundleHistogramViz`` payload.
+
+    ``[{"name", "x" (bin centres), "y" (% of observations), "width" (bin widths),
+    "group" (the ``stage`` column, when present)}, ...]``.
+
+    Groups become ROWS of the panel grid and names become columns, so a frame carrying two
+    stages of the same signals renders as a before/after pair stacked vertically. Order is
+    the frame's own order and is never re-sorted -- panel position has to be stable for the
+    grid to be readable.
+    """
+    if df is None or getattr(df, "empty", True):
+        return []
+    has_stage = "stage" in df.columns
+    keys = ["stage", "signal"] if has_stage else ["signal"]
+    out = []
+    for key, g in df.groupby(keys, sort=False):
+        stage, name = (key if has_stage else (None, key[0] if isinstance(key, tuple) else key))
+        entry = {
+            "name": str(name),
+            "x": [float(v) for v in g["bin_center"]],
+            "y": [float(v) for v in g["pct"]],
+            "width": [float(v) for v in (g["bin_right"] - g["bin_left"])],
+        }
+        if has_stage:
+            entry["group"] = str(stage)
+        out.append(entry)
+    return out
+
+
 class OrderedDashboard(Dashboard):
     """Dashboard that renders ``_DEFERRED_SECTIONS`` last, whatever the DAG says.
 
@@ -152,17 +182,22 @@ class OrderedDashboard(Dashboard):
 
     @staticmethod
     def _histogram_figure(c):
-        """One SMALL histogram panel per series, in a grid of experiments x series.
+        """One SMALL histogram panel per series, in a grid of (experiment x group) x series.
 
         Unlike every other multi-series chart here, the series are NOT overlaid: a
         distribution is read by its shape, and two overlaid bar sets (or four) hide each
-        other's mass. So each series gets its own panel -- rows are experiments, columns
-        are series names, and the union of series names across experiments fixes the
-        column layout so the same signal is always in the same column.
+        other's mass. So each series gets its own panel -- columns are series names,
+        fixed by the union across experiments so a signal is always in the same column,
+        and rows are (experiment, group).
+
+        ``group`` is the comparison STAGE (e.g. raw vs standardised). Putting it on rows
+        rather than folding it into the series name is what makes the grid readable: a
+        signal's before and after sit one above the other in the same column, and the
+        column count stays equal to the number of signals however many stages there are.
 
         Payload per experiment: ``{"series": [{"name", "x" (bin centres), "y" (percent of
-        firm-years), "width" (bin width, optional)}, ...]}``. Bin edges come from the
-        Process; nothing is binned here.
+        observations), "width" (bin widths, optional), "group" (optional)}, ...]}``. Bin
+        edges come from the Process; nothing is binned here.
         """
         try:
             import plotly.graph_objects as go
@@ -179,29 +214,46 @@ class OrderedDashboard(Dashboard):
             return go.Figure()
 
         names: list[str] = []
+        groups: list[str] = []
         for exp in experiments:
             for s in gathered[exp]["series"]:
                 name = str(s.get("name"))
                 if name not in names:
                     names.append(name)
+                grp = s.get("group")
+                grp = "" if grp is None else str(grp)
+                if grp not in groups:
+                    groups.append(grp)
         if not names:
             return go.Figure()
         color_of = {n: _AREA_COLORS[i % len(_AREA_COLORS)] for i, n in enumerate(names)}
 
-        # Subplot titles read "signal" with one experiment and "signal — config" with
-        # several, so a grid stays labelled without repeating the config on every panel.
-        titles = [
-            (n if len(experiments) == 1 else f"{n} — {exp}")
-            for exp in experiments for n in names
-        ]
+        # (experiment, group) pairs in payload order — the grid's rows.
+        rows_spec = [(exp, grp) for exp in experiments for grp in groups]
+
+        def _panel_title(name, exp, grp):
+            # Only the dimensions that actually vary are spelled out, so a single-config
+            # single-stage chart is titled with just the signal name.
+            bits = [name]
+            if grp:
+                bits.append(grp)
+            if len(experiments) > 1:
+                bits.append(exp)
+            return " — ".join(bits)
+
         fig = make_subplots(
-            rows=len(experiments), cols=len(names), subplot_titles=titles,
+            rows=len(rows_spec), cols=len(names),
+            subplot_titles=[_panel_title(n, exp, grp) for exp, grp in rows_spec for n in names],
             horizontal_spacing=0.06,
-            vertical_spacing=0.14 / max(len(experiments), 1),
+            vertical_spacing=min(0.14, 0.5 / max(len(rows_spec), 1)),
         )
 
-        for row, exp in enumerate(experiments, start=1):
-            by_name = {str(s.get("name")): s for s in gathered[exp]["series"]}
+        for row, (exp, grp) in enumerate(rows_spec, start=1):
+            by_name = {
+                str(s.get("name")): s
+                for s in gathered[exp]["series"]
+                if ("" if s.get("group") is None else str(s.get("group"))) == grp
+            }
             for col, name in enumerate(names, start=1):
                 s = by_name.get(name)
                 if not s:
@@ -214,7 +266,7 @@ class OrderedDashboard(Dashboard):
                         name=name,
                         marker={"color": color_of.get(name), "line": {"width": 0}},
                         showlegend=False,  # the subplot title already names the series
-                        hovertemplate="%{x:.4g}: %{y:.2f}% of firm-years<extra></extra>",
+                        hovertemplate="%{x:.4g}: %{y:.2f}%<extra></extra>",
                     ),
                     row=row,
                     col=col,
@@ -223,11 +275,14 @@ class OrderedDashboard(Dashboard):
             title=c.title,
             # Deliberately short per row: these are meant to be read as a strip of small
             # multiples next to the summary table, not as full-size charts.
-            height=90 + 200 * len(experiments),
+            height=90 + 200 * len(rows_spec),
             margin={"t": 70, "b": 40},
             bargap=0.02,
         )
-        fig.update_yaxes(title_text="% of firm-years", col=1)
+        # Axis ranges are per-panel and NOT shared across rows: a z-score row is centred
+        # on 0 and unbounded while a raw share row lives in [0, 1], so a shared x-axis
+        # would flatten one of them into a spike. Compare the two rows by SHAPE.
+        fig.update_yaxes(title_text="% of obs", col=1)
         return fig
 
 
@@ -622,6 +677,7 @@ _PARAM_DOCS: dict[str, str] = {
     "add_accounting_data": "Merge Compustat accounting items. Provenance only -- not read by any node.",
     "add_materiality": "Inner-join the SASB materiality workbook on (gvkey, rfyear). CHANGES THE SAMPLE -- the workbook stops at rfyear 2022.",
     "materiality_version": "SASB workbook vintage (1 or 2). Only v2 carries the per-SDG breakdown columns.",
+    "materiality_single_sdg": "Which SDG (1-17) action_characterization='Materiality_single_SDG' sorts on, material vs immaterial. None for every other characterization.",
     # ---- cell 2: sorting / calendar ----------------------------------------
     "industry_level": "Industry granularity the sort is taken within (0, 1 or 2).",
     "japan_year_adjustment_split_month_for_two_or_one": "Japan fiscal-year alignment: the month that splits fiscal year Y-2 from Y-1.",
