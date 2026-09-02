@@ -304,6 +304,7 @@ def build_cfg(**overrides) -> dict:
     from functions.signal_design.signal_definitions_materiality import (
         Materiality_Signals,
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
+        Materiality_People_SDG,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
         Combined_Material_Immaterial_4_Behavioural_Signals,
@@ -405,6 +406,15 @@ def build_cfg(**overrides) -> dict:
     # position — the group dicts in signal_definitions_materiality.py can grow.
     elif ac == "Materiality_3_groups_people_planet_prosperity_SDG":
         categories_dict, *names = Materiality_Signals_3_groups_people_planet_prosperity_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One SDG group only, split material vs immaterial -- so with
+    # signal_denominator="Sum_All_Signals" the denominator is material_People +
+    # immaterial_People and signal_0 is the People material share, signal_1 its exact
+    # mirror. Same 2-signal mirror-pair shape as Material_Immaterial_only, restricted to
+    # the People SDGs (1,2,3,4,5,8,10) instead of all 17.
+    elif ac == "Materiality_People_SDG":
+        categories_dict, *names = Materiality_People_SDG()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     elif ac == "Materiality_5_groups_SDG_brackets":
@@ -697,6 +707,15 @@ def base_materiality_3_groups_ppp_counts():
                             signal_type="counts")
 
 
+def base_materiality_people_only():
+    # 2 signals: Material_People vs Immaterial_People. A mirror pair, so High signal_1
+    # is the same portfolio as Low signal_0 (mirror_pair_summary reports it).
+    return _sdg_materiality("base_materiality_people_only",
+                            "Materiality_People_SDG")
+
+
+
+
 def base_materiality_5_groups_brackets():
     # 10 signals: material/immaterial x the five SDG brackets.
     return _sdg_materiality("base_materiality_5_groups_brackets",
@@ -776,6 +795,7 @@ EXPERIMENTS = {
 
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
+    "base_materiality_people_only": base_materiality_people_only,
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,

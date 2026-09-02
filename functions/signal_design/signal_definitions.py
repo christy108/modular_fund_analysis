@@ -34,6 +34,12 @@ PEOPLE_PLANET_PROSPERITY = {
 }
 
 
+PEOPLE_Plus_PROSPERITY_VS_PLANET= {
+    "People_Plus_Prosperity":     [1, 2, 3, 4, 5, 8, 10,9, 11, 16, 17],
+    "Planet":     [6, 7, 12, 13, 14, 15],
+}
+
+
 SDG_5_BRACKETS = {
     "Social Equity & Inclusion":            [1, 2, 5, 10],
     "Human Development & Basic Needs":        [3, 4, 6, 7],

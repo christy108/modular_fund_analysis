@@ -6,6 +6,7 @@
 from functions.signal_design.signal_definitions import (  # noqa: F401
     CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG,
     PEOPLE_PLANET_PROSPERITY,
+    PEOPLE_Plus_PROSPERITY_VS_PLANET,
     SDG_5_BRACKETS,
     _check_groups_disjoint,
     _group_slug,
@@ -54,7 +55,19 @@ def Materiality_Signals_3_groups_people_planet_prosperity_SDG():
     return _signals_from_groups(PEOPLE_PLANET_PROSPERITY)
 
 
-    
+def Materiality_People_SDG():
+    """2 signals: Material_People, Immaterial_People.
+
+    A single group, so with signal_denominator="Sum_All_Signals" the denominator is
+    material_People + immaterial_People and signal_0 is the People material share
+    (signal_1 == 1 - signal_0, a mirror pair like Material_Immaterial_only).
+    _signals_from_groups takes {group_name: [sdg, ...]}, so the group has to be
+    re-wrapped in a one-entry dict -- passing the bare list raises.
+    """
+    return _signals_from_groups({"People": PEOPLE_PLANET_PROSPERITY["People"]})
+
+
+
 
 
 def Materiality_Signals_5_groups_SDG_brackets():
