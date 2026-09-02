@@ -68,6 +68,21 @@ def Materiality_People_SDG():
 
 
 
+def Materiality_People_Plus_Prosperity_SDG():
+    """2 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity.
+
+    People + Prosperity pooled (SDGs 1-5, 8-11, 16, 17), material vs immaterial. Same
+    one-group mirror-pair shape as Materiality_People_SDG. The dict KEY is what
+    _group_slug turns into the signal name, so it has to be the pooled group's own name
+    -- keying it "People" would silently emit Material_People and collide with
+    Materiality_People_SDG's names in portfolio labels and parity artifacts.
+    """
+    _group = "People_Plus_Prosperity"
+    return _signals_from_groups({_group: PEOPLE_Plus_PROSPERITY_VS_PLANET[_group]})
+
+
+
+
 
 
 def Materiality_Signals_5_groups_SDG_brackets():

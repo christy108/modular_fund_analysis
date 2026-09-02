@@ -305,6 +305,7 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals,
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
         Materiality_People_SDG,
+        Materiality_People_Plus_Prosperity_SDG,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
         Combined_Material_Immaterial_4_Behavioural_Signals,
@@ -415,6 +416,12 @@ def build_cfg(**overrides) -> dict:
     # the People SDGs (1,2,3,4,5,8,10) instead of all 17.
     elif ac == "Materiality_People_SDG":
         categories_dict, *names = Materiality_People_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # Same one-group mirror pair, but People and Prosperity pooled -- i.e. everything
+    # except the Planet SDGs (6, 7, 12, 13, 14, 15).
+    elif ac == "Materiality_People_Plus_Prosperity_SDG":
+        categories_dict, *names = Materiality_People_Plus_Prosperity_SDG()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     elif ac == "Materiality_5_groups_SDG_brackets":
@@ -716,6 +723,12 @@ def base_materiality_people_only():
 
 
 
+def base_materiality_people_plus_prosperity_only():
+    # 2 signals: Material_People_Plus_Prosperity vs its immaterial mirror.
+    return _sdg_materiality("base_materiality_people_plus_prosperity_only",
+                            "Materiality_People_Plus_Prosperity_SDG")
+
+
 def base_materiality_5_groups_brackets():
     # 10 signals: material/immaterial x the five SDG brackets.
     return _sdg_materiality("base_materiality_5_groups_brackets",
@@ -796,6 +809,7 @@ EXPERIMENTS = {
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
     "base_materiality_people_only": base_materiality_people_only,
+    "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,

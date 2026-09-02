@@ -90,6 +90,8 @@ class OrderedDashboard(Dashboard):
         100 by construction -- letting Plotly autoscale would make a band look like it grew
         when only the axis moved.
         """
+        if (c.options or {}).get("histogram"):
+            return self._histogram_figure(c)
         if not (c.options or {}).get("stack"):
             return super()._lines_figure(c)
         try:
@@ -146,6 +148,86 @@ class OrderedDashboard(Dashboard):
             margin={"t": 60, "b": 40},
             hoverlabel={"namelength": -1},
         )
+        return fig
+
+    @staticmethod
+    def _histogram_figure(c):
+        """One SMALL histogram panel per series, in a grid of experiments x series.
+
+        Unlike every other multi-series chart here, the series are NOT overlaid: a
+        distribution is read by its shape, and two overlaid bar sets (or four) hide each
+        other's mass. So each series gets its own panel -- rows are experiments, columns
+        are series names, and the union of series names across experiments fixes the
+        column layout so the same signal is always in the same column.
+
+        Payload per experiment: ``{"series": [{"name", "x" (bin centres), "y" (percent of
+        firm-years), "width" (bin width, optional)}, ...]}``. Bin edges come from the
+        Process; nothing is binned here.
+        """
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            return None
+
+        gathered = c.data if isinstance(c.data, dict) else {}
+        experiments = [
+            exp for exp, payload in gathered.items()
+            if isinstance(payload, dict) and payload.get("series")
+        ]
+        if not experiments:
+            return go.Figure()
+
+        names: list[str] = []
+        for exp in experiments:
+            for s in gathered[exp]["series"]:
+                name = str(s.get("name"))
+                if name not in names:
+                    names.append(name)
+        if not names:
+            return go.Figure()
+        color_of = {n: _AREA_COLORS[i % len(_AREA_COLORS)] for i, n in enumerate(names)}
+
+        # Subplot titles read "signal" with one experiment and "signal — config" with
+        # several, so a grid stays labelled without repeating the config on every panel.
+        titles = [
+            (n if len(experiments) == 1 else f"{n} — {exp}")
+            for exp in experiments for n in names
+        ]
+        fig = make_subplots(
+            rows=len(experiments), cols=len(names), subplot_titles=titles,
+            horizontal_spacing=0.06,
+            vertical_spacing=0.14 / max(len(experiments), 1),
+        )
+
+        for row, exp in enumerate(experiments, start=1):
+            by_name = {str(s.get("name")): s for s in gathered[exp]["series"]}
+            for col, name in enumerate(names, start=1):
+                s = by_name.get(name)
+                if not s:
+                    continue
+                fig.add_trace(
+                    go.Bar(
+                        x=s.get("x") or [],
+                        y=s.get("y") or [],
+                        width=s.get("width"),
+                        name=name,
+                        marker={"color": color_of.get(name), "line": {"width": 0}},
+                        showlegend=False,  # the subplot title already names the series
+                        hovertemplate="%{x:.4g}: %{y:.2f}% of firm-years<extra></extra>",
+                    ),
+                    row=row,
+                    col=col,
+                )
+        fig.update_layout(
+            title=c.title,
+            # Deliberately short per row: these are meant to be read as a strip of small
+            # multiples next to the summary table, not as full-size charts.
+            height=90 + 200 * len(experiments),
+            margin={"t": 70, "b": 40},
+            bargap=0.02,
+        )
+        fig.update_yaxes(title_text="% of firm-years", col=1)
         return fig
 
 
@@ -433,6 +515,26 @@ class BundleStackedAreaViz(BundleMultiSeriesViz):
     def render(self, gathered: dict) -> DashboardComponent:
         component = super().render(gathered)
         component.options["stack"] = True
+        return component
+
+
+class BundleHistogramViz(BundleMultiSeriesViz):
+    """A strip of SMALL HISTOGRAMS, one panel per series -- not an overlay.
+
+    ``extract(bundle_dict) -> [{"name": str, "x": [...], "y": [...], "width": ...}, ...]``,
+    one entry per distribution, where ``x`` is bin centres and ``y`` is the percent of
+    observations in each bin. Binning happens in the Process so the numbers are in the
+    bundle and can be asserted; this only draws them.
+
+    ``options["histogram"]`` is what ``OrderedDashboard._histogram_figure`` keys off.
+    Against the stock framework ``Dashboard`` the flag is ignored and the bin centres
+    render as overlaid line traces -- an ugly but not wrong view of the same numbers.
+    """
+
+    def render(self, gathered: dict) -> DashboardComponent:
+        component = super().render(gathered)
+        component.options["histogram"] = True
+        component.options["show_legend"] = False
         return component
 
 

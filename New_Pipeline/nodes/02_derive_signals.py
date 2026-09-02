@@ -13,7 +13,7 @@ methodologies (denominator, alpha-trim, category groupings, additional signal
 transforms) without touching the data-ingestion node — the LC input is unchanged.
 
 Output is a lossless (pickle) bundle: ``{lc, lc_raw_for_coverage, sum_activities_outlier_stats,
-signal_summary_stats, signal_correlation_matrix, category_column_stats, signal_sparsity,
+signal_summary_stats, signal_histograms, signal_correlation_matrix, category_column_stats, signal_sparsity,
 signal_sparsity_by_year}`` — everything after ``lc_raw_for_coverage`` is
 diagnostic tables only (no effect on ``lc`` or downstream nodes), added purely so the dashboard can
 audit the signal construction across experiments; same ``lc`` shape as before plus the signal
@@ -25,7 +25,12 @@ from __future__ import annotations
 from leonardo_nodes import Contract, Node, process
 
 from New_Pipeline._common import cfg_schema, open_schema, store
-from New_Pipeline.dashboard_viz import BundleColoredTableViz, BundleHeatmapViz, BundleTableViz
+from New_Pipeline.dashboard_viz import (
+    BundleColoredTableViz,
+    BundleHeatmapViz,
+    BundleHistogramViz,
+    BundleTableViz,
+)
 
 
 # ---- Dashboard extractors (bundle -> widget payloads; no computation happens here) --- #
@@ -40,6 +45,26 @@ def _sum_activities_outlier_stats(bundle):
 def _signal_summary_stats(bundle):
     """One row per signal_i with its describe() stats — signals compared side by side."""
     return bundle["signal_summary_stats"]
+
+
+def _signal_histograms(bundle):
+    """One small histogram per signal: bin centres and the % of firm-years in each bin.
+
+    Payload is ``[{"name", "x", "y", "width"}, ...]`` — one entry per signal, in the frame's
+    own signal order, so a signal keeps its panel position across experiments."""
+    df = bundle.get("signal_histograms")
+    if df is None or getattr(df, "empty", True):
+        return []
+    series = []
+    for name, g in df.groupby("signal", sort=False):
+        widths = (g["bin_right"] - g["bin_left"]).tolist()
+        series.append({
+            "name": str(name),
+            "x": [float(v) for v in g["bin_center"]],
+            "y": [float(v) for v in g["pct"]],
+            "width": widths,
+        })
+    return series
 
 
 def _winsorise_stats(bundle):
@@ -93,7 +118,10 @@ Mandatory measures (enforced by schema / audits):
 
 Surfaces: sum_activities summary stats, before vs after the alpha-bound trim side by
 side as columns (``BundleTableViz``); per-signal summary statistics compared side by side
-(``BundleTableViz``); the signal correlation matrix as a diverging blue/white/red heatmap
+(``BundleTableViz``) and, beneath them, the per-signal DISTRIBUTIONS as a strip of small
+histograms (``BundleHistogramViz``, % of firm-years per bin) — describe() cannot separate a
+tight cluster at the mean from a barbell of 0s and 1s, and the two sort completely
+differently; the signal correlation matrix as a diverging blue/white/red heatmap
 (``BundleHeatmapViz``); and descriptive statistics for each raw category column that feeds a
 signal's aggregation, one row per column, tinted by which signal it belongs to
 (``BundleColoredTableViz``). All four stack/subplot across experiments — the tables via the
@@ -143,6 +171,32 @@ fiscal years pooled, not a single year. Columns:
                        key="table:sum_activities_outlier_stats"),
         BundleTableViz(_signal_summary_stats, title="Signal summary statistics",
                        key="table:signal_summary_stats"),
+        BundleHistogramViz(
+            _signal_histograms,
+            title="Signal distributions",
+            key="histogram:signal_histograms",
+            description=(
+                "One small histogram per signal, over the SAME post-trim panel the "
+                "summary statistics above describe. 40 equal-width bins spanning that "
+                "signal's own observed [min, max]; bars are the **% of firm-years** in "
+                "each bin, so panels are comparable even where one signal has fewer "
+                "finite observations.\n\n"
+                "This is the shape `describe()` cannot show. A mean of 0.64 is produced "
+                "equally by a tight cluster at 0.64 and by a barbell of 0s and 1s, and "
+                "the two sort completely differently.\n\n"
+                "Two things to look for:\n"
+                "- **The leftmost bar contains the exact-zero atom.** It is not separated "
+                "out here — read `pct_zero` in the sparsity table below for its true size, "
+                "since the first bin also holds genuinely small non-zero values.\n"
+                "- **A spike at the right edge** is the saturation mass (`pct_at_max`). "
+                "It costs the HIGH bucket names, because the sort's top bucket is "
+                "`signal > q_K-1` while its bottom is `signal <= q_1` — a tie block on "
+                "the top cutpoint is dropped, one on the bottom cutpoint is kept.\n\n"
+                "Under `action_characterization=\"Material_Immaterial_only\"` the two "
+                "panels are exact mirrors (`signal_1 = 1 - signal_0`), so one is a "
+                "left-right flip of the other — that is the construction, not a finding."
+            ),
+        ),
         BundleTableViz(
             _winsorise_stats,
             title="Signal winsorisation — what was clipped",
@@ -430,6 +484,45 @@ def derive_signals_v1(lc, cfg):
     signal_summary_stats = lc_df[signal_cols].describe().T.reset_index(names="signal")
     signal_summary_stats["signal"] = signal_summary_stats["signal"].map(signal_label)
 
+    # ---- audit: per-signal histogram (the shape describe() cannot show) ----- #
+    # Tidy long frame, one row per (signal, bin): the dashboard draws one small panel
+    # per signal from it. Bins are per-signal over that signal's own [min, max] — signal
+    # ranges differ by construction (a "weights" share lives in [0, 1], a "counts" or
+    # "per_revenue" signal does not), so a shared range would leave most panels empty.
+    # Under Material_Immaterial_only the mirror pair share [0, 1] anyway, so their panels
+    # remain directly comparable.
+    import numpy as np
+
+    _HIST_BINS = 40
+    _hist_rows = []
+    for _col in signal_cols:
+        _vals = lc_df[_col].to_numpy(dtype="float64")
+        _vals = _vals[np.isfinite(_vals)]
+        if _vals.size == 0:
+            continue
+        _lo, _hi = float(_vals.min()), float(_vals.max())
+        if _hi <= _lo:
+            # Degenerate signal (constant, usually all-zero): one bin, so the panel shows
+            # a single full-height bar rather than raising inside np.histogram.
+            _edges = np.array([_lo, _lo + 1.0])
+        else:
+            _edges = np.linspace(_lo, _hi, _HIST_BINS + 1)
+        _counts, _edges = np.histogram(_vals, bins=_edges)
+        _n = int(_counts.sum())
+        for _i, _c in enumerate(_counts):
+            _hist_rows.append({
+                "signal": signal_label[_col],
+                "bin_left": float(_edges[_i]),
+                "bin_right": float(_edges[_i + 1]),
+                "bin_center": float((_edges[_i] + _edges[_i + 1]) / 2),
+                "n": int(_c),
+                "pct": (100.0 * int(_c) / _n) if _n else 0.0,
+            })
+    signal_histograms = pd.DataFrame(
+        _hist_rows,
+        columns=["signal", "bin_left", "bin_right", "bin_center", "n", "pct"],
+    )
+
     # ---- audit: signal correlation matrix ------------------------------------ #
     signal_correlation_matrix = (
         lc_df[signal_cols].corr(method="pearson")
@@ -562,6 +655,7 @@ def derive_signals_v1(lc, cfg):
         "funnel_checks": L.get("funnel_checks"),
         "sum_activities_outlier_stats": sum_activities_outlier_stats,
         "signal_summary_stats": signal_summary_stats,
+        "signal_histograms": signal_histograms,
         "winsorise_stats": winsorise_stats,
         "signal_correlation_matrix": signal_correlation_matrix,
         "category_column_stats": category_column_stats,
