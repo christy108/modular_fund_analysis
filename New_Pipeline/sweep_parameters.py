@@ -55,7 +55,7 @@ DESIGNS: list[dict] = [
 GRID: dict[str, list] = {}
 
 # The three sweep parameters, each requested at these levels:
-_ALPHA_BOUNDS: list[float] = [0.5, 0.1]
+_ALPHA_BOUNDS: list[float] = [0.05, 0.1]
 _QUANTILES: list[int] = [3, 5, 7]
 _MCAP_COVERED: list[float] = [0.95, 0.99]
 
