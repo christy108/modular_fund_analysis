@@ -128,6 +128,12 @@ def build_cfg(**overrides) -> dict:
         add_accounting_data=False,
         add_materiality=True,
         materiality_version=2,
+        # Which behavioural action action_characterization="Materiality_PP_Action_SDG"
+        # restricts the People+Prosperity split to. None unless that design is selected.
+        # Validated against the signal module's own _SDG_ACTIONS inside the dispatch, so a
+        # typo raises in build_cfg rather than emptying the sort 20 minutes into a run.
+        materiality_pp_action=None,
+
         # Which single SDG action_characterization="Materiality_single_SDG" sorts on
         # (1-17). Ignored by every other characterization; required by that one, which
         # raises if it is still None. A cfg key rather than 17 separate
@@ -336,6 +342,7 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
         Materiality_People_SDG,
         Materiality_People_Plus_Prosperity_SDG,
+        Materiality_People_Plus_Prosperity_Action_SDG,
         Materiality_People_Plus_Prosperity_VS_Planet_SDG,
         Materiality_One_Health_SDGS,
         Materiality_Narrow_Health_SDGS,
@@ -457,6 +464,26 @@ def build_cfg(**overrides) -> dict:
     # except the Planet SDGs (6, 7, 12, 13, 14, 15).
     elif ac == "Materiality_People_Plus_Prosperity_SDG":
         categories_dict, *names = Materiality_People_Plus_Prosperity_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # Same one-group People+Prosperity cut, but restricted to ONE behavioural action
+    # instead of the SDG total: the columns are material__<action>__SDG_n rather than
+    # material__total__SDG_n. Still a mirror pair, but on a strictly thinner denominator --
+    # read the signal_sparsity audit before trusting the sort.
+    #
+    # WHICH action comes from the cfg key, not from `ac`, so this single branch covers all
+    # eight -- the same shape as Materiality_single_SDG below. That also makes the action a
+    # sweepable axis: put materiality_pp_action in a sweep GRID and the design list follows.
+    elif ac == "Materiality_PP_Action_SDG":
+        _act = c["materiality_pp_action"]
+        if _act is None:
+            raise ValueError(
+                "action_characterization='Materiality_PP_Action_SDG' needs "
+                "materiality_pp_action=<one of adaptation/advocacy_new_def/"
+                "advocacy_old_def/innovation/preparation/transformation/upskilling/total>; "
+                "got None"
+            )
+        categories_dict, *names = Materiality_People_Plus_Prosperity_Action_SDG(_act)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     # Two groups covering all 17 SDGs, so unlike the one-group designs above the
@@ -937,6 +964,22 @@ def base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5():
                             no_simple_quantiles=5)
 
 
+def base_materiality_pp_action(action: str, **overrides):
+    """People+Prosperity material vs immaterial, restricted to ONE behavioural action.
+
+    Registered below as base_materiality_pp_<action> for all seven non-total actions.
+    `pp_` abbreviates people_plus_prosperity deliberately -- spelled out in full, plus the
+    action, the name runs past 50 characters, and this is a name you type at the CLI and
+    pass to the dashboard.
+
+    No pp_total is registered: action="total" is exactly
+    base_materiality_people_plus_prosperity_only, which already exists.
+    """
+    return _sdg_materiality(f"base_materiality_pp_{action}",
+                            "Materiality_PP_Action_SDG",
+                            materiality_pp_action=action, **overrides)
+
+
 def base_materiality_people_plus_prosperity_vs_planet():
     # 4 signals: material/immaterial x (People+Prosperity, Planet). Covers all 17 SDGs,
     # so each signal is a share of ALL initiatives -- not comparable one-for-one with
@@ -1118,3 +1161,58 @@ def _register_single_sdg_experiments():
 
 
 _register_single_sdg_experiments()
+
+
+# ---- one entry per behavioural action ------------------------------------ #
+# base_materiality_pp_adaptation .. base_materiality_pp_upskilling: People+Prosperity
+# material vs immaterial, restricted to a single action. Registered in a loop for the same
+# reason the 17 single-SDG configs are -- run.py only needs a zero-arg callable, and
+# `a=a` binds the value at definition time (a bare closure over the loop variable would
+# leave all seven pointing at the last action).
+#
+# "total" is EXCLUDED: it is byte-identical to base_materiality_people_plus_prosperity_only
+# (verified -- same columns, same untagged signal names), so registering it would give one
+# config two names and two archive paths.
+#
+# DENSITY BY ACTION -- measured on the v_2A1 workbook (72,412 firm-years), NOT estimated.
+# The denominator is material + immaterial for that action across the 11 People+Prosperity
+# SDGs; "usable" is firm-years holding at least one such initiative (the rest have a 0/0
+# ratio and cannot be sorted at all); "@1.0" and "@0.0" are the share of USABLE firm-years
+# pinned to the ratio's two atoms.
+#
+#   action              mean  median      usable      @1.0    @0.0   distinct
+#   total              21.01      12   69,543  96.0%   21.2%    6.4%     2,751
+#   advocacy_new_def   12.32       7   65,338  90.2%   26.3%    9.7%     1,631
+#   advocacy_old_def   11.81       7   63,985  88.4%   25.6%   10.8%     1,551
+#   upskilling          5.19       3   57,845  79.9%   36.1%   16.8%       549
+#   preparation         5.02       3   56,169  77.6%   41.4%   13.1%       540
+#   adaptation          3.10       1   49,414  68.2%   59.2%   10.2%       301  <-- thin
+#   transformation      2.66       1   45,795  63.2%   58.8%   11.5%       334  <-- thin
+#   innovation          0.40       0   13,340  18.4%   58.7%   27.3%        92  <-- degenerate
+#
+# READ THE BOTTOM THREE AS CONTROLS, NOT RESULTS. adaptation and transformation have a
+# MEDIAN denominator of 1 -- so for over half their usable firm-years the "material share"
+# is literally 1/1 or 0/1, and ~59% of them sit at exactly 1.0. innovation is worse again:
+# 4.2% of all initiatives, only 18.4% of firm-years usable, and 86% of those on one of the
+# two atoms with 92 distinct values in the whole panel. A quantile sort on any of the three
+# is mostly cutting ties, and its High leg is a coin-flip subset of the tie block rather
+# than a ranked portfolio.
+#
+# The top five are real sorts. advocacy_new_def / advocacy_old_def are nearly as dense as
+# __total__; upskilling and preparation are usable but already ~36-41% saturated at 1.0,
+# which is where minimum_initatives_needed_to_split_by_materiality starts to earn its keep.
+#
+# Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
+# these sorts, and never report an alpha without its coverage_pct neighbour.
+def _register_pp_action_experiments():
+    # The signal module is the authority on which actions exist, so this loop and
+    # Materiality_People_Plus_Prosperity_Action_SDG's validation share one source.
+    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+
+    for a in _SDG_ACTIONS:
+        if a == "total":
+            continue
+        EXPERIMENTS[f"base_materiality_pp_{a}"] = (lambda a=a: base_materiality_pp_action(a))
+
+
+_register_pp_action_experiments()

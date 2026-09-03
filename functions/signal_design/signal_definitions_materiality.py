@@ -27,18 +27,45 @@ def Materiality_Signals(signal_0_name="Material", signal_1_name="Immaterial"):
 
 
 
-def _signals_from_groups(groups):
+# Which per-SDG ACTION families process_materiality.py brings onto lc. Kept in sync with
+# MATERIALITY_SDG_ACTIONS there -- a design naming an action outside this set would ask for a
+# column that was never loaded, and the sort would come back empty rather than raise.
+_SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
+                "preparation", "transformation", "upskilling", "total")
+
+
+def _signals_from_groups(groups, action="total"):
     """Expand {group_name: [sdg, ...]} into ({lc_column: signal_index}, *signal_names).
 
     Every group yields two signals — material first, then immaterial — so indices
     run 0..2*len(groups)-1 in group order, matching the (dict, s0, s1, ...) tuple
     the callers unpack.
 
+    ``action`` picks WHICH per-SDG count family the columns come from:
+    ``material__{action}__SDG_{n}``. It defaults to "total" — every initiative of that
+    SDG — which is what every design here used before the parameter existed, so all of
+    them are bit-identical to their pre-parameter selves. Pass e.g. "innovation" to sort
+    on one behavioural action's material share instead of the whole SDG total.
+
+    A non-"total" action is TAGGED INTO THE SIGNAL NAME (Material_Innovation_People rather
+    than Material_People). Two designs differing only by action would otherwise emit the
+    same signal names and collide in portfolio labels and parity artifacts — the same trap
+    Materiality_People_Plus_Prosperity_SDG's docstring warns about for group keys.
+
     Raises on an SDG listed in two groups: a duplicate dict key would silently keep the
     last write and leave the earlier group short (or empty), which is exactly the bug
     the hand-written versions of these dicts had.
+
+    Raises on an unknown action, rather than emitting columns the materiality merge never
+    loaded — those would merge as NaN and empty the sort with no error anywhere.
     """
+    if action not in _SDG_ACTIONS:
+        raise ValueError(f"action {action!r} is not one of {sorted(_SDG_ACTIONS)}")
+
     _check_groups_disjoint(groups)
+
+    # "total" stays unlabelled so existing signal names are untouched.
+    action_tag = "" if action == "total" else f"{action.replace('_', ' ').title().replace(' ', '_')}_"
 
     categories = {}
     names = []
@@ -46,9 +73,9 @@ def _signals_from_groups(groups):
         slug = _group_slug(group_name)
         for materiality in ("material", "immaterial"):
             index = len(names)
-            names.append(f"{materiality.capitalize()}_{slug}")
+            names.append(f"{materiality.capitalize()}_{action_tag}{slug}")
             for sdg in sdgs:
-                categories[f"{materiality}__total__SDG_{sdg}"] = index
+                categories[f"{materiality}__{action}__SDG_{sdg}"] = index
     return (categories, *names)
 
 
@@ -82,7 +109,48 @@ def Materiality_People_Plus_Prosperity_SDG():
     _group = "People_Plus_Prosperity"
     return _signals_from_groups({_group: PEOPLE_Plus_PROSPERITY_VS_PLANET[_group]})
 
-    
+
+def Materiality_People_Plus_Prosperity_Action_SDG(action):
+    """2 signals: material/immaterial People+Prosperity for ONE behavioural action.
+
+    Same one-group People+Prosperity cut as Materiality_People_Plus_Prosperity_SDG (SDGs
+    1-5, 8-11, 16, 17), restricted to a single action: the columns are
+    ``material__<action>__SDG_n`` / ``immaterial__<action>__SDG_n`` rather than the
+    ``__total__`` ones.
+
+    Parameterised rather than written out once per action, for the same reason
+    Materiality_SDG_X is: the column spelling and the signal naming then come from one
+    place, and a new action needs no new function. `action` must be one of _SDG_ACTIONS;
+    anything else raises rather than asking the merge for a column that was never loaded
+    (which would hand every firm-year a NaN signal and empty the sort silently).
+
+    One group, so signal_0 is that action's material share within People+Prosperity and
+    signal_1 is its exact mirror (1 - signal_0) -- the same mirror-pair shape as the
+    __total__ designs, so every one of these qualifies for the initiative-decomposition
+    PDF and for minimum_initatives_needed_to_split_by_materiality.
+
+    NAMING TRAP: ``advocacy_old_def`` is the advocacy leg of the ORIGINAL (pre-SDG-rework)
+    "Matteo" 3-way split (advocacy_old_def / preparation / transformation);
+    ``advocacy_new_def`` is the one from the newer 4-way split (adaptation /
+    advocacy_new_def / innovation / upskilling). Both are real, different columns in the
+    same workbook -- picking the wrong one sorts on a different quantity with no error.
+
+    DENSITY VARIES ENORMOUSLY BY ACTION -- see the measured table in
+    New_Pipeline/experiments.py::_register_pp_action_experiments. innovation is
+    near-degenerate (81.6% of firm-years zero, 92 distinct signal values); advocacy_old_def
+    is almost as usable as __total__. Always read the signal_sparsity audit before the alpha.
+
+    ``action="total"`` is accepted and returns exactly what
+    Materiality_People_Plus_Prosperity_SDG returns (same columns, same untagged names), so
+    the two are interchangeable -- which is why no separate "pp_total" experiment is
+    registered. Sort on signal_0 only.
+    """
+    return _signals_from_groups(
+        {"People_Plus_Prosperity": PEOPLE_Plus_PROSPERITY_VS_PLANET["People_Plus_Prosperity"]},
+        action=action,
+    )
+
+
 def Materiality_People_Plus_Prosperity_VS_Planet_SDG():
     """4 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity,
     Material_Planet, Immaterial_Planet.
@@ -137,6 +205,12 @@ def Materiality_Health_and_Work_SDGS():
 
 
 
+
+
+
+
+
+
 def Materiality_SDG_X(x):
     """2 signals: Material_SDG_<x>, Immaterial_SDG_<x> -- one SDG, material vs immaterial.
 
@@ -174,8 +248,6 @@ def Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS():
     """30 signals: material/immaterial x (Climate & Natural Capital, then SDGs 1-12/16/17
     each on its own — the 14 non-climate SDGs are NOT pooled)."""
     return _signals_from_groups(CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG)
-
-
 
 
 

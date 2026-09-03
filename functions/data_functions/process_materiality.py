@@ -31,13 +31,35 @@ MATERIALITY_COLUMNS = [
                 "innovation", "preparation", "transformation", "upskilling", "total")
 ]
 
-# Per-SDG breakdown of the three __total__ columns, feeding the SDG-level signal designs in
+# Per-SDG breakdown of the count columns, feeding the SDG-level signal designs in
 # functions/signal_design/signal_definitions_materiality.py. Only the v2 (17-SDG) file carries
 # these, so they are selected opportunistically below rather than required — v1 loads unchanged.
+#
+# Covers every ACTION, not just __total__: the file carries the full
+# {immaterial, material, unmapped} x {7 actions + total} x {SDG 1..17} cube (408 columns), and
+# restricting this list to "total" was what made an action-level SDG design (e.g.
+# Materiality_People_Plus_Prosperity_Innovation_SDG) silently unbuildable — its columns were
+# dropped here, so the merge handed every firm-year a NaN signal and the sort came back empty.
+#
+# Widening the SELECTION cannot move any existing number: the merge is an inner join on
+# (gvkey, rfyear) whose row set is unchanged by adding columns, none of the new names collide
+# with an LC column (verified: 0 of 357), and a signal design only ever reads the columns its
+# own categories_dict names. The cost is memory/width on the lc frame, not numerics.
+#
+# `unmapped` is deliberately EXCLUDED here (unlike MATERIALITY_COLUMNS above, which keeps it):
+# no signal design sorts on an unmapped count, and nothing in the repo reads an
+# `unmapped__*__SDG_n` column -- the only unmapped consumers are node 07's `_wb_total`
+# denominator and its coverage table, both of which use the NON-per-SDG `unmapped__total`
+# that MATERIALITY_COLUMNS still supplies. Carrying the per-SDG unmapped cube would add 136
+# columns nothing reads. 2 groups x 8 actions x 17 SDGs = 272 columns.
+MATERIALITY_SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
+                           "preparation", "transformation", "upskilling", "total")
+
 MATERIALITY_SDG_COLUMNS = [
-    f"{grp}__total__SDG_{n}"
-    for grp in ("immaterial", "material", "unmapped")
-    for n in range(1, 18)
+    f"{grp}__{act}__SDG_{n}"
+    for grp in ("immaterial", "material")
+    for act in MATERIALITY_SDG_ACTIONS
+    for n in range(1, 18)          # range(1, 18) == SDGs 1..17
 ]
 
 
