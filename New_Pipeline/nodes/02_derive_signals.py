@@ -38,9 +38,18 @@ from New_Pipeline.dashboard_viz import (
 
 def _sum_activities_outlier_stats(bundle):
     """describe() stats for sum_activities, one row per stat, one column per stage
-    (before_alpha_bound vs after_alpha_bound) — read left-to-right as a before/after
-    comparison of the alpha-bound trim."""
+    (before_alpha_bound vs after_alpha_bound, plus after_min_initiatives when the
+    materiality split floor ran) — read left-to-right as a before/after comparison of the
+    filters applied to the denominator."""
     return bundle["sum_activities_outlier_stats"]
+
+
+def _materiality_split_floor(bundle):
+    """What each candidate minimum-initiatives floor would cost, and what it would buy.
+
+    Empty unless the design has exactly one material/immaterial group — the only shape
+    ``cfg.minimum_initatives_needed_to_split_by_materiality`` is allowed on."""
+    return bundle.get("materiality_split_floor")
 
 
 def _signal_summary_stats(bundle):
@@ -101,12 +110,22 @@ to which group, the denominator, the trim bound, and the signal_type are read fr
 selection and industry mapping are NOT redone here — they belong to the upstream ``process_lc``
 node.
 
+One further optional filter runs here, AFTER the winsor trim (so the trim's own numbers are
+unaffected by it): ``cfg.minimum_initatives_needed_to_split_by_materiality`` drops firm-years
+holding fewer than N initiatives in the materiality group, so a ratio of two small integer
+counts is only formed where it is estimable rather than letting ``1/1 = 1.0`` read as maximal
+materiality. Off (0) by default, and ``build_cfg`` allows it only on a design with exactly ONE
+material/immaterial group.
+
 Mandatory measures (enforced by schema / audits):
 - one row per surviving gvkey-fiscal-year with the behavioural signal columns present
-- rows only drop via the declared winsor trim
+- rows only drop via the declared winsor trim and the declared materiality split floor,
+  each contributing its own sample-funnel row
 
-Surfaces: sum_activities summary stats, before vs after the alpha-bound trim side by
-side as columns (``BundleTableViz``); per-signal summary statistics compared side by side
+Surfaces: sum_activities summary stats, before vs after the alpha-bound trim (and after the
+materiality split floor, when it ran) side by side as columns (``BundleTableViz``); what each
+candidate split floor would cost in firm-years and buy in ``pct_at_max``, for every candidate N
+and not only the configured one (``BundleTableViz``); per-signal summary statistics side by side
 (``BundleTableViz``) and, beneath them, the per-signal DISTRIBUTIONS as a strip of small
 histograms (``BundleHistogramViz``, % of firm-years per bin) — describe() cannot separate a
 tight cluster at the mean from a barbell of 0s and 1s, and the two sort completely
@@ -158,6 +177,46 @@ fiscal years pooled, not a single year. Columns:
         BundleTableViz(_sum_activities_outlier_stats,
                        title="sum_activities — before vs after alpha-bound trim",
                        key="table:sum_activities_outlier_stats"),
+        BundleTableViz(
+            _materiality_split_floor,
+            title="Materiality split floor — what each minimum would cost",
+            key="table:materiality_split_floor",
+            description=(
+                "`cfg.minimum_initatives_needed_to_split_by_materiality` requires a "
+                "firm-year to hold at least N initiatives IN THE GROUP before it is "
+                "allowed into the sort. This table is why: the signal is a ratio of two "
+                "small integer counts, so a firm-year with one initiative in the group "
+                "scores `1/1 = 1.0` and the sort reads it as maximal materiality on a "
+                "single observation, while `4/5 = 0.8` looks weaker and is far better "
+                "evidence.\n\n"
+                "One row per candidate N — **the full strip regardless of the N actually "
+                "configured**, so the table answers *what would N cost* and not only "
+                "*what did N cost*. `is_configured` marks the row in force.\n\n"
+                "- **n_firm_years / pct_firm_years_kept**, **n_firms / pct_firms_kept** — "
+                "the price, measured on the post-alpha-bound-trim sample.\n"
+                "- **pct_at_max** — firm-years at ratio exactly 1.0 *after* that floor. "
+                "This is what the floor is bought for. The saturation atom is what damages "
+                "the HIGH bucket, because the sort's top bucket is `signal > q_K-1` and "
+                "excludes a tie block sitting on the cutpoint while its bottom bucket "
+                "`signal <= q_1` keeps one. Read it against the same run's "
+                "`pct_at_max` in *Signal sparsity*.\n"
+                "- **pct_zero** — the low-end mirror (ratio exactly 0.0), which the floor "
+                "also thins.\n"
+                "- **n_distinct_values** — values left to cut on. Below "
+                "`cfg.no_simple_quantiles` the sort cannot fill K buckets at all, so a "
+                "floor that buys a lower `pct_at_max` at the cost of too few distinct "
+                "levels is not a good trade.\n"
+                "- **median_group_total** — centre of the surviving denominator.\n\n"
+                "The ratio is reported even under `signal_type=\"counts\"`, where "
+                "`signal_0` is a raw level rather than this ratio: the floor is about "
+                "whether the material/immaterial SPLIT is estimable, which is a property "
+                "of the counts and not of the signal flavour.\n\n"
+                "Empty for any design without exactly one material/immaterial group — "
+                "`build_cfg` refuses the floor there, because "
+                "`apply_cross_signal_nan_mask` would turn a per-group floor into "
+                "'drop unless EVERY group clears N'."
+            ),
+        ),
         BundleTableViz(_signal_summary_stats, title="Signal summary statistics",
                        key="table:signal_summary_stats"),
         BundleHistogramViz(
@@ -327,7 +386,12 @@ def derive_signals_v1(lc, cfg):
     from functions.data_functions.process_lc import (
         filter_sum_activities_by_fiscal_year_quantiles,
     )
-    from New_Pipeline._common import count_firms, funnel_frame, histogram_frame
+    from New_Pipeline._common import (
+        count_firms,
+        funnel_frame,
+        histogram_frame,
+        materiality_split_groups,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -374,6 +438,73 @@ def derive_signals_v1(lc, cfg):
     desc_after = lc_df["sum_activities"].describe()
     outlier_stages.append(("after_alpha_bound", desc_after))
 
+    # Captured BEFORE the materiality floor below, so the trim's own funnel row reports the
+    # trim's effect alone and the floor's row reports the floor's.
+    _n_firms_after_alpha = count_firms(lc_df["gvkey"])
+
+    # ---- minimum initiatives before splitting by materiality ---------------- #
+    # cfg.minimum_initatives_needed_to_split_by_materiality. The signal is a ratio of two
+    # small integer counts, so a firm-year holding one initiative in the group scores
+    # 1/1 = 1.0 and the sort reads it as maximal materiality on a single observation.
+    # This floors the group's OWN total (material_G + immaterial_G) so the ratio is only
+    # formed where it is estimable.
+    #
+    # Deliberately AFTER the alpha-bound trim: the trim's per-fiscal-year quantiles are
+    # then computed on exactly the rows they always were, so its numbers above are
+    # unchanged and the whole difference from an unfloored run is this filter.
+    #
+    # Rows are DROPPED rather than having their signals NaN'd. For a single-group design
+    # (the only shape build_cfg allows here) the two are equivalent for the sort, but a
+    # NaN'd row stays in lc_df and inflates n_firm_years / pct_zero / the histograms in
+    # every audit below -- so the post-floor sparsity table would not describe the
+    # post-floor sample.
+    min_split = int(C.get("minimum_initatives_needed_to_split_by_materiality", 0))
+    split_groups = materiality_split_groups(categories_dict)
+    materiality_split_floor = None
+    _n_firms_after_split_floor = None
+
+    if len(split_groups) == 1:
+        _g = split_groups[0]
+        _total = lc_df[_g["columns"]].sum(axis=1)
+        # The RATIO's atoms, not signal_i's: under signal_type="counts" signal_0 is a raw
+        # level whose pct_at_max is ~1/N and uninformative, but the ratio is still what
+        # this floor is about, so the table reports it either way.
+        _ratio = lc_df[f"sum_with_{_g['material_index']}"] / _total
+        _n0, _f0 = len(lc_df), count_firms(lc_df["gvkey"])
+
+        # The full candidate strip regardless of the configured N, so the table answers
+        # "what would N cost" and not only "what did N cost" -- otherwise the knob is
+        # settable but not choosable. Configured N is included so its row always appears.
+        _cands = sorted({1, 2, 3, 5, 10, 20} | ({min_split} if min_split > 0 else set()))
+        _rows = []
+        for _cand in _cands:
+            _keep = _total >= _cand
+            _r = _ratio[_keep]
+            _r = _r[_r.notna()]
+            _rows.append({
+                "min_initiatives": _cand,
+                "is_configured": bool(_cand == min_split),
+                "n_firm_years": int(_keep.sum()),
+                "pct_firm_years_kept": round(100.0 * _keep.sum() / max(_n0, 1), 1),
+                "n_firms": count_firms(lc_df.loc[_keep, "gvkey"]),
+                "pct_firms_kept": round(100.0 * count_firms(lc_df.loc[_keep, "gvkey"])
+                                        / max(_f0, 1), 1),
+                "pct_at_max": round(float((_r == 1.0).mean()) * 100, 1) if len(_r) else 0.0,
+                "pct_zero": round(float((_r == 0.0).mean()) * 100, 1) if len(_r) else 0.0,
+                "n_distinct_values": int(_r.nunique()),
+                "median_group_total": float(_total[_keep].median()) if _keep.any() else 0.0,
+            })
+        materiality_split_floor = pd.DataFrame(_rows)
+
+        if min_split > 0:
+            lc_df = lc_df[_total >= min_split].copy()
+            _n_firms_after_split_floor = count_firms(lc_df["gvkey"])
+            print(f"[derive_signals] materiality split floor N={min_split} on "
+                  f"{_g['group'][:60]}: kept {len(lc_df)}/{_n0} firm-years, "
+                  f"{_n_firms_after_split_floor}/{_f0} firms")
+            outlier_stages.append(
+                ("after_min_initiatives", lc_df["sum_activities"].describe()))
+
     # ---- audit: sample filter funnel, this node's one stage -------------------------- #
     # Forwarded-plus-appended, the same way lc_raw_for_coverage is carried through below.
     # Note there is no inactive case: use_alpha_bound=False does NOT mean "no trim", it
@@ -381,11 +512,23 @@ def derive_signals_v1(lc, cfg):
     # row is labelled with whichever bounds actually applied and is never null.
     _bounds = (f"alpha_bound={C['alpha_bound']}" if C["use_alpha_bound"]
                else "use_alpha_bound=False -> hardcoded lower=0.2 upper=0.05")
-    funnel = funnel_frame([(
-        f"Per-fiscal-year extreme-activity trim on sum_activities ({_bounds})", "LC",
-        "02_derive_signals.py:246 / filter_sum_activities_by_fiscal_year_quantiles",
-        count_firms(lc_df["gvkey"]),
-    )])
+    # Two stages, in execution order. The floor's count is None (rendered as an em dash,
+    # "did not run") whenever it is off or the design has no single material/immaterial
+    # group -- never 0, which would read as "dropped every firm".
+    funnel = funnel_frame([
+        (
+            f"Per-fiscal-year extreme-activity trim on sum_activities ({_bounds})", "LC",
+            "02_derive_signals.py:246 / filter_sum_activities_by_fiscal_year_quantiles",
+            _n_firms_after_alpha,
+        ),
+        (
+            "Minimum initiatives to split by materiality "
+            + (f"(N={min_split})" if min_split > 0 else "(off)"),
+            "LC",
+            "02_derive_signals.py / minimum_initatives_needed_to_split_by_materiality",
+            _n_firms_after_split_floor,
+        ),
+    ])
     _prev_funnel = L.get("funnel")
     if _prev_funnel is not None:
         funnel = pd.concat([_prev_funnel, funnel], axis=0, ignore_index=True)
@@ -621,6 +764,7 @@ def derive_signals_v1(lc, cfg):
         "category_column_stats": category_column_stats,
         "signal_sparsity": signal_sparsity,
         "signal_sparsity_by_year": signal_sparsity_by_year,
+        "materiality_split_floor": materiality_split_floor,
     })
 
 

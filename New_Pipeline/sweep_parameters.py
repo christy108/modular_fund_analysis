@@ -19,64 +19,103 @@ from __future__ import annotations
 # folder (that is what makes --resume work). `--new-run` forces a fresh folder anyway,
 # and `--out DIR` overrides the whole thing.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "sdg_designs_alpha_quantile_mcap"
+SWEEP_NAME: str = "sdg_min_initiatives_x_quantiles"
 
 
 # --------------------------------------------------------------------------- #
-# The seven signal designs this sweep covers:
-#   - three one-group materiality designs (each a mirror pair: signal_0 is that
-#     group's material share, signal_1 its exact complement)
-#   - Materiality_SDG_X for SDG 1, 3, 5, 10 (the single-SDG design, via the cfg knob
-#     materiality_single_sdg rather than a distinct action_characterization per SDG --
-#     see functions/signal_design/signal_definitions_materiality.py)
+# Single-SDG material/immaterial sorts: the materiality split FLOOR crossed against the
+# bucket count, the alpha-bound trim and the market-cap screen. EVERY AXIS IS PER-SDG,
+# because the three SDGs do not support the same ranges.
 #
-# materiality_single_sdg is ignored by every action_characterization except
-# "Materiality_single_SDG" (build_cfg does not raise on the unused key for the other
-# six), but a GRID cross of action_characterization x materiality_single_sdg would still
-# waste 3 designs x 4 SDGs = 12 runs re-deriving identical cfgs. That is exactly the
-# "knobs that must move together" case the EXPLICIT section below exists for.
+#   SDG 3  : N = 0,2,3,5  x  K = 3,5,7  x  alpha = .05,.1  x  mcap = .95,.99  -> 48
+#   SDG 5  : N = 0,2      x  K = 3      x  alpha = .05,.1  x  mcap = .95,.99  ->  8
+#   SDG 10 : N = 0,2      x  K = 3      x  alpha = .05,.1  x  mcap = .95,.99  ->  8
+#                                                                             == 64
+#
+# WHY THE RANGES DIFFER PER SDG -- this asymmetry IS the design; do not "tidy" it into a
+# uniform cross. Measured on the pre-floor panel, converting firm-years to monthly assets
+# at the rate calibrated on the People design (~0.0437 assets/firm-year, which predicted
+# 275 against an actual 284), then dividing by K to get names per bucket:
+#
+#                  assets    K=3    K=5    K=7      (gate = min_stocks_per_portfolio = 25)
+#   SDG 3  N=0       262      87     52     37
+#          N=2       222      74     44     32
+#          N=3       183      61     37     26
+#          N=5       128      43     26     18 <-- fails
+#   SDG 5  N=0       137      46     27     20 <-- fails
+#          N=2        86      29     17 <-- fails
+#   SDG 10 N=0       149      50     30     21 <-- fails
+#          N=2        96      32     19 <-- fails
+#
+# So SDG 5 and SDG 10 are held at K=3 ONLY: at K=5 their N=2 legs fall to 17-19 names and
+# at K=7 to 12-14, which is idiosyncratic noise rather than a portfolio. SDG 3 carries
+# enough firm-years (5,999 post-trim vs 3,139 and 3,410) to take the full K range, and the
+# floors up to 5 -- only its N=5/K=7 corner fails, and that one cell is kept deliberately
+# (see below). Their floors stop at 2 for the same reason: N=3 leaves SDG 5 and SDG 10 with
+# 45 and 56 assets, i.e. 15-19 names per bucket even at K=3.
+#
+# alpha_bound=0.05 trims LESS than 0.1 (the bound is halved per tail, so 2.5% vs 5% each
+# side), so every cell runs slightly LARGER than the table above -- never smaller. The
+# table is therefore the pessimistic side of this sweep.
+#
+# The few gate-failing cells are KEPT rather than pruned: the gate is PRESENTATION-ONLY
+# (the exported parquets always keep every portfolio), so the sweep would happily report an
+# alpha for a 12-name leg. Including them means results.csv carries their coverage_pct__*
+# columns, which is the evidence for why they are unreadable. Read every alpha__ column
+# next to its coverage_pct__ neighbour.
+#
+# EXPECTED RESULT: the floor should NOT reduce saturation here. Firm-years at ratio exactly
+# 1.0 go 69.9 -> 70.1 -> 70.5 -> 71.3% for SDG 3 as N rises, and similarly for 5 and 10 --
+# because within ONE SDG the initiative count and the material share are POSITIVELY
+# correlated (a firm with many SDG-3 initiatives is focused on SDG 3, and focused firms are
+# all-material there). This sweep is therefore a ROBUSTNESS check -- evidence that the
+# single-SDG results are not an artefact of thin denominators -- not a fix for the atom.
 # --------------------------------------------------------------------------- #
-_SDGS_TO_SWEEP: list[int] = [3, 5, 10]
-
-DESIGNS: list[dict] = [
-    {"action_characterization": "Materiality_People_SDG"},
-    {"action_characterization": "Materiality_People_Plus_Prosperity_SDG"},
-    {"action_characterization": "Materiality_People_Plus_Prosperity_VS_Planet_SDG"},
-] + [
-    {"action_characterization": "Materiality_single_SDG", "materiality_single_sdg": sdg}
-    for sdg in _SDGS_TO_SWEEP
+_SDG_SPECS: list[dict] = [
+    {"sdg": 3,
+     "floors":       [0, 2, 3, 5],
+     "quantiles":    [3, 5, 7],
+     "alpha_bounds": [0.05, 0.1],
+     "mcap":         [0.95, 0.99]},
+    {"sdg": 5,
+     "floors":       [0, 2],
+     "quantiles":    [3],
+     "alpha_bounds": [0.05, 0.1],
+     "mcap":         [0.95, 0.99]},
+    {"sdg": 10,
+     "floors":       [0, 2],
+     "quantiles":    [3],
+     "alpha_bounds": [0.05, 0.1],
+     "mcap":         [0.95, 0.99]},
 ]
 
 # --------------------------------------------------------------------------- #
 # GRID: expanded to its full cartesian product.
-# Left empty and disabled here -- the design/SDG pairing above has to move together with
-# each design, which GRID cannot express; EXPLICIT does the full cross instead.
+# Left empty -- every axis here is PER-SDG (SDG 5 and 10 take only K=3, and only floors up
+# to 2), which a single cartesian GRID cannot express: it would force one shared K list on
+# all three SDGs. EXPLICIT does a separate cross per SDG instead.
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {}
-
-# The three sweep parameters, each requested at these levels:
-_ALPHA_BOUNDS: list[float] = [0.05, 0.1]
-_QUANTILES: list[int] = [3, 5, 7]
-_MCAP_COVERED: list[float] = [0.95, 0.99]
 
 # --------------------------------------------------------------------------- #
 # EXPLICIT: hand-picked combinations, appended after the grid, used verbatim.
 # For knobs that must move together (add_materiality + a materiality-only
 # action_characterization, say) a grid cannot express the constraint — put them here.
 #
-# Full cross of DESIGNS x alpha_bound x no_simple_quantiles x mcap_covered:
-# 7 designs x 2 x 3 x 2 = 84 experiments. At JOBS=2 that is a long sweep -- raise
-# --jobs if you have the RAM (each worker loads the full Golden LC + Compustat universe
-# independently; see the JOBS comment below), or trim _SDGS_TO_SWEEP / the parameter
-# lists above for a quicker pass.
+# One full cross per _SDG_SPECS entry, using that entry's own lists: 48 + 8 + 8 = 64.
 # --------------------------------------------------------------------------- #
 EXPLICIT: list[dict] = [
-    {**design, "alpha_bound": alpha, "no_simple_quantiles": k,
+    {"action_characterization": "Materiality_single_SDG",
+     "materiality_single_sdg": spec["sdg"],
+     "minimum_initatives_needed_to_split_by_materiality": n,
+     "no_simple_quantiles": k,
+     "alpha_bound": alpha,
      "mktcap_covered_if_filter_by_cum_market_cap": mcap}
-    for design in DESIGNS
-    for alpha in _ALPHA_BOUNDS
-    for k in _QUANTILES
-    for mcap in _MCAP_COVERED
+    for spec in _SDG_SPECS
+    for n in spec["floors"]
+    for k in spec["quantiles"]
+    for alpha in spec["alpha_bounds"]
+    for mcap in spec["mcap"]
 ]
 
 # --------------------------------------------------------------------------- #
@@ -90,6 +129,10 @@ FIXED: dict = {
     # which only the v2 SASB workbook carries.
     "add_materiality": True,
     "materiality_version": 2,
+    "min_portfolio_coverage":0.70,
+    # alpha_bound and mktcap_covered are NOT pinned here -- they are swept per SDG in
+    # _SDG_SPECS above, and every EXPLICIT entry sets both, so a FIXED value would be
+    # overridden on all 64 combinations and only mislead a reader of this file.
 }
 
 
@@ -140,8 +183,12 @@ SORT_BY: list[str] = [
     # coerces None to the string "None" and groups it with the other unlisted values, so
     # it sorts safely alongside the SDG numbers without a value_order entry.
     "materiality_single_sdg",
-    "alpha_bound",
+    # The two axes under test, outermost-last so pages read as: all of SDG 3's floors in
+    # ascending order, each with its K=3/5/7 triple adjacent -- which is the comparison
+    # you actually make (does the spread survive raising the floor, at a fixed K).
+    "minimum_initatives_needed_to_split_by_materiality",
     "no_simple_quantiles",
+    "alpha_bound",
     "mktcap_covered_if_filter_by_cum_market_cap",
 ]
 

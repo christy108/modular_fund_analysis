@@ -74,6 +74,69 @@ def mktcap_filter_kwargs(cfg: dict) -> dict:
     )
 
 
+_MATERIALITY_PREFIXES = ("material__", "immaterial__")
+
+
+def materiality_split_groups(categories_dict: dict) -> list:
+    """Pair up the material/immaterial signal indices of a materiality design.
+
+    Returns one dict per group -- ``{"group", "material_index", "immaterial_index",
+    "columns"}``, ``columns`` being every material AND immaterial column of that group --
+    ordered by ``material_index``. Returns ``[]`` when this is not a materiality design at
+    all, so "is this a materiality design" and "what are its groups" are one question.
+
+    Shared by ``build_cfg``'s validation of
+    ``minimum_initatives_needed_to_split_by_materiality`` and by the filter itself in
+    ``02_derive_signals``, so the two cannot disagree about what a group is.
+
+    A design counts as materiality iff EVERY category column starts with ``material__`` or
+    ``immaterial__``. Group identity is the column name with that prefix stripped
+    (``material__total__SDG_1`` -> ``total__SDG_1``); two signal indices are one group iff
+    their stripped-suffix SETS are equal and one side is wholly material while the other is
+    wholly immaterial.
+
+    Pairing on the suffix set rather than on index parity is deliberate: it holds for the
+    ``_signals_from_groups`` designs, which emit material-then-immaterial per group (0/1,
+    2/3, ...), AND for ``Combined_Material_Immaterial_4_Behavioural_Signals``, which emits
+    all four immaterial signals first and all four material ones after (0-3 / 4-7). Index
+    parity would silently mis-pair the latter.
+
+    An unpaired index (a single-sided design like ``material_4_Behavioural_Signals``, where
+    no immaterial counterpart is in ``categories_dict``) yields NO group -- there is no
+    material/immaterial split to gate, which is what the caller needs to know.
+    """
+    if not categories_dict or not all(
+        str(c).startswith(_MATERIALITY_PREFIXES) for c in categories_dict
+    ):
+        return []
+
+    # index -> (set of stripped suffixes, set of prefixes seen)
+    per_index: dict = {}
+    for col, idx in categories_dict.items():
+        col = str(col)
+        prefix = next(p for p in _MATERIALITY_PREFIXES if col.startswith(p))
+        suffixes, prefixes, cols = per_index.setdefault(int(idx), (set(), set(), []))
+        suffixes.add(col[len(prefix):])
+        prefixes.add(prefix)
+        cols.append(col)
+
+    groups = []
+    for m_idx, (m_suffixes, m_prefixes, m_cols) in sorted(per_index.items()):
+        # Only start from the material side, so each group is emitted exactly once.
+        if m_prefixes != {"material__"}:
+            continue
+        for i_idx, (i_suffixes, i_prefixes, i_cols) in sorted(per_index.items()):
+            if i_prefixes == {"immaterial__"} and i_suffixes == m_suffixes:
+                groups.append({
+                    "group": ",".join(sorted(m_suffixes)),
+                    "material_index": m_idx,
+                    "immaterial_index": i_idx,
+                    "columns": m_cols + i_cols,
+                })
+                break
+    return groups
+
+
 def normalise_gvkeys(gvkeys: "pd.Series") -> "pd.Series":
     """Normalise a gvkey Series to the repo-standard zero-padded 6-char string.
 

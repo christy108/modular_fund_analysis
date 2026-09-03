@@ -149,6 +149,30 @@ def build_cfg(**overrides) -> dict:
         execute_3_filters="suspicious_only",
         min_available_rfyears_if_execute_3_filters_true=3,
         min_initatives_annual_reports_if_execute_3_filters_true=5,
+        # Minimum initiatives a firm-year must have IN THE MATERIALITY GROUP before it is
+        # allowed into the sort at all. Floors material_G + immaterial_G (the group's own
+        # total, computed from categories_dict -- NOT sum_activities, which under
+        # signal_denominator="Sum_All_Initiatives" is n_predicted_initiatives instead).
+        #
+        # Why: the signal is a ratio of two small integer counts, so a firm-year with a
+        # single initiative in the group scores 1/1 = 1.0 and the sort reads it as maximal
+        # materiality, when it carries no information about the firm's MIX at all. 4/5 = 0.8
+        # looks weaker and is far better evidence. The 1/1-type rows pile up on the ratio's
+        # ceiling, which is where the sort is most sensitive to them (the top bucket is
+        # `> q_{K-1}`): on base_materiality_people_only, 18.8% of firm-years sit at exactly
+        # 1.0 and that atom alone is wide enough to fill a whole bucket of seven.
+        #
+        # 0 = off, and off is the default so every existing config is untouched. Runs AFTER
+        # the alpha-bound trim, so the trim's own numbers stay identical and any change is
+        # attributable to this floor alone. The `initatives` spelling matches
+        # min_initatives_annual_reports_if_execute_3_filters_true above.
+        #
+        # RAISES (below) on a non-materiality action_characterization, and on a materiality
+        # design with more than ONE group -- see the validation for why multi-group cannot
+        # be honoured. Read New_Pipeline/nodes/02_derive_signals.py's
+        # "materiality split floor" audit to choose the value: it reports what each
+        # candidate N would cost in firm-years and what it buys in pct_at_max.
+        minimum_initatives_needed_to_split_by_materiality=0,
         # Dump lc to ./data/debug/*.csv inside process_lc. Default OFF: the two dumps are
         # ~128MB of CSV serialisation per run that nothing reads back, and because the
         # paths are FIXED they are also the one place concurrent runs would collide --
@@ -497,6 +521,48 @@ def build_cfg(**overrides) -> dict:
     c["categories_dict"] = {str(k): v for k, v in categories_dict.items()}
     c["lc_signals"] = lc_signals
 
+    # ---- validate the materiality-split floor against the design it will run on ---- #
+    # Here rather than in the value-checks above because it needs categories_dict, which
+    # only exists after the action_characterization dispatch. Failing in build_cfg means
+    # failing before the run starts, not 20 minutes in from inside a node.
+    _min_split = c["minimum_initatives_needed_to_split_by_materiality"]
+    if not isinstance(_min_split, int) or isinstance(_min_split, bool) or _min_split < 0:
+        raise ValueError(
+            f"minimum_initatives_needed_to_split_by_materiality must be a non-negative "
+            f"int (0 = off), got {_min_split!r}"
+        )
+    if _min_split > 0:
+        from New_Pipeline._common import materiality_split_groups
+
+        _groups = materiality_split_groups(c["categories_dict"])
+        if not _groups:
+            raise ValueError(
+                f"minimum_initatives_needed_to_split_by_materiality="
+                f"{_min_split} needs a material/immaterial design, but "
+                f"action_characterization={ac!r} has no material/immaterial group pair "
+                f"(its category columns are {sorted(c['categories_dict'])[:4]}...). The "
+                f"floor gates the SPLIT of a group into material vs immaterial, so it is "
+                f"undefined where there is no such split. Use 0 to turn it off."
+            )
+        if len(_groups) > 1:
+            raise ValueError(
+                f"minimum_initatives_needed_to_split_by_materiality={_min_split} is only "
+                f"supported for a SINGLE-group design, but action_characterization={ac!r} "
+                f"has {len(_groups)} groups: "
+                f"{[g['material_index'] for g in _groups]} (material indices).\n"
+                f"Reason: a per-group floor has to leave the other groups' signals intact "
+                f"for that firm-year, but functions/portfolio_strategy_design/"
+                f"univariate_sorting_preprocess.py:170 apply_cross_signal_nan_mask NaNs a "
+                f"(date, asset) cell where ANY signal is missing -- a deliberate "
+                f"common-universe design in the frozen numeric core. So a per-group floor "
+                f"would silently become 'drop unless EVERY group clears "
+                f"{_min_split}', which on a {len(_groups)}-group design is a far harsher "
+                f"filter than the one requested.\n"
+                f"Use a single-group characterization instead (Material_Immaterial_only, "
+                f"Materiality_People_SDG, Materiality_People_Plus_Prosperity_SDG, "
+                f"Materiality_single_SDG), or 0 to turn the floor off."
+            )
+
     # ---- cell 11: hml_directions / universe_signals / analysis_selection -- #
     analyse_high_low = "High"
     bucket = "high" if analyse_high_low == "High" else "low"
@@ -767,6 +833,19 @@ def base_materiality_people_only():
 
 
 
+def base_materiality_people_only_min5():
+    # base_materiality_people_only + a floor of 5 initiatives in People before the
+    # material/immaterial split is allowed. Read against its unfloored twin: nothing else
+    # differs, so the whole change is the 1/1-type firm-years leaving the sort.
+    #
+    # Choose the 5 from the run's own "Materiality split floor" audit table rather than by
+    # eye -- it reports, for every candidate N, the firm-years and firms lost against the
+    # pct_at_max bought. On the unfloored run 18.8% of firm-years sit at ratio exactly 1.0.
+    return _sdg_materiality("base_materiality_people_only_min5",
+                            "Materiality_People_SDG",
+                            minimum_initatives_needed_to_split_by_materiality=5)
+
+
 def base_materiality_people_plus_prosperity_only():
     # 2 signals: Material_People_Plus_Prosperity vs its immaterial mirror.
     return _sdg_materiality("base_materiality_people_plus_prosperity_only",
@@ -792,6 +871,33 @@ def base_materiality_single_sdg(x: int, **overrides):
     return _sdg_materiality(f"base_materiality_sdg_{x}",
                             "Materiality_single_SDG",
                             materiality_single_sdg=x, **overrides)
+
+
+def base_materiality_sdg_3_min3():
+    """SDG 3 alone, material vs immaterial, with a 3-initiative floor on the split.
+
+    NOT `base_materiality_single_sdg(3, minimum_...=3)`: that helper hardcodes the run
+    name to f"base_materiality_sdg_{x}", so the floored run would archive under the SAME
+    name as the unfloored one and overwrite parity/artifacts/new/base_materiality_sdg_3/.
+    Spelled out here so the two are separately addressable and directly comparable.
+
+    SDG 3 at N=3 is the ONLY single-SDG cell that both clears the thin-portfolio gate and
+    leaves a usable sample: measured on the pre-floor panel, N=3 keeps 69.9% of SDG 3's
+    5,999 firm-years (~183 assets, so ~26 names per bucket at K=7 against the gate's 25).
+    Every other (SDG, N) pair either empties the panel or falls under the gate -- SDG 5
+    and SDG 10 at N=3 leave ~45 and ~56 assets, which is 6-8 names per bucket at K=7.
+
+    Read this as a ROBUSTNESS check, not a fix. The floor raises SDG 3's saturation rather
+    than lowering it (firm-years at ratio exactly 1.0 go 69.9% -> 70.5% at N=3), because
+    within a single SDG the initiative count and the material share are POSITIVELY
+    correlated: a firm with many SDG-3 initiatives is focused on SDG 3, and focused firms
+    are all-material there. Pooling SDGs breaks that correlation, which is why the floor
+    works on Materiality_People_SDG and backfires here.
+    """
+    return _sdg_materiality("base_materiality_sdg_3_min3",
+                            "Materiality_single_SDG",
+                            materiality_single_sdg=3,
+                            minimum_initatives_needed_to_split_by_materiality=3)
 
 
 def base_materiality_5_groups_brackets():
@@ -875,8 +981,10 @@ EXPERIMENTS = {
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
     "base_materiality_people_only": base_materiality_people_only,
+    "base_materiality_people_only_min5": base_materiality_people_only_min5,
     "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
     "Materiality_People_Plus_Prosperity_VS_Planet_SDG": base_materiality_people_plus_prosperity_vs_planet,
+    "base_materiality_sdg_3_min3": base_materiality_sdg_3_min3,
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
