@@ -20,6 +20,10 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Secrets — never commit (Box CCG credentials for New_Pipeline.sweep --box, etc.)
+.env
+.env.*
+
 # Debug / scratch
 debuggggg.csv
 

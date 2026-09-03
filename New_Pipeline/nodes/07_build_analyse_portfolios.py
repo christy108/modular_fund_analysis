@@ -256,8 +256,10 @@ def _bucket_audits() -> list:
 
 # ---- Material-initiative decomposition: extractors + widget grid --------------------- #
 # Every payload below is read straight out of the bundle the Process already built; nothing
-# is computed here. Empty when the run is not a Material_Immaterial_only + add_materiality
-# one, in which case each widget renders blank rather than erroring.
+# is computed here. Empty unless add_materiality is on AND the design has exactly one
+# material/immaterial group whose signals EMPIRICALLY mirror (corr <= -0.99, checked fresh
+# in the Process against the same threshold sort_cutpoint_audit uses) -- in which case each
+# widget renders blank rather than erroring.
 
 _DECOMP_BUCKETS = ("High", "Low")
 _DECOMP_WEIGHTINGS = (
@@ -484,9 +486,16 @@ The gate is PRESENTATION ONLY: filtering happens in the dashboard extractors, ne
 bundle, so every exported parquet still carries every portfolio and the gate cannot move a parity
 artifact. A hidden leg's numbers remain in ``risk_table.parquet``.
 
-Finally, on ``Material_Immaterial_only`` runs carrying the SASB counts, decomposes each leg's
-MATERIAL initiatives into behavioural and SDG brackets over time (``BundleStackedAreaViz``, five
-schemes x High/Low x pooled/equal-weight), with the underlying counts (``BundleMultiSeriesViz``)
+Finally, on any run carrying the SASB counts whose design has exactly one material/immaterial
+group AND whose two signals are confirmed to mirror (corr <= -0.99, verified fresh against the
+same threshold ``sort_cutpoint_audit`` uses -- not assumed from the design's name) --
+``Material_Immaterial_only``, ``Materiality_People_SDG``, ``Materiality_People_Plus_Prosperity_SDG``
+and ``Materiality_single_SDG`` all qualify under ``signal_type="weights"``; the 2/3/5/15-group
+brackets never do, and neither does a qualifying design run under ``signal_type="counts"`` or
+``"per_revenue"`` -- decomposes each leg's MATERIAL initiatives into behavioural and SDG brackets
+over time
+(``BundleStackedAreaViz``, five schemes x High/Low x pooled/equal-weight), with the underlying
+counts (``BundleMultiSeriesViz``)
 and a coverage table (``BundleTableViz``). ``material__total`` is an opaque count, so the High-Low
 alpha cannot otherwise be attributed to a behaviour or an SDG; this says what the leg's material
 initiatives actually ARE and whether that mix drifts. Every scheme is normalised by
@@ -579,7 +588,8 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
         # stays scannable; expand the ones you care about.
         *_bucket_audits(),
         # Material-initiative decomposition, directly beneath the sector-share charts it
-        # is the sibling of. Empty outside Material_Immaterial_only + add_materiality.
+        # is the sibling of. Empty unless add_materiality is on AND the design has exactly
+        # one material/immaterial group (materiality_split_groups).
         *_decomposition_audits(),
     ],
 )
@@ -923,9 +933,50 @@ def build_analyse_portfolios_v1(prep, cfg):
     # second copy of it, free to drift.
     initiative_decomposition = None
     _mat_counts = P.get("materiality_counts")
-    _DECOMP_SIGNAL = "signal_0"
+    # Qualifying is a TWO-PART test, not just "one group in categories_dict":
+    #
+    # 1. STRUCTURAL -- materiality_split_groups pairs categories_dict's material/immaterial
+    #    signal indices the same way build_cfg's
+    #    minimum_initatives_needed_to_split_by_materiality validation does, so the two
+    #    checks can never disagree about what a group is. Exactly one group is necessary,
+    #    but NOT sufficient: it only guarantees sum_activities = material_G + immaterial_G
+    #    (signal_denominator="Sum_All_Signals"), and says nothing about signal_type. Under
+    #    signal_type="counts" or "per_revenue", signal_i is a raw count or a per-revenue
+    #    ratio, NOT material_G / sum_activities -- so a one-group design like
+    #    base_materiality_counts passes the structural test while its two signals are just
+    #    two unrelated numbers, not a mirror pair at all.
+    #
+    # 2. EMPIRICAL -- so this re-derives the ACTUAL correlation between the group's material
+    #    and immaterial signal, on the same standardised `signals` pivots and with the exact
+    #    same corr <= -0.99 threshold sort_cutpoint_audit's own mirror-pair detector uses
+    #    (12_sort_cutpoint_audit.py, "z_b = -z_a" block) -- so the two audits can never
+    #    disagree about whether a pair mirrors. This is what actually licenses decomposing
+    #    ONLY the material signal: without a confirmed mirror, "High immaterial == Low
+    #    material" is not established and skipping immaterial would just be a coverage gap,
+    #    not a redundancy -- so an unconfirmed pair does not qualify at all, rather than
+    #    decomposing signal_0 alone on an unverified assumption.
+    from New_Pipeline._common import materiality_split_groups
+
+    _decomp_groups = materiality_split_groups(C.get("categories_dict", {}))
+    _decomp_group = _decomp_groups[0] if len(_decomp_groups) == 1 else None
+    _DECOMP_SIGNAL = None
+    if _decomp_group is not None:
+        _m_col = f"signal_{_decomp_group['material_index']}"
+        _i_col = f"signal_{_decomp_group['immaterial_index']}"
+        if _m_col in signals and _i_col in signals:
+            _va = signals[_m_col].to_numpy(dtype=float).ravel()
+            _vb = signals[_i_col].to_numpy(dtype=float).ravel()
+            _ok = np.isfinite(_va) & np.isfinite(_vb)
+            if _ok.sum() >= 2 and _va[_ok].std() > 0 and _vb[_ok].std() > 0:
+                _mirror_corr = float(np.corrcoef(_va[_ok], _vb[_ok])[0, 1])
+                print(f"[decomposition] mirror check {_m_col}/{_i_col}: corr={_mirror_corr:.6f}")
+                if _mirror_corr <= -0.99:
+                    _DECOMP_SIGNAL = _m_col
+                else:
+                    print(f"[decomposition] {_m_col}/{_i_col} do NOT mirror "
+                          f"(corr={_mirror_corr:.6f} > -0.99) -- decomposition skipped")
     if (_mat_counts is not None
-            and C.get("action_characterization") == "Material_Immaterial_only"
+            and _DECOMP_SIGNAL is not None
             and _DECOMP_SIGNAL in signal_quantile_constituents):
         from New_Pipeline.initiative_brackets import (
             RESIDUAL_BAND,
@@ -935,11 +986,21 @@ def build_analyse_portfolios_v1(prep, cfg):
             required_columns,
         )
 
-        # signal_0 ONLY. Under Material_Immaterial_only, sum_activities is
-        # material__total + immaterial__total, so signal_1 == 1 - signal_0 exactly;
-        # standardize_pivot's (x-mean)/std preserves the mirror, so "High signal_1" and
-        # "Low signal_0" are the SAME portfolio. Doing both would duplicate every chart.
-        # (The mirror itself is reported by the sort_cutpoint_audit node.)
+        # The design's material signal ONLY -- never its immaterial mirror. A one-group
+        # design has sum_activities = material_G + immaterial_G, so immaterial's signal is
+        # EXACTLY 1 - material's; standardize_pivot's (x-mean)/std preserves that mirror,
+        # so "High immaterial" and "Low material" are the SAME portfolio. Doing both would
+        # duplicate every chart. (The mirror itself is reported by sort_cutpoint_audit.)
+        #
+        # NOTE the bands below are decomposing material__total -- ALL 17 SDGs' material
+        # initiatives -- regardless of which group G the sort itself used. For
+        # Materiality_People_SDG that means: sorted on People-only materiality, but the
+        # chart shows the FULL initiative mix (People, Planet, Prosperity, behavioural...)
+        # that the resulting High/Low legs hold. That is deliberate, not a mismatch -- it
+        # answers "what does a firm that scores high on People materiality look like
+        # overall", which is a different and equally valid question from "what SDGs make
+        # up its People score" (that second question is what materiality_split_floor and
+        # the per-SDG signal_sparsity audits on derive_signals already answer).
         _rows = []
         for _bkt, _idx in (("High", K - 1), ("Low", 0)):
             for _ms in signal_quantile_constituents[_DECOMP_SIGNAL]:
@@ -1173,7 +1234,8 @@ def build_analyse_portfolios_v1(prep, cfg):
         # per-bucket count and sector-share dashboard widgets. Not written to parquet.
         "per_bucket_industry": _per_bucket,
         # Material-initiative decomposition (audit-only, not written to parquet). None
-        # unless add_materiality and action_characterization == "Material_Immaterial_only".
+        # unless add_materiality is on AND the design has exactly one material/immaterial
+        # group (materiality_split_groups) -- see the Process body for the exact list.
         "initiative_decomposition": initiative_decomposition,
         # Thin-portfolio gate. The frames are audit output; dropped_portfolio_labels is the
         # drop set the dashboard extractors filter on. Every other bundle key stays COMPLETE

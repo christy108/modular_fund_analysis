@@ -7,6 +7,8 @@ from functions.signal_design.signal_definitions import (  # noqa: F401
     CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG,
     PEOPLE_PLANET_PROSPERITY,
     PEOPLE_Plus_PROSPERITY_VS_PLANET,
+    Health_SDGS_Groups,
+    
     SDG_5_BRACKETS,
     _check_groups_disjoint,
     _group_slug,
@@ -80,10 +82,7 @@ def Materiality_People_Plus_Prosperity_SDG():
     _group = "People_Plus_Prosperity"
     return _signals_from_groups({_group: PEOPLE_Plus_PROSPERITY_VS_PLANET[_group]})
 
-
-
-
-
+    
 def Materiality_People_Plus_Prosperity_VS_Planet_SDG():
     """4 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity,
     Material_Planet, Immaterial_Planet.
@@ -100,6 +99,39 @@ def Materiality_People_Plus_Prosperity_VS_Planet_SDG():
     of them are an exact mirror pair -- unlike the one-group designs above.
     """
     return _signals_from_groups(PEOPLE_Plus_PROSPERITY_VS_PLANET)
+
+
+def Materiality_One_Health_SDGS():
+    """2 signals: Material_One_Health, Immaterial_One_Health.
+
+    Health_SDGS_Groups is already {group: [sdg, ...]}, so it goes to
+    _signals_from_groups bare -- wrapping it in braces builds a set holding a dict,
+    which is a TypeError (dicts are unhashable).
+    """
+    _group = "One_Health"
+    return _signals_from_groups({_group: Health_SDGS_Groups[_group]})
+
+
+def Materiality_Narrow_Health_SDGS():
+    """2 signals: Material_Narrow_Health, Immaterial_Narrow_Health.
+
+    Health_SDGS_Groups is already {group: [sdg, ...]}, so it goes to
+    _signals_from_groups bare -- wrapping it in braces builds a set holding a dict,
+    which is a TypeError (dicts are unhashable).
+    """
+    _group = "Narrow_Health"
+    return _signals_from_groups({_group: Health_SDGS_Groups[_group]})
+
+def Materiality_Health_and_Work_SDGS():
+    """2 signals: Material_Health_and_Work, Immaterial_Health_and_Work.
+
+    Health_SDGS_Groups is already {group: [sdg, ...]}, so it goes to
+    _signals_from_groups bare -- wrapping it in braces builds a set holding a dict,
+    which is a TypeError (dicts are unhashable).
+    """
+    _group = "Health_and_Work"
+    return _signals_from_groups({_group: Health_SDGS_Groups[_group]})
+
 
 
 

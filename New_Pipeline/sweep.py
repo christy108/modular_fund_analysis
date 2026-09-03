@@ -7,6 +7,10 @@
     python -m New_Pipeline.sweep --only base_none     # a single named EXPERIMENTS entry
     python -m New_Pipeline.sweep --dry-run            # list what would run, run nothing
     python -m New_Pipeline.sweep --rebuild            # rebuild PDF/CSV from the ledger only
+    python -m New_Pipeline.sweep --box                # also push results.{pdf,csv,xlsx}
+                                                       # to Box once the sweep finishes
+                                                       # (see New_Pipeline/box_upload.py
+                                                       # for the one-time app setup)
 
 Where `New_Pipeline.dashboard` renders one live page for a handful of named configs and
 forgets everything when the process exits, this walks a sweep list and appends each
@@ -229,12 +233,15 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
     }
 
 
-def _rebuild(paths: dict) -> None:
+def _rebuild(paths: dict, upload_to_box: bool = False) -> None:
     pages = build_pdf(paths["ledger"], paths["pdf"])
     rows = build_csv(paths["ledger"], paths["csv"])
     build_xlsx(paths["ledger"], paths["xlsx"])
     print(f"[sweep] rebuilt {paths['base']}/results.{{pdf,csv,xlsx}} "
           f"({pages} pages, {rows} rows)")
+    if upload_to_box:
+        from New_Pipeline.box_upload import upload_sweep_results
+        upload_sweep_results(paths)
 
 
 def _run_serial(todo, paths, pdf_every) -> int:
@@ -308,6 +315,7 @@ def main(argv: list[str]) -> None:
     jobs = max(1, int(flag_value("--jobs", getattr(SP, "JOBS", 1))))
     no_resume = "--no-resume" in argv
     dry_run = "--dry-run" in argv
+    upload_to_box = "--box" in argv
     # --out names the folder outright; otherwise it is derived from SWEEP_NAME, reusing
     # an existing folder for that name so a re-run resumes rather than starting over.
     output_dir = (argv[argv.index("--out") + 1] if "--out" in argv else
@@ -317,7 +325,7 @@ def main(argv: list[str]) -> None:
     paths = _paths(output_dir)
 
     if "--rebuild" in argv:
-        _rebuild(paths)
+        _rebuild(paths, upload_to_box)
         return
 
     # --only takes every following bare argument: --only base_none base_materiality
@@ -345,7 +353,7 @@ def main(argv: list[str]) -> None:
 
     if not todo:
         print("[sweep] nothing to do; rebuilding derived files from the ledger")
-        _rebuild(paths)
+        _rebuild(paths, upload_to_box)
         return
 
     # cfg.write_debug_csv sends ~128MB of CSV to FIXED paths under ./data/debug/, so
@@ -366,7 +374,7 @@ def main(argv: list[str]) -> None:
         print("\n[sweep] interrupted -- every completed experiment is already in the ledger")
     finally:
         # Always leave the PDF and CSV consistent with the ledger, however we got here.
-        _rebuild(paths)
+        _rebuild(paths, upload_to_box)
         print(f"[sweep] ledger -> {paths['ledger']}")
 
 

@@ -19,81 +19,70 @@ from __future__ import annotations
 # folder (that is what makes --resume work). `--new-run` forces a fresh folder anyway,
 # and `--out DIR` overrides the whole thing.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "sdg_min_initiatives_x_quantiles"
+SWEEP_NAME: str = "health_sdg_groups"
 
 
 # --------------------------------------------------------------------------- #
-# Single-SDG material/immaterial sorts: the materiality split FLOOR crossed against the
-# bucket count, the alpha-bound trim and the market-cap screen. EVERY AXIS IS PER-SDG,
-# because the three SDGs do not support the same ranges.
+# The three Health_SDGS_Groups material/immaterial sorts, each crossed against the
+# alpha-bound trim, the market-cap screen and the bucket count. One uniform cross this
+# time -- unlike the per-SDG sweep this replaced, all three designs pool enough SDGs to
+# take the full K range, so there is no per-design asymmetry to encode.
 #
-#   SDG 3  : N = 0,2,3,5  x  K = 3,5,7  x  alpha = .05,.1  x  mcap = .95,.99  -> 48
-#   SDG 5  : N = 0,2      x  K = 3      x  alpha = .05,.1  x  mcap = .95,.99  ->  8
-#   SDG 10 : N = 0,2      x  K = 3      x  alpha = .05,.1  x  mcap = .95,.99  ->  8
-#                                                                             == 64
+#   3 designs  x  alpha = .05,.1  x  mcap = .95,.99  x  K = 3,5,7  ->  36
 #
-# WHY THE RANGES DIFFER PER SDG -- this asymmetry IS the design; do not "tidy" it into a
-# uniform cross. Measured on the pre-floor panel, converting firm-years to monthly assets
-# at the rate calibrated on the People design (~0.0437 assets/firm-year, which predicted
-# 275 against an actual 284), then dividing by K to get names per bucket:
+# The three designs (membership from Health_SDGS_Groups in signal_definitions.py):
 #
-#                  assets    K=3    K=5    K=7      (gate = min_stocks_per_portfolio = 25)
-#   SDG 3  N=0       262      87     52     37
-#          N=2       222      74     44     32
-#          N=3       183      61     37     26
-#          N=5       128      43     26     18 <-- fails
-#   SDG 5  N=0       137      46     27     20 <-- fails
-#          N=2        86      29     17 <-- fails
-#   SDG 10 N=0       149      50     30     21 <-- fails
-#          N=2        96      32     19 <-- fails
+#   Materiality_One_Health_SDGS        SDGs 3, 6, 8, 11, 14, 15
+#   Materiality_Narrow_Health_SDGS     SDGs 3, 6, 11
+#   Materiality_Health_and_Work_SDGS   SDGs 3, 6, 8, 11
 #
-# So SDG 5 and SDG 10 are held at K=3 ONLY: at K=5 their N=2 legs fall to 17-19 names and
-# at K=7 to 12-14, which is idiosyncratic noise rather than a portfolio. SDG 3 carries
-# enough firm-years (5,999 post-trim vs 3,139 and 3,410) to take the full K range, and the
-# floors up to 5 -- only its N=5/K=7 corner fails, and that one cell is kept deliberately
-# (see below). Their floors stop at 2 for the same reason: N=3 leaves SDG 5 and SDG 10 with
-# 45 and 56 assets, i.e. 15-19 names per bucket even at K=3.
+# Each is a ONE-GROUP design, so signal_0 is that group's material share and signal_1 is
+# its exact mirror (corr = -1) -- the same two-signal shape as Materiality_People_SDG, and
+# it qualifies for the initiative-decomposition PDF on the same empirical mirror check.
+#
+# FEASIBILITY -- measured, not extrapolated. Each design was run once at the default cell
+# (alpha=.1, mcap=.95, K=7) and its monthly sort pool read off sort_buckets_by_month:
+#
+#                       n_assets/month            min_stocks    (gate = 25 names)
+#                    p25   median   p75            at K=7
+#   One_Health        251    304    385              35        clears everywhere
+#   Health_and_Work   180    239    284              25        exactly at the gate
+#   Narrow_Health     172    231    274              22        dips under in some months
+#
+# So all three clear the gate at K=3 and K=5 comfortably. At K=7 Narrow_Health's thinnest
+# months fall to ~22 names and Health_and_Work sits exactly on 25. Those cells are KEPT
+# rather than pruned: the gate is PRESENTATION-ONLY (the exported parquets always hold
+# every portfolio), so the sweep will still report an alpha for a 22-name leg -- read every
+# alpha__ column next to its coverage_pct__ neighbour, which is the evidence for whether
+# that leg is thick enough to believe.
 #
 # alpha_bound=0.05 trims LESS than 0.1 (the bound is halved per tail, so 2.5% vs 5% each
-# side), so every cell runs slightly LARGER than the table above -- never smaller. The
+# side), so every cell runs at least as large as the table above -- never smaller. The
 # table is therefore the pessimistic side of this sweep.
 #
-# The few gate-failing cells are KEPT rather than pruned: the gate is PRESENTATION-ONLY
-# (the exported parquets always keep every portfolio), so the sweep would happily report an
-# alpha for a 12-name leg. Including them means results.csv carries their coverage_pct__*
-# columns, which is the evidence for why they are unreadable. Read every alpha__ column
-# next to its coverage_pct__ neighbour.
-#
-# EXPECTED RESULT: the floor should NOT reduce saturation here. Firm-years at ratio exactly
-# 1.0 go 69.9 -> 70.1 -> 70.5 -> 71.3% for SDG 3 as N rises, and similarly for 5 and 10 --
-# because within ONE SDG the initiative count and the material share are POSITIVELY
-# correlated (a firm with many SDG-3 initiatives is focused on SDG 3, and focused firms are
-# all-material there). This sweep is therefore a ROBUSTNESS check -- evidence that the
-# single-SDG results are not an artefact of thin denominators -- not a fix for the atom.
+# NOT swept here: minimum_initatives_needed_to_split_by_materiality. It stays at its
+# default 0 on all 36 combinations. The per-SDG sweep this file replaced established that
+# the floor does not reduce ratio-1.0 saturation within a single SDG (count and material
+# share are positively correlated there), and these pooled designs carry enough
+# initiatives per firm-year that the 1/1 case is largely trimmed already. Add a "floors"
+# axis back if that needs re-testing on the pooled groups.
 # --------------------------------------------------------------------------- #
-_SDG_SPECS: list[dict] = [
-    {"sdg": 3,
-     "floors":       [0, 2, 3, 5],
-     "quantiles":    [3, 5, 7],
-     "alpha_bounds": [0.05, 0.1],
-     "mcap":         [0.95, 0.99]},
-    {"sdg": 5,
-     "floors":       [0, 2],
-     "quantiles":    [3],
-     "alpha_bounds": [0.05, 0.1],
-     "mcap":         [0.95, 0.99]},
-    {"sdg": 10,
-     "floors":       [0, 2],
-     "quantiles":    [3],
-     "alpha_bounds": [0.05, 0.1],
-     "mcap":         [0.95, 0.99]},
+_HEALTH_DESIGNS: list[str] = [
+    "Materiality_One_Health_SDGS",
+    "Materiality_Narrow_Health_SDGS",
+    "Materiality_Health_and_Work_SDGS",
 ]
+
+_ALPHA_BOUNDS: list[float] = [0.05, 0.1]
+_MCAP: list[float] = [0.95, 0.99]
+_QUANTILES: list[int] = [3, 5, 7]
 
 # --------------------------------------------------------------------------- #
 # GRID: expanded to its full cartesian product.
-# Left empty -- every axis here is PER-SDG (SDG 5 and 10 take only K=3, and only floors up
-# to 2), which a single cartesian GRID cannot express: it would force one shared K list on
-# all three SDGs. EXPLICIT does a separate cross per SDG instead.
+# Left empty -- action_characterization has to move together with add_materiality and
+# materiality_version (pinned in FIXED below), and putting the design list in GRID would
+# read as though the three designs were an independent axis rather than the subject of the
+# sweep. EXPLICIT does the same cross and keeps that coupling visible.
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {}
 
@@ -102,20 +91,17 @@ GRID: dict[str, list] = {}
 # For knobs that must move together (add_materiality + a materiality-only
 # action_characterization, say) a grid cannot express the constraint — put them here.
 #
-# One full cross per _SDG_SPECS entry, using that entry's own lists: 48 + 8 + 8 = 64.
+# The full 3 x 2 x 2 x 3 cross = 36 combinations.
 # --------------------------------------------------------------------------- #
 EXPLICIT: list[dict] = [
-    {"action_characterization": "Materiality_single_SDG",
-     "materiality_single_sdg": spec["sdg"],
-     "minimum_initatives_needed_to_split_by_materiality": n,
-     "no_simple_quantiles": k,
+    {"action_characterization": ac,
      "alpha_bound": alpha,
-     "mktcap_covered_if_filter_by_cum_market_cap": mcap}
-    for spec in _SDG_SPECS
-    for n in spec["floors"]
-    for k in spec["quantiles"]
-    for alpha in spec["alpha_bounds"]
-    for mcap in spec["mcap"]
+     "mktcap_covered_if_filter_by_cum_market_cap": mcap,
+     "no_simple_quantiles": k}
+    for ac in _HEALTH_DESIGNS
+    for alpha in _ALPHA_BOUNDS
+    for mcap in _MCAP
+    for k in _QUANTILES
 ]
 
 # --------------------------------------------------------------------------- #
@@ -129,10 +115,10 @@ FIXED: dict = {
     # which only the v2 SASB workbook carries.
     "add_materiality": True,
     "materiality_version": 2,
-    "min_portfolio_coverage":0.70,
-    # alpha_bound and mktcap_covered are NOT pinned here -- they are swept per SDG in
-    # _SDG_SPECS above, and every EXPLICIT entry sets both, so a FIXED value would be
-    # overridden on all 64 combinations and only mislead a reader of this file.
+    "min_portfolio_coverage":0.8,
+    # alpha_bound, mktcap_covered and no_simple_quantiles are NOT pinned here -- they are
+    # the swept axes, and every EXPLICIT entry sets all three, so a FIXED value would be
+    # overridden on all 36 combinations and only mislead a reader of this file.
 }
 
 
@@ -178,27 +164,25 @@ JOBS: int = 2
 # (numerically for numbers, alphabetically otherwise).
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
+    # Outermost: all 12 of One_Health's cells, then Narrow_Health's, then
+    # Health_and_Work's -- ordered by VALUE_ORDER below, not alphabetically.
     "action_characterization",
-    # None for the three group designs, 1/3/5/10 for Materiality_single_SDG -- _sort_key
-    # coerces None to the string "None" and groups it with the other unlisted values, so
-    # it sorts safely alongside the SDG numbers without a value_order entry.
-    "materiality_single_sdg",
-    # The two axes under test, outermost-last so pages read as: all of SDG 3's floors in
-    # ascending order, each with its K=3/5/7 triple adjacent -- which is the comparison
-    # you actually make (does the spread survive raising the floor, at a fixed K).
-    "minimum_initatives_needed_to_split_by_materiality",
-    "no_simple_quantiles",
+    # Then alpha_bound / mcap / K, innermost-last, so within one design the pages read as
+    # each (alpha, mcap) pair carrying its K=3/5/7 triple adjacent -- which is the
+    # comparison you actually make (does the spread survive a finer sort, at fixed trim
+    # and market-cap screen).
     "alpha_bound",
     "mktcap_covered_if_filter_by_cum_market_cap",
+    "no_simple_quantiles",
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Pages group by signal design, in this order; within each group they run through
-    # every SDG (where applicable) x alpha_bound x no_simple_quantiles x mcap combination.
+    # Pages group by signal design, in this order -- widest SDG membership first, so the
+    # pool shrinks as you read down (One_Health 6 SDGs -> Health_and_Work 4 -> Narrow 3).
+    # Within each group they run through every alpha_bound x mcap x K combination.
     "action_characterization": [
-        "Materiality_People_SDG",
-        "Materiality_People_Plus_Prosperity_SDG",
-        "Materiality_People_Plus_Prosperity_VS_Planet_SDG",
-        "Materiality_single_SDG",
+        "Materiality_One_Health_SDGS",
+        "Materiality_Health_and_Work_SDGS",
+        "Materiality_Narrow_Health_SDGS",
     ],
 }

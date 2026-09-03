@@ -203,7 +203,7 @@ def build_cfg(**overrides) -> dict:
         # dashboard draws, so the two can never disagree. No-op unless the run actually
         # produces the decomposition (add_materiality + Material_Immaterial_only), and
         # deliberately NOT written to the --out snapshot: it is a report, not an artifact.
-        area_initatives_plots_per_portfolio_to_PDF=True,
+        area_initatives_plots_per_portfolio_to_PDF=False,
         include_all_signals_in_cum_risk_table=True,
     )
     # Reject unknown override keys. `c.update` would otherwise accept a typo (or a key
@@ -337,6 +337,9 @@ def build_cfg(**overrides) -> dict:
         Materiality_People_SDG,
         Materiality_People_Plus_Prosperity_SDG,
         Materiality_People_Plus_Prosperity_VS_Planet_SDG,
+        Materiality_One_Health_SDGS,
+        Materiality_Narrow_Health_SDGS,
+        Materiality_Health_and_Work_SDGS,
         Materiality_SDG_X,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
@@ -461,6 +464,24 @@ def build_cfg(**overrides) -> dict:
     # immaterial) share of ALL initiatives. The four sum to 1, so no mirror pair.
     elif ac == "Materiality_People_Plus_Prosperity_VS_Planet_SDG":
         categories_dict, *names = Materiality_People_Plus_Prosperity_VS_Planet_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # Same one-group mirror-pair shape as Materiality_People_SDG, restricted to the three
+    # Health_SDGS_Groups cuts (One_Health: SDGs 3,6,8,11,14,15; Narrow_Health: 3,6,11;
+    # Health_and_Work: 3,6,8,11). The three groups overlap each other (e.g. SDG 3 is in
+    # all three), but each branch here only ever passes ONE of them to
+    # _signals_from_groups, so that overlap never collides -- these are three alternative
+    # single-group signals, never combined in the same run.
+    elif ac == "Materiality_One_Health_SDGS":
+        categories_dict, *names = Materiality_One_Health_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "Materiality_Narrow_Health_SDGS":
+        categories_dict, *names = Materiality_Narrow_Health_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "Materiality_Health_and_Work_SDGS":
+        categories_dict, *names = Materiality_Health_and_Work_SDGS()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     # One SDG only, material vs immaterial. WHICH SDG comes from the cfg key rather
@@ -831,6 +852,29 @@ def base_materiality_people_only():
                             "Materiality_People_SDG")
 
 
+def base_materiality_people_only_alpha05_mcap99_k3():
+    # base_materiality_people_only + alpha_bound=0.05 (halves the per-tail trim, so LESS
+    # of sum_activities gets dropped than the 0.1 default), mktcap_covered=0.99 (covers
+    # more of each currency-month's cap-weighted total, so the market-cap screen keeps
+    # MORE, smaller listings than 0.95), and no_simple_quantiles=3 (3 buckets instead of
+    # the 7 default -- coarser sort, wider/fewer portfolios per leg). No K=7 sibling is
+    # registered -- only 3 and 5 are.
+    return _sdg_materiality("base_materiality_people_only_alpha05_mcap99_k3",
+                            "Materiality_People_SDG",
+                            alpha_bound=0.05,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            no_simple_quantiles=3)
+
+
+def base_materiality_people_only_alpha05_mcap99_k5():
+    # Same as _k3 but no_simple_quantiles=5.
+    return _sdg_materiality("base_materiality_people_only_alpha05_mcap99_k5",
+                            "Materiality_People_SDG",
+                            alpha_bound=0.05,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            no_simple_quantiles=5)
+
+
 
 
 def base_materiality_people_only_min5():
@@ -846,10 +890,51 @@ def base_materiality_people_only_min5():
                             minimum_initatives_needed_to_split_by_materiality=5)
 
 
+def base_materiality_one_health():
+    # 2 signals: Material_One_Health vs its immaterial mirror. Health_SDGS_Groups'
+    # "One_Health" group = SDGs 3, 6, 8, 11, 14, 15.
+    return _sdg_materiality("base_materiality_one_health",
+                            "Materiality_One_Health_SDGS")
+
+
+def base_materiality_narrow_health():
+    # 2 signals: Material_Narrow_Health vs its immaterial mirror. Health_SDGS_Groups'
+    # "Narrow_Health" group = SDGs 3, 6, 11.
+    return _sdg_materiality("base_materiality_narrow_health",
+                            "Materiality_Narrow_Health_SDGS")
+
+
+def base_materiality_health_and_work():
+    # 2 signals: Material_Health_and_Work vs its immaterial mirror. Health_SDGS_Groups'
+    # "Health_and_Work" group = SDGs 3, 6, 8, 11.
+    return _sdg_materiality("base_materiality_health_and_work",
+                            "Materiality_Health_and_Work_SDGS")
+
+
 def base_materiality_people_plus_prosperity_only():
     # 2 signals: Material_People_Plus_Prosperity vs its immaterial mirror.
     return _sdg_materiality("base_materiality_people_plus_prosperity_only",
                             "Materiality_People_Plus_Prosperity_SDG")
+
+
+def base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3():
+    # base_materiality_people_plus_prosperity_only + alpha_bound=0.05, mktcap_covered=0.99
+    # (see base_materiality_people_only_alpha05_mcap99_k3 for what each knob does) and
+    # no_simple_quantiles=3. No K=7 sibling is registered -- only 3 and 5 are.
+    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3",
+                            "Materiality_People_Plus_Prosperity_SDG",
+                            alpha_bound=0.05,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            no_simple_quantiles=3)
+
+
+def base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5():
+    # Same as _k3 but no_simple_quantiles=5.
+    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5",
+                            "Materiality_People_Plus_Prosperity_SDG",
+                            alpha_bound=0.05,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            no_simple_quantiles=5)
 
 
 def base_materiality_people_plus_prosperity_vs_planet():
@@ -858,6 +943,16 @@ def base_materiality_people_plus_prosperity_vs_planet():
     # base_materiality_people_plus_prosperity_only, which has a within-group denominator.
     return _sdg_materiality("base_materiality_people_plus_prosperity_vs_planet",
                             "Materiality_People_Plus_Prosperity_VS_Planet_SDG")
+
+
+def base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99():
+    # base_materiality_people_plus_prosperity_vs_planet + alpha_bound=0.05,
+    # mktcap_covered=0.99 -- see base_materiality_people_only_alpha05_mcap99 for what each
+    # knob does. Still 4 signals / 2 mirror pairs, same denominator caveat as the base.
+    return _sdg_materiality("base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99",
+                            "Materiality_People_Plus_Prosperity_VS_Planet_SDG",
+                            alpha_bound=0.05,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.99)
 
 
 def base_materiality_single_sdg(x: int, **overrides):
@@ -881,18 +976,7 @@ def base_materiality_sdg_3_min3():
     name as the unfloored one and overwrite parity/artifacts/new/base_materiality_sdg_3/.
     Spelled out here so the two are separately addressable and directly comparable.
 
-    SDG 3 at N=3 is the ONLY single-SDG cell that both clears the thin-portfolio gate and
-    leaves a usable sample: measured on the pre-floor panel, N=3 keeps 69.9% of SDG 3's
-    5,999 firm-years (~183 assets, so ~26 names per bucket at K=7 against the gate's 25).
-    Every other (SDG, N) pair either empties the panel or falls under the gate -- SDG 5
-    and SDG 10 at N=3 leave ~45 and ~56 assets, which is 6-8 names per bucket at K=7.
-
-    Read this as a ROBUSTNESS check, not a fix. The floor raises SDG 3's saturation rather
-    than lowering it (firm-years at ratio exactly 1.0 go 69.9% -> 70.5% at N=3), because
-    within a single SDG the initiative count and the material share are POSITIVELY
-    correlated: a firm with many SDG-3 initiatives is focused on SDG 3, and focused firms
-    are all-material there. Pooling SDGs breaks that correlation, which is why the floor
-    works on Materiality_People_SDG and backfires here.
+  
     """
     return _sdg_materiality("base_materiality_sdg_3_min3",
                             "Materiality_single_SDG",
@@ -980,11 +1064,20 @@ EXPERIMENTS = {
 
     "base_materiality_3_groups_ppp": base_materiality_3_groups_ppp,
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
+
     "base_materiality_people_only": base_materiality_people_only,
-    "base_materiality_people_only_min5": base_materiality_people_only_min5,
+    "base_materiality_people_only_alpha05_mcap99_k3": base_materiality_people_only_alpha05_mcap99_k3,
+    "base_materiality_people_only_alpha05_mcap99_k5": base_materiality_people_only_alpha05_mcap99_k5,
     "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
+    "base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3": base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3,
+    "base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5": base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5,
     "Materiality_People_Plus_Prosperity_VS_Planet_SDG": base_materiality_people_plus_prosperity_vs_planet,
-    "base_materiality_sdg_3_min3": base_materiality_sdg_3_min3,
+    "Materiality_People_Plus_Prosperity_VS_Planet_SDG_alpha05_mcap99": base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99,
+
+    "base_materiality_one_health": base_materiality_one_health,
+    "base_materiality_narrow_health": base_materiality_narrow_health,
+    "base_materiality_health_and_work": base_materiality_health_and_work,
+
     "base_materiality_5_groups_brackets": base_materiality_5_groups_brackets,
     "base_materiality_5_groups_brackets_counts": base_materiality_5_groups_brackets_counts,
     "base_materiality_climate_vs_each_sdg": base_materiality_climate_vs_each_sdg,
