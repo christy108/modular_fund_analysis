@@ -200,8 +200,9 @@ def get_row_universe(start_year, end_year, download_wrds_data=False,
                 AND (g_secd.tpci='0')
                 AND (g_secd.prccd>0)
                 AND (g_secd.cshtrd>0)
-                AND (g_secd.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 286, 154, 171, 107, 172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194))
-                AND (g_secd.curcdd IN ('CHF', 'GBP', 'EUR'))
+                AND (g_secd.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 154, 171, 107,
+                 172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194, 144, 228, 256))
+                AND (g_secd.curcdd IN ('CHF', 'GBP', 'EUR', 'NOK', 'SEK', 'DKK'))
             ORDER BY 
                 date;
         """, date_cols=['date'])

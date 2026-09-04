@@ -318,24 +318,35 @@ def build_cfg(**overrides) -> dict:
     c["convert_to_USD"] = True
     c["region_filter"] = None
     c["execute_region_filters"] = None
+
     if region == "United_States":
+        
         c.update(currency_filter=["USD"], region_filter=["United States and Canada"],
                  execute_region_filters=True, convert_to_USD=False,
                  fama_factor_region="United_States")
+
+    
     elif region == "North_America_and_Canada":
+        print("Canada is in USD, so we dont need to convert it to USD")
         c.update(currency_filter=["USD"], region_filter=["United States and Canada"],
                  execute_region_filters=True, convert_to_USD=False,
                  fama_factor_region="North_America_and_Canada")
     elif region == "Europe_and_North_America":
-        c.update(currency_filter=["EUR", "USD"], convert_to_USD=True,
-                 fama_factor_region="Developed", execute_region_filters=False)
+        print("This analysis is foolish. We dont have factors for Europe and North America Only")
+        # c.update(currency_filter=["EUR", "USD"], convert_to_USD=True,
+        #          fama_factor_region="Developed", execute_region_filters=False)
     elif region == "Europe_and_North_America_and_Japan":
-        c.update(currency_filter=["EUR", "USD", "JPY"], convert_to_USD=True,
-                 fama_factor_region="Developed", execute_region_filters=False)
+        print("This analysis is foolish. Make sure we include all the contries for the developed factors/ factors we are using")
+        # c.update(currency_filter=["EUR", "USD", "JPY"], convert_to_USD=True,
+        #          fama_factor_region="Developed", execute_region_filters=False)
+        
     elif region == "Europe":
-        c.update(currency_filter=["EUR"], region_filter=["Europe"],
+        print("Europe is in EUR, GBP, CHF, NOK, SEK, DKK, so we need to convert it to USD")
+        print("Even though we convert to USD, we can still select by orriginal currency before conversion as currd variable is unaffected")
+        c.update(currency_filter=['CHF', 'GBP', 'EUR', 'NOK', 'SEK', 'DKK'], region_filter=["Europe"],
                  execute_region_filters=True, convert_to_USD=True,
                  fama_factor_region="Europe")
+
     elif region == "Japan":
         c.update(currency_filter=["JPY"], region_filter=["Asia-Pacific"],
                  execute_region_filters=True,

@@ -227,6 +227,9 @@ def process_lc_v1(cfg):
         lc = pd.read_csv(golden_location / golden_files[C["golden_data"]])
     except:
         lc = pd.read_parquet(golden_location / golden_files[C["golden_data"]])
+    
+
+  
 
     # ---- audit: sample filter funnel, LC side (stages 1-5) --------------------------- #
     # Each row is "distinct firms still standing after this filter". Stages 1-5 run INSIDE
@@ -455,12 +458,35 @@ def process_lc_v1(cfg):
 
     _region_filters_on = C["execute_region_filters"] is True
     _usa_filter_on = _region_filters_on and C["region_analysis"] == "United_States"
+    _Europe_filter_on = _region_filters_on and C["region_analysis"] == "Europe"
+
     if _region_filters_on:
         lc = lc[lc["MacroRegion"].isin(C["region_filter"])]
         _stage(f"MacroRegion in region_filter ({list(C['region_filter'])})",
                "01_process_lc.py:177 / execute_region_filters")
         if _usa_filter_on:
             lc = lc[lc["loc"] == "USA"]
+            
+        if _Europe_filter_on:
+            _locs_in_ff_europe_factor = [
+                                        'AUT',  # Austria
+                                        'BEL',  # Belgium
+                                        'CHE',  # Switzerland
+                                        'DEU',  # Germany
+                                        'DNK',  # Denmark
+                                        'ESP',  # Spain
+                                        'FIN',  # Finland
+                                        'FRA',  # France
+                                        'GBR',  # Great Britain
+                                        'GRC',  # Greece
+                                        'IRL',  # Ireland
+                                        'ITA',  # Italy
+                                        'NLD',  # Netherlands
+                                        'NOR',  # Norway
+                                        'PRT',  # Portugal
+                                        'SWE',  # Sweden
+                                    ]
+            lc = lc[lc["loc"].isin(_locs_in_ff_europe_factor)]
     else:
         _stage("MacroRegion in region_filter",
                "01_process_lc.py:177 / execute_region_filters", active=False)
