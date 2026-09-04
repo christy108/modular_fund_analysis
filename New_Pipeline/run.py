@@ -73,7 +73,7 @@ def _export(outputs: dict, target: Path) -> list[str]:
     # not notebook artifacts, so parity.compare lists them under "(only in new: ...)" —
     # informational, it diffs only the set-intersection and cannot fail on them.
     for node in ("esg_signal_corr", "esg_coverage", "mktcap_filter_audit",
-                 "sample_funnel_audit", "sort_cutpoint_audit"):
+                 "sample_funnel_audit", "sort_cutpoint_audit", "geography_audit"):
         df = outputs.get(node)
         if df is None or SENTINEL_COL in df.columns or PICKLE_COL not in df.columns:
             continue
@@ -138,7 +138,7 @@ def run(name: str, out_dir: str | None = None):
     # Deliberately NOT written to `latest` below: it is a report, like dashboard.md, and a
     # sweep passing --out should not scatter PDFs through the parity area.
     _cfg = json.loads(next(iter(exp.inputs.values()))["json"][0])
-    if _cfg.get("area_initatives_plots_per_portfolio_to_PDF"):
+    if _cfg.get("area_material_initatives_plots_per_signal_to_PDF"):
         from New_Pipeline.decomposition_pdf import build_decomposition_pdf
 
         _pdf = run_dir / "initiative_decomposition.pdf"

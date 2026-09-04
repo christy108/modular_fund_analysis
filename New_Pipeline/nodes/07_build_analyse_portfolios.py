@@ -355,7 +355,7 @@ _DECOMP_DESCRIPTION = (
 
 
 def _decomposition_audits() -> list:
-    """Coverage table, the two level charts, then the 20 area charts.
+    """Coverage table, the two level charts, then the 24 area charts.
 
     Generated unconditionally: the Contract is built at import time, so the keys must be
     static. A run that does not produce the decomposition just renders them empty.
@@ -494,7 +494,7 @@ and ``Materiality_single_SDG`` all qualify under ``signal_type="weights"``; the 
 brackets never do, and neither does a qualifying design run under ``signal_type="counts"`` or
 ``"per_revenue"`` -- decomposes each leg's MATERIAL initiatives into behavioural and SDG brackets
 over time
-(``BundleStackedAreaViz``, five schemes x High/Low x pooled/equal-weight), with the underlying
+(``BundleStackedAreaViz``, up to six schemes x High/Low x pooled/equal-weight), with the underlying
 counts (``BundleMultiSeriesViz``)
 and a coverage table (``BundleTableViz``). ``material__total`` is an opaque count, so the High-Low
 alpha cannot otherwise be attributed to a behaviour or an SDG; this says what the leg's material
@@ -918,11 +918,23 @@ def build_analyse_portfolios_v1(prep, cfg):
             _per_bucket[_label] = _wide  # sectors x date (cols = sectors, index = date)
 
     # ---- material-initiative decomposition (AUDIT-ONLY) ------------------ #
-    # What ARE the material initiatives each leg holds? `material__total` is an opaque
-    # count, so the High-Low alpha cannot be attributed to a behaviour or an SDG. This
-    # cuts that total five ways (see New_Pipeline/initiative_brackets.py) per leg per
-    # formation month. Nothing downstream reads it and it is not exported, so it cannot
-    # move a parity artifact.
+    # What ARE the material initiatives THE SIGNAL COUNTED? signal_0's numerator is an
+    # opaque count, so the High-Low alpha cannot be attributed to a behaviour or an SDG.
+    # This cuts THAT NUMERATOR up to six ways (see New_Pipeline/initiative_brackets.py) per
+    # leg per formation month. Nothing downstream reads it and it is not exported, so it
+    # cannot move a parity artifact.
+    #
+    # The denominator is the signal's OWN numerator, not material__total: for
+    # Materiality_People_Plus_Prosperity_SDG the bands cover SDGs 1-5, 8-11, 16, 17 only,
+    # and no Planet band is drawn, because Planet initiatives never enter that signal. A
+    # scheme that cannot inform this numerator is dropped rather than drawn empty -- see
+    # bands_for_numerator. (An earlier version decomposed material__total, i.e. ALL 17
+    # SDGs, which showed bands the signal had never looked at and read as a bug.)
+    #
+    # Gated by cfg.area_material_initatives_plots_per_signal_to_PDF -- the whole block,
+    # including the holdings join, is skipped when it is off. The saving is in ARTIFACT
+    # SIZE rather than time (24 area payloads triple manifest.json; the join itself is
+    # ~27k rows and vanishes into run-to-run noise) -- see the cfg comment for the numbers.
     #
     # NO LOOKAHEAD, and no date arithmetic: `global_universe` already carries, per
     # (gvkey_iid, date), the exact `rfyear` whose LC row produced that month's signal --
@@ -975,16 +987,37 @@ def build_analyse_portfolios_v1(prep, cfg):
                 else:
                     print(f"[decomposition] {_m_col}/{_i_col} do NOT mirror "
                           f"(corr={_mirror_corr:.6f} > -0.99) -- decomposition skipped")
-    if (_mat_counts is not None
+    _DECOMP_ON = bool(C.get("area_material_initatives_plots_per_signal_to_PDF", False))
+    if not _DECOMP_ON:
+        print("[decomposition] area_material_initatives_plots_per_signal_to_PDF is off "
+              "-- decomposition skipped (no compute)")
+    if (_DECOMP_ON
+            and _mat_counts is not None
             and _DECOMP_SIGNAL is not None
             and _DECOMP_SIGNAL in signal_quantile_constituents):
         from New_Pipeline.initiative_brackets import (
             RESIDUAL_BAND,
             SCHEME_SLUGS,
             TOTAL_COLUMN,
-            bands_for,
-            required_columns,
+            bands_for_numerator,
+            parse_numerator,
+            required_columns_for,
         )
+
+        # The signal's numerator: the categories_dict columns feeding the MATERIAL side of
+        # the group the mirror check just confirmed. Everything below divides by the sum of
+        # these, so every share reads "of the initiatives this signal counted, how many
+        # were X".
+        _NUMERATOR_COLS = sorted(
+            c for c, i in C["categories_dict"].items()
+            if i == _decomp_group["material_index"]
+        )
+        _decomp_action, _decomp_sdgs = parse_numerator(_NUMERATOR_COLS)
+        _bands_by_slug = bands_for_numerator(_NUMERATOR_COLS)
+        print(f"[decomposition] numerator: action={_decomp_action} "
+              f"SDGs={sorted(_decomp_sdgs)} ({len(_NUMERATOR_COLS)} columns); "
+              f"schemes {sorted(_bands_by_slug)} "
+              f"(dropped {sorted(set(SCHEME_SLUGS) - set(_bands_by_slug))})")
 
         # The design's material signal ONLY -- never its immaterial mirror. A one-group
         # design has sum_activities = material_G + immaterial_G, so immaterial's signal is
@@ -992,15 +1025,11 @@ def build_analyse_portfolios_v1(prep, cfg):
         # so "High immaterial" and "Low material" are the SAME portfolio. Doing both would
         # duplicate every chart. (The mirror itself is reported by sort_cutpoint_audit.)
         #
-        # NOTE the bands below are decomposing material__total -- ALL 17 SDGs' material
-        # initiatives -- regardless of which group G the sort itself used. For
-        # Materiality_People_SDG that means: sorted on People-only materiality, but the
-        # chart shows the FULL initiative mix (People, Planet, Prosperity, behavioural...)
-        # that the resulting High/Low legs hold. That is deliberate, not a mismatch -- it
-        # answers "what does a firm that scores high on People materiality look like
-        # overall", which is a different and equally valid question from "what SDGs make
-        # up its People score" (that second question is what materiality_split_floor and
-        # the per-SDG signal_sparsity audits on derive_signals already answer).
+        # The bands below decompose the SIGNAL'S NUMERATOR, so for Materiality_People_SDG
+        # they cover the People SDGs only -- every band is something the sort actually
+        # counted. `material__total` survives below purely as context in the coverage
+        # table (how much of the firms' material activity the signal ignores); it is no
+        # longer any band's denominator.
         _rows = []
         for _bkt, _idx in (("High", K - 1), ("Low", 0)):
             for _ms in signal_quantile_constituents[_DECOMP_SIGNAL]:
@@ -1046,8 +1075,9 @@ def build_analyse_portfolios_v1(prep, cfg):
               f"(years behind formation month)")
 
         # 2. (gvkey, rfyear) -> the raw materiality counts
-        _need = [c for c in required_columns() if c in _mat_counts.columns]
-        _missing = [c for c in required_columns() if c not in _mat_counts.columns]
+        _req = required_columns_for(_NUMERATOR_COLS)
+        _need = [c for c in _req if c in _mat_counts.columns]
+        _missing = [c for c in _req if c not in _mat_counts.columns]
         if _missing:
             raise KeyError(
                 f"materiality_counts is missing bracket columns {_missing} - the workbook "
@@ -1055,7 +1085,9 @@ def build_analyse_portfolios_v1(prep, cfg):
             )
         # The other two materiality groups are not band sources -- they are what makes an
         # internally consistent "all initiatives" denominator possible (see _wb_total below).
-        _totals = [c for c in ("immaterial__total", "unmapped__total")
+        # material__total is no longer a band denominator, but the coverage table still
+        # reports it (and _wb_total needs the other two), so pull all three alongside.
+        _totals = [c for c in (TOTAL_COLUMN, "immaterial__total", "unmapped__total")
                    if c in _mat_counts.columns and c not in _need]
         _mc = _mat_counts[["gvkey", "rfyear", "n_predicted_initiatives"] + _need + _totals].copy()
         _mc["rfyear"] = _mc["rfyear"].astype("int64")
@@ -1065,6 +1097,10 @@ def build_analyse_portfolios_v1(prep, cfg):
         # after the universe merge), reported below rather than silently dropped. Zero
         # matches, though, is a broken key -- fail loudly.
         _matched = _h[_h[TOTAL_COLUMN].notna()].copy()
+        # The denominator every band share divides by. Summed AFTER the match filter so it
+        # lines up row-for-row with _bf below.
+        _NUM = "_numerator"
+        _matched[_NUM] = _matched[_NUMERATOR_COLS].sum(axis=1)
         if _matched.empty:
             raise ValueError(
                 "no holding matched materiality_counts on (gvkey, rfyear) - check gvkey "
@@ -1075,7 +1111,14 @@ def build_analyse_portfolios_v1(prep, cfg):
         _equal: dict = {}
         _max_dev = 0.0
         for _slug in SCHEME_SLUGS:
-            _bands = bands_for(_slug)
+            # Key space stays the full static SCHEME_SLUGS -- the Contract is built at
+            # import time, so a dropped scheme must still have its (empty) widget key.
+            _bands = _bands_by_slug.get(_slug)
+            if not _bands:
+                for _bkt in ("High", "Low"):
+                    _pooled.setdefault(_slug, {})[_bkt] = pd.DataFrame()
+                    _equal.setdefault(_slug, {})[_bkt] = pd.DataFrame()
+                continue
             # Row-level band counts, in declaration order. An area chart whose bands
             # reorder between months is unreadable, so this order is preserved throughout.
             _bf = pd.DataFrame(
@@ -1086,33 +1129,35 @@ def build_analyse_portfolios_v1(prep, cfg):
             # old 3-way split covers only ~91% of material initiatives, and rescaling would
             # hide that AND make its bands incomparable with the other four schemes. Every
             # scheme therefore sums to material__total exactly.
-            _resid = _matched[TOTAL_COLUMN] - _bf.sum(axis=1)
+            _resid = _matched[_NUM] - _bf.sum(axis=1)
             if float(_resid.abs().max()) > 0:
                 if float(_resid.min()) < 0:
                     raise ValueError(
-                        f"scheme {_slug!r} DOUBLE-COUNTS: its bands exceed {TOTAL_COLUMN} "
+                        f"scheme {_slug!r} DOUBLE-COUNTS: its bands exceed the signal "
+                        f"numerator ({_decomp_action}, {len(_decomp_sdgs)} SDGs) "
                         f"on {int((_resid < 0).sum())} holdings"
                     )
                 _bf[RESIDUAL_BAND] = _resid
-            _dev = float((_bf.sum(axis=1) - _matched[TOTAL_COLUMN]).abs().max())
+            _dev = float((_bf.sum(axis=1) - _matched[_NUM]).abs().max())
             if _dev > 0:
-                raise ValueError(f"scheme {_slug!r} bands do not sum to {TOTAL_COLUMN} (max dev {_dev})")
+                raise ValueError(f"scheme {_slug!r} bands do not sum to the signal numerator "
+                                 f"(max dev {_dev})")
 
-            _keyed = pd.concat([_matched[["bucket", "date", TOTAL_COLUMN]], _bf], axis=1)
+            _keyed = pd.concat([_matched[["bucket", "date", _NUM]], _bf], axis=1)
 
             # POOLED: sum every holding's initiatives, then share. Literally "the
             # initiatives that make up this portfolio" -- but set by the heaviest reporters.
             _g = _keyed.groupby(["bucket", "date"], sort=True)
             _num = _g[list(_bf.columns)].sum()
-            _den = _g[TOTAL_COLUMN].sum()
+            _den = _g[_NUM].sum()
             _pool_pct = _num.div(_den.where(_den > 0), axis=0) * 100.0
 
             # EQUAL-WEIGHT: each firm's own mix, then average across holdings. Matches how
             # the portfolio is weighted in returns. Undefined for a holding with no material
             # initiatives at all, which is why _keyed is filtered here and not above.
-            _nz = _keyed[_keyed[TOTAL_COLUMN] > 0]
+            _nz = _keyed[_keyed[_NUM] > 0]
             _ew_pct = (
-                _nz[list(_bf.columns)].div(_nz[TOTAL_COLUMN], axis=0)
+                _nz[list(_bf.columns)].div(_nz[_NUM], axis=0)
                 .groupby([_nz["bucket"], _nz["date"]], sort=True).mean() * 100.0
             )
             _ew_pct.index.names = ["bucket", "date"]
@@ -1132,7 +1177,12 @@ def build_analyse_portfolios_v1(prep, cfg):
         # initiatives contributes NOTHING, so how many of those a leg holds decides whether
         # its chart describes the leg or a minority of it. Belongs next to the charts.
         _h["_matched"] = _h[TOTAL_COLUMN].notna()
-        _h["_has_material"] = _h[TOTAL_COLUMN].fillna(0) > 0
+        # _has_material is about the CHARTS' denominator (the signal numerator), not
+        # material__total: a holding with material initiatives that are all outside the
+        # signal's SDG set contributes nothing to any band, so it belongs in the
+        # zero-denominator count the coverage table reports.
+        _h["_numerator"] = _h[_NUMERATOR_COLS].sum(axis=1)
+        _h["_has_material"] = _h["_numerator"].fillna(0) > 0
         # "All initiatives" must come from the SASB workbook, NOT from lc's
         # n_predicted_initiatives, and the reason is NOT a vintage mismatch -- the workbook
         # is built from exactly the LC file this pipeline loads. It is the gvkey
@@ -1170,6 +1220,7 @@ def build_analyse_portfolios_v1(prep, cfg):
                 n_holdings=("gvkey_iid", "size"),
                 n_matched=("_matched", "sum"),
                 n_with_material=("_has_material", "sum"),
+                total_numerator_initiatives=("_numerator", "sum"),
                 total_material_initiatives=(TOTAL_COLUMN, "sum"),
                 total_initiatives=("_wb_total", "sum"),
                 total_initiatives_lc=("n_predicted_initiatives", "sum"),
@@ -1185,7 +1236,15 @@ def build_analyse_portfolios_v1(prep, cfg):
                 "median_holdings_with_material": int(_lv["n_with_material"].median()),
                 "pct_holdings_zero_material": round(
                     float((~_b["_has_material"]).mean()) * 100, 1),
+                # What the charts actually divide by, and how much of the firms' material
+                # activity the signal never looks at (pct_material_in_signal < 100 means
+                # the legs run material initiatives outside the signal's SDG set/action).
+                "signal_numerator": f"{_decomp_action} x {len(_decomp_sdgs)} SDGs",
+                "total_numerator_initiatives": int(_b["_numerator"].fillna(0).sum()),
                 "total_material_initiatives": int(_b[TOTAL_COLUMN].fillna(0).sum()),
+                "pct_material_in_signal": round(
+                    float(_b["_numerator"].fillna(0).sum())
+                    / max(float(_b[TOTAL_COLUMN].fillna(0).sum()), 1.0) * 100, 1),
                 "total_initiatives": int(_wb),
                 "pct_initiatives_material": round(
                     float(_b[TOTAL_COLUMN].fillna(0).sum()) / max(_wb, 1.0) * 100, 1),
@@ -1199,8 +1258,8 @@ def build_analyse_portfolios_v1(prep, cfg):
             "levels": _levels,
             "coverage_summary": pd.DataFrame(_cov_rows),
         }
-        print(f"[decomposition] {len(SCHEME_SLUGS)} schemes x 2 buckets x 2 weightings; "
-              f"max |band sum - 100| = {_max_dev:.10f}")
+        print(f"[decomposition] {len(_bands_by_slug)} of {len(SCHEME_SLUGS)} schemes "
+              f"x 2 buckets x 2 weightings; max |band sum - 100| = {_max_dev:.10f}")
         print(initiative_decomposition["coverage_summary"].to_string(index=False))
 
     return pack_obj({

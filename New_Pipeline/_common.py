@@ -439,3 +439,71 @@ def raw_vs_standardized_histograms(global_universe, signals, signal_names,
     if not frames:
         return histogram_frame({}, bins=bins, stage="before — raw")
     return pd.concat(frames, ignore_index=True)
+
+
+# ---- Geography: gvkey -> country, and share-of-column composition tables -------- #
+# The Compustat extracts carry NO country field. The USA file has a `cusip`, the RoW and
+# Japan files an `isin`, and `process_global_universe` drops both before the sort ever sees
+# the frame -- so "where are these firms" is not answerable from the universe alone.
+#
+# `data/company_database_*.parquet` is the gvkey -> (loc, MacroRegion) mapping the LC
+# dataset's own `loc` column is drawn from. Resolving universe locations through it (rather
+# than through an ISIN prefix, or the CINS letter the 10% of USA gvkeys with a foreign issuer
+# carry) makes the universe geography and the final-sample geography the SAME definition, so
+# the two are directly comparable -- which is the only reason to show them together.
+#
+# Called from inside Process bodies, like mktcap_filter_kwargs and count_firms above.
+
+_COMPANY_DB_GLOB = "company_database_*.parquet"
+
+
+def gvkey_locations() -> "pd.DataFrame":
+    """``gvkey_num`` -> ``(loc, MacroRegion)``, from the newest company database on disk.
+
+    Joined on a NUMERIC gvkey for the reason ``count_firms`` documents: the same firm is
+    spelled "1004", "001004" and "1004.0" at different stages of this pipeline, and a
+    string join silently matches nothing rather than erroring.
+
+    Audit-only, so a missing file returns an EMPTY frame (every location then reads
+    "(unmapped)") rather than failing a run over a widget.
+    """
+    import pandas as pd
+
+    cols = ["gvkey_num", "loc", "MacroRegion"]
+    root = Path(__file__).resolve().parent.parent / "data"
+    files = sorted(root.glob(_COMPANY_DB_GLOB))
+    if not files:
+        print(f"[geography] no {_COMPANY_DB_GLOB} under {root} — locations unresolved")
+        return pd.DataFrame(columns=cols)
+    path = files[-1]  # dated filenames, so the last one sorted is the newest
+    db = pd.read_parquet(path, columns=["gvkey", "loc", "MacroRegion"])
+    db["gvkey_num"] = pd.to_numeric(db["gvkey"], errors="coerce")
+    db = db.dropna(subset=["gvkey_num", "loc"]).drop_duplicates(subset=["gvkey_num"])
+    print(f"[geography] {path.name}: {len(db)} gvkeys carry a location")
+    return db[cols].reset_index(drop=True)
+
+
+def firm_counts(frame, by: str, *, gvkey_col: str = "gvkey", name: str = "firms"):
+    """Distinct firms per group, plus that group's share of the column.
+
+    ``pct_<name>`` is the share of the SUM of the group counts, not of the distinct firm
+    total, so the column always sums to 100 and matches the pie the widget draws from it.
+    The two differ only when one firm appears under more than one group -- possible for
+    currency (a gvkey listed in two currency areas), never for ``loc``, which the lookup
+    resolves to exactly one country per gvkey.
+
+    Missing group values become the literal ``"(unmapped)"`` rather than being dropped:
+    for geography the unmapped share IS the number a reader needs to judge the rest.
+    """
+    import pandas as pd
+
+    d = pd.DataFrame({
+        by: frame[by].where(frame[by].notna(), "(unmapped)").astype(str),
+        "_gv": pd.to_numeric(frame[gvkey_col], errors="coerce"),
+    }).dropna(subset=["_gv"])
+    out = d.groupby(by, dropna=False)["_gv"].nunique().rename(name).reset_index()
+    total = int(out[name].sum())
+    out[f"pct_{name}"] = (100.0 * out[name] / total).round(2) if total else 0.0
+    # firms desc, then label asc: without the tiebreak the row order of equal-sized groups
+    # is groupby's hash order, which would churn the exported parquet between runs.
+    return out.sort_values([name, by], ascending=[False, True]).reset_index(drop=True)

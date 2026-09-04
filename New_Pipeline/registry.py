@@ -84,6 +84,14 @@ EDGES = [
     # replay against (without the cross-check a replay bug reads as a finding).
     ("prepare_panel.out", "sort_cutpoint_audit.prep"),
     ("build_analyse_portfolios.out", "sort_cutpoint_audit.portfolios"),
+    # geography_audit (13) is audit-only like the two above. Two edges because the two
+    # halves of the comparison are measured in different places: the universe side is
+    # summarised here from merge_esg_provider's frames, while the SAMPLE side is forwarded
+    # from prepare_panel, which builds it beside its other final-sample descriptives (the
+    # widgets belong next to the firm/initiative counts, the parquet belongs next to the
+    # universe tables). Deferred to the bottom of the page in dashboard_viz, as usual.
+    ("merge_esg_provider.out", "geography_audit.universe"),
+    ("prepare_panel.out", "geography_audit.panel"),
     ("derive_signals.out", "sample_funnel_audit.lc_stages"),
     ("merge_esg_provider.out", "sample_funnel_audit.universe_stages"),
     ("prepare_panel.out", "sample_funnel_audit.panel_stages"),

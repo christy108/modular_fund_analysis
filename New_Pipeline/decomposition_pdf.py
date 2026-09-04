@@ -1,6 +1,6 @@
 """Render build_analyse_portfolios' material-initiative area plots to a PDF.
 
-Gated by ``cfg.area_initatives_plots_per_portfolio_to_PDF`` and called from
+Gated by ``cfg.area_material_initatives_plots_per_signal_to_PDF`` and called from
 ``New_Pipeline/run.py`` once a run has finished, writing
 ``runs/<ts>_<config>/initiative_decomposition.pdf`` next to ``dashboard.md``.
 
@@ -126,6 +126,25 @@ def _dates(series):
     return pd.to_datetime(series[0]["x"])
 
 
+def _legend_layout(n: int) -> tuple[int, float, int]:
+    """band count -> (ncol, fontsize, nrows), shared by the panel and the page that lays
+    panels out around it.
+
+    A scheme's band count ranges from 2 (a restricted numerator's sdg3) to 15
+    (climate_vs_each on the full 17-SDG numerator), and matplotlib's legend fills
+    COLUMN-MAJOR (down each column before starting the next) -- so nrows, not ncol, is what
+    determines whether the legend fits under the axes. Capping nrows at 3 and solving for
+    ncol is what keeps a 15-band legend from silently growing a 4th or 5th row that runs off
+    the bottom of the page (the bug this replaced: SDG_3/SDG_8/SDG_11/etc were cut off with
+    no warning, because ncol was fixed at 4 regardless of n).
+    """
+    if n <= 6:
+        return 2, 6.5, -(-n // 2)
+    ncol = -(-n // 3)          # smallest ncol that keeps nrows <= 3
+    fontsize = 5.5 if n <= 12 else 4.8
+    return ncol, fontsize, -(-n // ncol)
+
+
 def _stack_panel(ax, series, title, color_of=None, ylabel="% of material initiatives"):
     """One scheme's bands as a stacked area, 0-100%.
 
@@ -159,12 +178,12 @@ def _stack_panel(ax, series, title, color_of=None, ylabel="% of material initiat
     ax.set_title(title, fontsize=10)
     ax.set_ylabel(ylabel, fontsize=8)
     ax.tick_params(labelsize=7)
-    # Band names differ per scheme, so each panel carries its own legend. Columns scale
-    # with the band count -- the widest scheme has 15 bands and at ncol=2 its legend is
-    # taller than the chart.
-    n = len(series)
+    # Band names differ per scheme, so each panel carries its own legend. ncol/fontsize
+    # come from _legend_layout, which caps the legend at 3 rows regardless of band count --
+    # see its docstring for why nrows (not ncol) is the quantity that must be bounded.
+    ncol, fontsize, _ = _legend_layout(len(series))
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13),
-              ncol=2 if n <= 6 else 4, fontsize=6.5 if n <= 6 else 5.5, frameon=False)
+              ncol=ncol, fontsize=fontsize, frameon=False)
 
 
 def _levels_panel(ax, series, title):
@@ -299,22 +318,36 @@ def _scheme_page(pdf, manifest, name, bucket, weighting, weighting_label):
 
     fig = plt.figure(figsize=(_PAGE_W, _PAGE_H))
     fig.suptitle(f"{bucket} Material — {weighting_label}   ({name})", fontsize=14, y=0.97)
-    # Grid sized from the scheme count + 1, so the note cell always follows the last chart
-    # rather than being overwritten when a scheme is added.
+    # Only the schemes that actually carry data. A scheme is dropped upstream when it cannot
+    # inform this signal's numerator -- an action scheme against an already-single-action
+    # numerator, or one left with a single non-empty band (see
+    # initiative_brackets.bands_for_numerator) -- and drawing three "no data" panels for a
+    # narrow signal is worse than not drawing them.
+    drawn = [(slug, _series(manifest, _AREA_KEY(weighting, slug, bucket)))
+             for slug in SCHEME_SLUGS]
+    drawn = [(slug, series) for slug, series in drawn if series]
+    # Grid sized from the drawn count + 1, so the note cell always follows the last chart
+    # rather than being overwritten.
     ncols = 3
-    nrows = -(-(len(SCHEME_SLUGS) + 1) // ncols)
+    nrows = -(-(len(drawn) + 1) // ncols)
     # bottom/hspace are set for the LEGENDS, not the axes: each panel hangs its own legend
     # below itself (band names differ per scheme, so one shared legend is impossible), and
-    # the bottom row's runs off the page at the default margins.
-    gs = GridSpec(nrows, ncols, figure=fig, top=0.90, bottom=0.07,
-                  hspace=0.75, wspace=0.20)
-    for i, slug in enumerate(SCHEME_SLUGS):
-        _stack_panel(fig.add_subplot(gs[i // ncols, i % ncols]),
-                     _series(manifest, _AREA_KEY(weighting, slug, bucket)),
-                     scheme_title(slug))
+    # margins sized for a short legend clip a long one silently -- SDG_3/SDG_8/SDG_11 etc
+    # ran off the bottom of the page with no error before this was made dynamic.
+    #
+    # Sized from the WORST-CASE legend on this page (max bands across every drawn panel,
+    # not just the last row): hspace protects a mid-grid panel's legend from the row of
+    # axes below it, bottom protects a last-row panel's legend from the page edge, and a
+    # scheme's ROW on the page is not known until the grid is filled below, so both use the
+    # same worst case rather than being computed per-panel.
+    _max_rows = max((_legend_layout(len(series))[2] for _, series in drawn), default=1)
+    gs = GridSpec(nrows, ncols, figure=fig, top=0.90, bottom=0.07 + 0.045 * (_max_rows - 1),
+                  hspace=0.75 + 0.30 * (_max_rows - 1), wspace=0.20)
+    for i, (slug, series) in enumerate(drawn):
+        _stack_panel(fig.add_subplot(gs[i // ncols, i % ncols]), series, scheme_title(slug))
     # Cell after the last chart: what the weighting means, and the caveat that decides how
     # to read every panel on the page.
-    _n = len(SCHEME_SLUGS)
+    _n = len(drawn)
     ax = fig.add_subplot(gs[_n // ncols, _n % ncols])
     ax.set_axis_off()
     rows = (_payload(manifest, _COVERAGE_KEY) or {}).get("rows") or []
@@ -325,13 +358,23 @@ def _scheme_page(pdf, manifest, name, bucket, weighting, weighting_label):
             f"months: {row.get('n_months')}",
             f"median holdings: {row.get('median_holdings')}",
             f"holdings matched: {row.get('pct_holdings_matched')}%",
-            f"holdings with NO material: {row.get('pct_holdings_zero_material')}%",
+            f"holdings with NO signal initiatives: {row.get('pct_holdings_zero_material')}%",
             f"median holdings charted: {row.get('median_holdings_with_material')}",
-            f"material share of initiatives: {row.get('pct_initiatives_material')}%",
             "",
-            "Denominator is material__total, so",
-            "holdings with none are absent from",
-            "every panel on this page.",
+            # State the denominator outright. Every panel is a share OF THE SIGNAL'S
+            # NUMERATOR, not of the firms' whole material output -- a reader who assumes
+            # otherwise misreads which bands are even eligible to appear.
+            "DENOMINATOR: the signal's numerator",
+            f"  {row.get('signal_numerator')}",
+            "i.e. only the material initiatives",
+            "signal_0 actually counted. Bands the",
+            "signal never looks at cannot appear.",
+            "",
+            f"of these legs' material initiatives,",
+            f"{row.get('pct_material_in_signal')}% are inside the signal",
+            f"({row.get('total_numerator_initiatives'):,} of "
+            f"{row.get('total_material_initiatives'):,})"
+            if row.get("total_numerator_initiatives") is not None else "",
         ]
     ax.text(0, 1, "\n".join(lines), va="top", ha="left", fontsize=7.2, family="monospace")
     pdf.savefig(fig)

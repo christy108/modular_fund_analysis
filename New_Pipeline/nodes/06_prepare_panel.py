@@ -22,6 +22,7 @@ from New_Pipeline.dashboard_viz import (
     BundleColoredTableViz,
     BundleDualAxisViz,
     BundleHistogramViz,
+    BundlePieViz,
     BundleTableViz,
     histogram_series,
 )
@@ -39,6 +40,23 @@ def _firms_and_initiatives(bundle):
     """Per-fiscal-year unique companies / firm-year observations / total initiatives for
     the surviving sample. None on the ESG-universe path (no LC, no rfyear)."""
     return bundle.get("firms_and_initiatives")
+
+
+def _sample_locations(bundle):
+    """Per ISO-3 country of the sample that survived this node: firms, share, firm-years
+    and initiatives. None on the ESG-universe path (no LC, so no ``loc``)."""
+    return bundle.get("sample_locations")
+
+
+def _sample_currencies(bundle):
+    """Per listing currency (``curcdd``) of the surviving sample: firms, share, firm-years."""
+    return bundle.get("sample_currencies")
+
+
+def _sample_loc_currency(bundle):
+    """Distinct firms per (country x listing currency) cell — the cross-tab behind the two
+    pies, which each collapse one of the dimensions."""
+    return bundle.get("sample_loc_currency")
 
 
 def _signal_histograms_std(bundle):
@@ -101,6 +119,13 @@ Also carries (no widget of its own) the raw per-firm-year SASB materiality COUNT
 material initiatives without needing an ``lc`` edge of its own. Audit plumbing: no numeric path
 reads it, and it is None unless ``cfg.add_materiality``.
 
+Also surfaces WHERE that sample is: distinct firms by ISO-3 country and by listing currency
+as composition donuts (``BundlePieViz``), plus the country x currency cross-tab behind them
+(``BundleTableViz``). Country comes from LC's own ``loc`` column, which is the same
+gvkey -> country mapping the universe-side geography audit resolves through, so the sample's
+composition can be read directly against the universe it was drawn from. Currency is joined
+back from the universe on ``(gvkey, rfyear)``: it is a universe column, not an LC one.
+
 All the LC-derived tables above are empty on the
 ESG-universe path, which carries no LC data.""",
     input_schema={
@@ -125,6 +150,55 @@ ESG-universe path, which carries no LC data.""",
         ),
         BundleTableViz(_firms_and_initiatives, title="Firms and initiatives by year",
                        key="table:firms_and_initiatives"),
+        # Composition of the SAME final sample the three widgets above count, split the
+        # other way: by where the firms are and what currency they trade in. Deliberately
+        # sited here rather than in a section of their own — "how many firms" and "which
+        # firms" are one question, and reading the second one three screens away from the
+        # first is what makes a sample look bigger than it is.
+        BundlePieViz(
+            _sample_locations,
+            title="Final sample by country",
+            label_col="loc", value_col="firms", unit="firms",
+            key="pie:sample_locations",
+            description=(
+                "Distinct firms in the final sorted sample per ISO-3 country, as a share "
+                "of the sample. `loc` rides in on the LC dataset, so this is the same "
+                "country definition the universe geography uses — the two are directly "
+                "comparable.\n\n"
+                "**Expect a single wedge under the default config.** `region_analysis` "
+                "defaults to `United_States`, which filters LC to `loc == \"USA\"` at "
+                "`01_process_lc.py:179`; the chart only becomes informative for the "
+                "regions that leave `execute_region_filters` off "
+                "(`Europe_and_North_America`, `..._and_Japan`). A single wedge is still "
+                "worth showing: it is the confirmation that the regional screen ran."
+            ),
+        ),
+        BundlePieViz(
+            _sample_currencies,
+            title="Final sample by listing currency",
+            label_col="curcdd", value_col="firms", unit="firms",
+            key="pie:sample_currencies",
+            description=(
+                "Distinct firms per listing currency (`curcdd`) — the same key the "
+                "market-cap filter cuts on and one of the three `standardize_pivot` "
+                "grouping columns, so this is the composition of the cross-sections the "
+                "sort actually standardises within.\n\n"
+                "Bounded by `cfg.currency_filter`, which the `region_analysis` block sets "
+                "(USD alone for `United_States`, EUR+USD for `Europe_and_North_America`)."
+            ),
+        ),
+        BundleTableViz(
+            _sample_loc_currency,
+            title="Final sample: country x listing currency",
+            key="table:sample_loc_currency",
+            description=(
+                "Distinct firms per (country, currency) cell — the tail the two pies fold "
+                "into `Other`, and the only place a country that trades in more than one "
+                "currency is visible. Row totals count each firm once; the COLUMN totals "
+                "can therefore exceed the sample size, because a gvkey listed in two "
+                "currency areas is one firm in two cells."
+            ),
+        ),
         BundleHistogramViz(
             _signal_histograms_std,
             title="Signal distributions — before vs after standardisation",
@@ -223,6 +297,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     )
     from New_Pipeline._common import (
         count_firms,
+        firm_counts,
         funnel_frame,
         normalise_gvkeys,
         raw_vs_standardized_histograms,
@@ -350,6 +425,69 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         .reset_index()
     )
 
+    # ---- audit: WHERE the surviving sample is --------------------------------------- #
+    # Same final sample as the three descriptives above, cut by geography instead of by
+    # count. `loc` / `MacroRegion` ride in on lc (they are LC columns, and process_lc drops
+    # any row missing them, so they are never null here). `curcdd` does NOT: it is a
+    # universe column, so it is joined back from prep.global_universe on the same
+    # (gvkey, rfyear) firm-year key `surviving` was built on.
+    #
+    # The join is one-to-MANY: a firm-year carries one curcdd per currency area it lists in,
+    # which is >1 whenever currency_filter admits more than one (EUR+USD under
+    # region_analysis="Europe_and_North_America"). That is why the currency counts are taken
+    # with nunique per group rather than summed, and why the cross-tab is worth having.
+    _ccy = (prep.global_universe[["gvkey", "rfyear", "curcdd"]]
+            .dropna(subset=["rfyear"])
+            .drop_duplicates())
+    _ccy["rfyear"] = _ccy["rfyear"].astype("int64")
+    geo = lc_final[["gvkey", "rfyear", "loc", "MacroRegion", "n_predicted_initiatives"]].merge(
+        _ccy, on=["gvkey", "rfyear"], how="left"
+    )
+
+    # firm_counts gives (group, firms, pct_firms); the firm-YEAR and initiative totals are
+    # added on top, deduped back to one row per (firm-year, group) so the one-to-many
+    # currency join cannot inflate them.
+    _loc_extra = (
+        geo.drop_duplicates(subset=["gvkey", "rfyear", "loc"])
+        .groupby("loc")
+        .agg(MacroRegion=("MacroRegion", "first"),
+             firm_years=("rfyear", "size"),
+             initiatives=("n_predicted_initiatives", "sum"))
+        .reset_index()
+    )
+    sample_locations = firm_counts(geo, "loc").merge(_loc_extra, on="loc", how="left")
+
+    _ccy_extra = (
+        geo.drop_duplicates(subset=["gvkey", "rfyear", "curcdd"])
+        .assign(curcdd=lambda d: d["curcdd"].where(d["curcdd"].notna(), "(unmapped)").astype(str))
+        .groupby("curcdd")
+        .agg(firm_years=("rfyear", "size"))
+        .reset_index()
+    )
+    sample_currencies = firm_counts(geo, "curcdd").merge(_ccy_extra, on="curcdd", how="left")
+
+    # Wide, not long: currencies are capped at five by currency_filter, so one column each
+    # reads as a matrix. Row totals count a firm once; column totals may not (see the widget).
+    _pair = geo[["gvkey", "loc", "curcdd"]].copy()
+    _pair["curcdd"] = _pair["curcdd"].where(_pair["curcdd"].notna(), "(unmapped)").astype(str)
+    _pair["_gv"] = pd.to_numeric(_pair["gvkey"], errors="coerce")
+    sample_loc_currency = _pair.pivot_table(
+        index="loc", columns="curcdd", values="_gv", aggfunc="nunique", fill_value=0
+    ).reset_index()
+    sample_loc_currency.columns.name = None
+    _cells = [c for c in sample_loc_currency.columns if c != "loc"]
+    sample_loc_currency["total_firms"] = (
+        _pair.groupby("loc")["_gv"].nunique().reindex(sample_loc_currency["loc"]).to_numpy()
+    )
+    sample_loc_currency = (
+        sample_loc_currency.sort_values(["total_firms", "loc"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
+
+    print(f"[prepare_panel] final sample — {len(sample_locations)} countries, "
+          f"{len(sample_currencies)} listing currencies "
+          f"({', '.join(sample_currencies['curcdd'])})")
+
     # ---- audit plumbing: raw materiality counts for node 07's decomposition ---------- #
     # Node 07 decomposes each portfolio leg's MATERIAL initiatives into behavioural/SDG
     # brackets, which needs the per-firm-year count columns. Those live on lc, which node 07
@@ -393,6 +531,12 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         "fama_french": prep.fama_french,
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
+        # Audit-only: geography of the same final sample. Nothing downstream reads these;
+        # node 13 passes them through so they land in the run's parquet output next to the
+        # universe-side tables they are meant to be compared against.
+        "sample_locations": sample_locations,
+        "sample_currencies": sample_currencies,
+        "sample_loc_currency": sample_loc_currency,
         # Audit-only: feeds node 07's material-initiative decomposition. None without
         # add_materiality.
         "materiality_counts": materiality_counts,
@@ -413,7 +557,9 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     )
     from New_Pipeline._common import (
         count_firms,
+        firm_counts,
         funnel_frame,
+        gvkey_locations,
         raw_vs_standardized_histograms,
         standardized_sparsity_by_year,
     )
@@ -487,6 +633,33 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     if _prev:
         funnel = pd.concat(_prev + [funnel], axis=0, ignore_index=True)
 
+    # ---- audit: WHERE the surviving sample is --------------------------------------- #
+    # The geography widgets DO work on this path, unlike the LC descriptives above.
+    # `curcdd` is a universe column, present here as on the other path; `loc` comes from the
+    # gvkey -> country lookup rather than from LC's own column, which is exactly the point of
+    # resolving both sides through the same mapping. No firm-year or initiative columns
+    # though: this path standardises on `last_year` and has no rfyear and no LC to count.
+    _locs = gvkey_locations()
+    _geo = prep.global_universe[["gvkey", "curcdd"]].drop_duplicates().copy()
+    _geo["gvkey_num"] = pd.to_numeric(_geo["gvkey"], errors="coerce")
+    _geo = _geo.merge(_locs, on="gvkey_num", how="left")
+    sample_locations = firm_counts(_geo, "loc")
+    sample_currencies = firm_counts(_geo, "curcdd")
+    _geo["curcdd"] = _geo["curcdd"].where(_geo["curcdd"].notna(), "(unmapped)").astype(str)
+    _geo["loc"] = _geo["loc"].where(_geo["loc"].notna(), "(unmapped)").astype(str)
+    sample_loc_currency = _geo.pivot_table(
+        index="loc", columns="curcdd", values="gvkey_num", aggfunc="nunique", fill_value=0
+    ).reset_index()
+    sample_loc_currency.columns.name = None
+    sample_loc_currency["total_firms"] = (
+        _geo.groupby("loc")["gvkey_num"].nunique()
+        .reindex(sample_loc_currency["loc"]).to_numpy()
+    )
+    sample_loc_currency = (
+        sample_loc_currency.sort_values(["total_firms", "loc"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
+
     # Inlined bundle (must be self-contained: archived processes run in a fresh namespace).
     # sample_descriptives / firms_and_initiatives are None here: this path never reads lc
     # and standardises on `last_year`, so there is no rfyear and no initiative count to
@@ -509,6 +682,10 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         "fama_french": prep.fama_french,
         "sample_descriptives": None,
         "firms_and_initiatives": None,
+        # Audit-only geography, populated on this path too (see above).
+        "sample_locations": sample_locations,
+        "sample_currencies": sample_currencies,
+        "sample_loc_currency": sample_loc_currency,
         "funnel": funnel,
         "funnel_checks": L.get("funnel_checks"),
     })

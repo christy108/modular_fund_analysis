@@ -25,6 +25,7 @@ from leonardo_nodes.viz import (
     HeatmapViz,
     LineChartViz,
     SampleTableViz,
+    VizSpec,
 )
 
 # Nodes whose dashboard section is pushed to the BOTTOM of the page, after the sections
@@ -32,7 +33,8 @@ from leonardo_nodes.viz import (
 # DAG position (which is what the framework orders sections by) puts them far earlier than
 # where a reader wants them — ahead of cumulative returns, alphas and risk tables.
 # Order within this tuple is the order they render in (see _ordered_nodes below).
-_DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit", "sort_cutpoint_audit")
+_DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit", "sort_cutpoint_audit",
+                      "geography_audit")
 
 # Palette for stacked-area bands. Not the framework's _CHART_COLORS: that one is tuned for
 # thin lines on white and its adjacent entries (blue/amber/emerald/red) vibrate badly as
@@ -103,6 +105,115 @@ class OrderedDashboard(Dashboard):
         if not deferred:
             return nodes
         return [n for n in nodes if n.name not in _DEFERRED_SECTIONS] + deferred
+
+    # ---- pie: a chart KIND the framework does not have ------------------------- #
+    # `Dashboard._taipy_data` dispatches on `c.kind` and `_component_md` falls through to
+    # generic TABLE markup for any kind it does not know -- so an unhandled "pie" would
+    # silently render its slice payload as a two-column table. Both are plain methods, so
+    # overriding them here adds the kind without touching ../leonardo-nodes, exactly as
+    # `_lines_figure` below adds the stacked-area and histogram variants.
+
+    def _taipy_data(self, c):
+        if c.kind == "pie":
+            figure = self._pie_figure(c)
+            if figure is not None:
+                return figure
+        return super()._taipy_data(c)
+
+    def _component_md(self, c, var_name, bound_value=None):
+        if c.kind == "pie" and bound_value is not None and type(bound_value).__name__ == "Figure":
+            expr = f'bound["{var_name}"]'
+            desc = (c.description or "").strip()
+            desc_md = f"{desc}\n\n" if desc else ""
+            markup = f"<|chart|figure={{{expr}}}|>"
+            if (c.options or {}).get("collapsible"):
+                expanded = (c.options or {}).get("expanded", True)
+                return f"<|{c.title}|expandable|expanded={expanded}|\n{desc_md}{markup}\n|>"
+            return f"### {c.title}\n{desc_md}{markup}"
+        return super()._component_md(c, var_name, bound_value)
+
+    @staticmethod
+    def _pie_figure(c):
+        """One donut per experiment, slices coloured consistently by LABEL across them.
+
+        Payload per experiment: ``{"slices": [{"label": str, "value": float}, ...]}``,
+        already ordered and already collapsed to a head + "Other" by the VizSpec -- a pie
+        stops being readable somewhere around eight wedges, and the long tail of a country
+        distribution is 60+ of them.
+
+        A donut rather than a full pie so the centre can carry the total, which is the one
+        number a share chart otherwise throws away: two configs can have identical
+        compositions over very different sample sizes.
+        """
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            return None
+
+        gathered = c.data if isinstance(c.data, dict) else {}
+        experiments = [
+            exp for exp, payload in gathered.items()
+            if isinstance(payload, dict) and payload.get("slices")
+        ]
+        if not experiments:
+            return go.Figure()
+
+        # Colour by label, not by slice position: otherwise the same country changes colour
+        # between two configs whose orderings differ, which is the one thing a side-by-side
+        # comparison must not do.
+        labels: list[str] = []
+        for exp in experiments:
+            for s in gathered[exp]["slices"]:
+                lab = str(s.get("label"))
+                if lab not in labels:
+                    labels.append(lab)
+        color_of = {lab: _AREA_COLORS[i % len(_AREA_COLORS)] for i, lab in enumerate(labels)}
+        # "Other" and "(unmapped)" are residuals, not categories — grey them so they read as
+        # background rather than competing with the real groups for attention.
+        for residual in ("Other", "(unmapped)"):
+            if residual in color_of:
+                color_of[residual] = "#94a3b8"
+
+        unit = (c.options or {}).get("unit") or ""
+        fig = make_subplots(
+            rows=1, cols=len(experiments),
+            specs=[[{"type": "domain"} for _ in experiments]],
+            subplot_titles=experiments if len(experiments) > 1 else None,
+        )
+        for col, exp in enumerate(experiments, start=1):
+            slices = gathered[exp]["slices"]
+            labs = [str(s.get("label")) for s in slices]
+            vals = [float(s.get("value") or 0) for s in slices]
+            total = sum(vals)
+            fig.add_trace(
+                go.Pie(
+                    labels=labs,
+                    values=vals,
+                    hole=0.45,
+                    sort=False,          # the VizSpec's order is meaningful; keep it
+                    direction="clockwise",
+                    marker={"colors": [color_of[a] for a in labs]},
+                    textinfo="label+percent",
+                    textposition="inside",
+                    insidetextorientation="horizontal",
+                    hovertemplate="%{label}: %{value:,.0f} (%{percent})<extra></extra>",
+                    showlegend=False,    # every wedge is labelled in place
+                ),
+                row=1, col=col,
+            )
+            fig.add_annotation(
+                text=f"<b>{total:,.0f}</b><br>{unit}" if unit else f"<b>{total:,.0f}</b>",
+                x=fig.data[-1].domain["x"][0] + (fig.data[-1].domain["x"][1]
+                                                 - fig.data[-1].domain["x"][0]) / 2,
+                y=0.5, showarrow=False, font={"size": 13},
+            )
+        fig.update_layout(
+            title=c.title,
+            height=380,
+            margin={"t": 70, "b": 20},
+        )
+        return fig
 
     def _lines_figure(self, c):
         """Draw STACKED AREA when ``options["stack"]`` is set; otherwise the normal lines.
@@ -593,6 +704,80 @@ class BundleHistogramViz(BundleMultiSeriesViz):
         return component
 
 
+class BundlePieViz(VizSpec):
+    """Composition donut of one categorical column of a bundled table — "what is this
+    sample MADE of", where the shares matter and the individual counts do not.
+
+    ``extract(bundle_dict) -> pandas.DataFrame`` carrying ``label_col`` and ``value_col``.
+    Rows are taken in the frame's own order (the producing node already sorted them by
+    size), the first ``top_n`` are kept, and everything past that is summed into a single
+    ``Other`` wedge — a pie with a 60-country tail is a colour wheel, not a chart. The
+    matching TABLE widget is where the tail is read; this is the at-a-glance half of the
+    pair, so the two are always emitted together.
+
+    Renders blank rather than erroring on a missing/empty frame, like the other Bundle
+    wrappers here (the ESG-universe path produces no LC-derived table at all).
+    """
+
+    kind = "pie"
+
+    def __init__(
+        self,
+        extract: Callable[[dict], Any],
+        *,
+        title: str,
+        label_col: str,
+        value_col: str,
+        top_n: int = 8,
+        unit: str = "",
+        key: str | None = None,
+        description: str = "",
+    ):
+        super().__init__(title=title, key=key, description=description)
+        self._extract = extract
+        self._label_col = label_col
+        self._value_col = value_col
+        self._top_n = top_n
+        self._unit = unit
+
+    def compute(self, output: Any) -> Any:
+        import pandas as pd
+
+        from New_Pipeline.boundary import unpack_obj
+
+        df = self._extract(unpack_obj(output))
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return {"slices": []}
+        if self._label_col not in df.columns or self._value_col not in df.columns:
+            return {"slices": [], "error": f"missing {self._label_col!r}/{self._value_col!r}"}
+
+        vals = pd.to_numeric(df[self._value_col], errors="coerce").fillna(0.0)
+        labels = df[self._label_col].astype(str)
+        head_labels = list(labels[: self._top_n])
+        head_values = [float(v) for v in vals[: self._top_n]]
+        slices = [{"label": a, "value": v} for a, v in zip(head_labels, head_values)]
+        # A single leftover row is named, not folded: an "Other" wedge covering exactly one
+        # country would hide the label for no gain.
+        tail = vals[self._top_n:]
+        if len(tail) == 1:
+            slices.append({"label": str(labels.iloc[self._top_n]), "value": float(tail.iloc[0])})
+        elif len(tail) > 1:
+            slices.append({"label": "Other", "value": float(tail.sum())})
+        return {"slices": slices}
+
+    def render(self, gathered: dict) -> DashboardComponent:
+        return DashboardComponent(
+            kind="pie",
+            title=self.title,
+            data=gathered,
+            options={"unit": self._unit, "top_n": self._top_n},
+        )
+
+    def to_json(self) -> dict:
+        return {**super().to_json(), "label_col": self._label_col,
+                "value_col": self._value_col, "top_n": self._top_n}
+
+
 class BundleSeriesViz(LineChartViz):
     """Render a single (x, y) time series pulled from a node's pickle-bundle output.
 
@@ -699,6 +884,7 @@ _PARAM_DOCS: dict[str, str] = {
     "show_esg_coverage": "Gate for the esg_coverage node, and for the pre-filter LC snapshot it needs from this node.",
     "show_mktcap_filter_audit": "Gate for the mktcap_filter_audit node, which replays the size screen per currency-month.",
     "show_sample_funnel_audit": "Gate for the sample_funnel_audit node, which reports rows in / out at each filter.",
+    "area_material_initatives_plots_per_signal_to_PDF": "Gate for the material-initiative decomposition in build_analyse_portfolios: the computation, these widgets AND the run's initiative_decomposition.pdf. Bands split the SIGNAL'S NUMERATOR (what signal_0 counted), not all 17 SDGs. Off by default -- it is the most expensive audit here.",
     "include_all_signals_in_cum_risk_table": "Include every signal in the cumulative / risk tables. Provenance only -- not read by any node.",
     # ---- derived: region block (cell 2 if/elif) ----------------------------
     "fama_factor_region": "Derived from region_analysis: which FF factor file to load.",
