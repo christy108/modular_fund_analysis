@@ -111,32 +111,58 @@ def process_global_universe(
     market_cap_filter="percent_total_mcap",
     percentage_stocks_removed_if_percent_stocks_true=0.01,
     floor_if_percent_stocks_true=100e6,
+    convert_to_USD=None,
 ):
     """Assemble the global universe and apply ONE of two market-cap screens.
 
     ``market_cap_filter`` selects the screen:
 
-    * ``"percent_total_mcap"`` (default) — the original rule, applied per
-      currency-MONTH: rank listings ascending by month-end cap, cumulate from the
-      smallest, and keep those whose running total exceeds
-      ``(1 - mktcap_covered_if_filter_by_cum_market_cap)`` of the cell total. The
-      percentage is a share of aggregate market-cap VALUE, which because cap is
-      concentrated discards ~65% of listings at 0.95.
-    * ``"percent_stocks"`` — applied per currency-YEAR. A listing is dropped for the
-      whole of year Y iff, measured on its LAST cap in year Y-1, it is both among the
-      smallest ``percentage_stocks_removed_if_percent_stocks_true`` of listings BY COUNT
-      and below ``floor_if_percent_stocks_true``. Equivalently: apply the floor, but
-      never remove more than the smallest x% of listings. Using Y-1 keeps the decision
-      point-in-time; a listing with no Y-1 observation is dropped.
+    * ``"percent_total_mcap"`` (default) — the original rule, applied per MONTH,
+      POOLED across every currency area in the universe: rank listings ascending by
+      month-end cap, cumulate from the smallest, and keep those whose running total
+      exceeds ``(1 - mktcap_covered_if_filter_by_cum_market_cap)`` of the month's
+      total. The percentage is a share of aggregate market-cap VALUE, which because
+      cap is concentrated discards ~65% of listings at 0.95.
+    * ``"percent_stocks"`` — applied per YEAR, POOLED across currency areas. A listing
+      is dropped for the whole of year Y iff, measured on its LAST cap in year Y-1, it
+      is both among the smallest ``percentage_stocks_removed_if_percent_stocks_true``
+      of listings BY COUNT and below ``floor_if_percent_stocks_true``. Equivalently:
+      apply the floor, but never remove more than the smallest x% of listings. Using
+      Y-1 keeps the decision point-in-time; a listing with no Y-1 observation is
+      dropped.
+
+    Both screens used to group by ``curcdd`` (listing currency) as well, which made
+    each currency area its own cell. That was dropped: a currency area is not a
+    market boundary a size screen should respect, and grouping by it fragmented the
+    effective size floor across currency areas by ~2x on a real Europe extract
+    (concentration differences, not anything about the firms) purely because
+    ``curcdd`` happened to double as the region key under the old single/dual-currency
+    presets. The universe should already be one comparable numéraire by this point —
+    see the ``convert_to_USD`` guard below — so pooling is what "convert to USD for
+    comparability" was supposed to buy in the first place.
 
     The two percentages are NOT comparable: one is a share of value, the other a share
     of count.
+
+    ``convert_to_USD`` is NOT applied here — conversion happens upstream, in
+    ``process_row_universe``/``process_japan_universe``, before this function ever
+    sees the frame. It exists only so this function can tell whether pooling caps
+    across currency areas is safe: `mktcap` is in the LISTING currency unless it was
+    converted upstream, so summing a JPY cap with a USD cap is wrong by ~150x unless
+    every row is already in one numéraire. Pass ``convert_to_USD=True`` whenever the
+    universe was converted (the flag threaded from ``cfg["convert_to_USD"]`` via
+    ``New_Pipeline._common.mktcap_filter_kwargs``); leave it ``None``/falsy and the
+    screen raises the moment the universe spans more than one currency area, which
+    the OLD per-currency grouping made structurally impossible and therefore never
+    needed to check.
 
     The new parameters are keyword-with-defaults and sit at the END of the signature
     because every call site in this repo passes positionally — see the callers in
     New_Pipeline/nodes/04_merge_esg_provider.py, functions/extra_functions/plot_coverage.py,
     scripts/download_us_gics.py and both notebooks. Defaulting to "percent_total_mcap"
-    means all of those keep their exact previous behaviour untouched.
+    means all of those keep their exact previous behaviour untouched; leaving
+    ``convert_to_USD=None`` means a positional-only caller sees the same conservative
+    single-currency-only behaviour it always implicitly relied on.
     """
     # Drop old identifier columns (if present)
     usa_universe = usa_universe.drop(columns=["cusip"], errors="ignore")
@@ -180,38 +206,58 @@ def process_global_universe(
         global_universe = global_universe[global_universe["curcdd"].isin(currency_filter)]
    
 
+    # A screen that pools across currency areas is only meaningful once every `mktcap`
+    # is in one numéraire. Checked once, up front, for BOTH branches -- this used to be
+    # implicit in `percent_total_mcap` (grouping by `curcdd` made every sum
+    # single-currency by construction, so nothing could go wrong) and explicit but
+    # unconditional in `percent_stocks` (it rejected every multi-currency universe,
+    # even a converted one). `mktcap` is in the LISTING currency unless converted
+    # upstream, so summing e.g. a JPY cap with a USD cap is wrong by ~150x. Same guard
+    # plot_coverage.compute_coverage_over_time enforces.
+    _ccy = sorted(global_universe["curcdd"].dropna().unique())
+    if len(_ccy) > 1 and not convert_to_USD:
+        raise ValueError(
+            f"process_global_universe pools market caps across currency areas, but the "
+            f"universe spans {_ccy} and convert_to_USD is not set. Use a "
+            "single-currency currency_filter, or pass convert_to_USD=True (the universe "
+            "must actually have been converted upstream) so every mktcap is in one "
+            "numéraire."
+        )
+
     # First, ensure the data is sorted by date within each group
     global_universe_sorted = global_universe.sort_values(by=["date"])
 
     # Use the last() function to get the last available market cap values
     last_values = (
-        global_universe_sorted.groupby(["month", "year", "curcdd", "gvkey", "iid"])
+        global_universe_sorted.groupby(["month", "year", "gvkey", "iid"])
         .agg(last_mktcap=("mktcap", "last"))
         .reset_index()
     )
 
     # Sort `last_values`
-    last_values = last_values.sort_values(by=["month", "year", "curcdd", "last_mktcap"])
+    last_values = last_values.sort_values(by=["month", "year", "last_mktcap"])
 
-    # Aggregate mktcap data
-    last_values["cumulative_mktcap"] = last_values.groupby(["month", "year", "curcdd"])[
+    # Aggregate mktcap data -- POOLED across every currency area in the universe (see
+    # the guard above and the "convert_to_USD" note in the docstring).
+    last_values["cumulative_mktcap"] = last_values.groupby(["month", "year"])[
         "last_mktcap"
     ].cumsum()
-    last_values["total_mktcap"] = last_values.groupby(["month", "year", "curcdd"])[
+    last_values["total_mktcap"] = last_values.groupby(["month", "year"])[
         "last_mktcap"
     ].transform("sum")
 
     # Merge this novel mktcap data
     global_universe = pd.merge(
-        global_universe, 
+        global_universe,
         last_values,
-        on=["month", "year", "curcdd", "gvkey", "iid"],
+        on=["month", "year", "gvkey", "iid"],
         how='left'
     )
 
     if market_cap_filter == "percent_total_mcap":
-        # Keep `mktcap_covered_if_filter_by_cum_market_cap` of total market cap (of each
-        # currency area). Unchanged from the original rule.
+        # Keep `mktcap_covered_if_filter_by_cum_market_cap` of total market cap (of
+        # the whole universe, pooled across currency areas). Unchanged from the
+        # original rule except for the pooling.
         global_universe = global_universe[
             global_universe["cumulative_mktcap"]
             > (1 - mktcap_covered_if_filter_by_cum_market_cap) * global_universe["total_mktcap"]
@@ -219,37 +265,29 @@ def process_global_universe(
 
     elif market_cap_filter == "percent_stocks":
         # Drop the smallest x% of listings BY COUNT, but only those also below an
-        # absolute floor. Decided once per YEAR on the previous year's last cap.
+        # absolute floor. Decided once per YEAR (pooled across currency areas) on the
+        # previous year's last cap. The multi-currency guard above already covers the
+        # "absolute floor across currency areas" hazard this branch used to check
+        # on its own.
         if not 0 <= percentage_stocks_removed_if_percent_stocks_true <= 1:
             raise ValueError(
                 "percentage_stocks_removed_if_percent_stocks_true is a FRACTION "
                 f"(0.01 == 1%), got {percentage_stocks_removed_if_percent_stocks_true!r}"
-            )
-        # An absolute floor is only meaningful in a single currency. `mktcap` is in the
-        # LISTING currency unless convert_to_USD converted it upstream, so comparing it
-        # to a constant across currency areas is wrong (a JPY cap against a USD floor is
-        # out by ~150x). Same guard plot_coverage.compute_coverage_over_time enforces.
-        _ccy = sorted(global_universe["curcdd"].dropna().unique())
-        if len(_ccy) > 1:
-            raise ValueError(
-                "market_cap_filter='percent_stocks' compares mktcap to an absolute "
-                f"floor, but the universe spans {_ccy}. Use a single-currency "
-                "currency_filter, or set convert_to_USD=True so every mktcap is in "
-                "one currency."
             )
 
         # One reference cap per listing per YEAR: its last observation that year.
         # global_universe_sorted is already date-sorted, so "last" is the latest date --
         # the same construction the monthly block above uses.
         ref = (
-            global_universe_sorted.groupby(["year", "curcdd", "gvkey", "iid"])
+            global_universe_sorted.groupby(["year", "gvkey", "iid"])
             .agg(ref_mktcap=("mktcap", "last"))
             .reset_index()
         )
 
-        # Rank by COUNT within each reference year+currency (not by value share).
-        ref = ref.sort_values(by=["year", "curcdd", "ref_mktcap"])
-        _cell = ["year", "curcdd"]
+        # Rank by COUNT within each reference year (pooled across currency areas, not
+        # by value share).
+        ref = ref.sort_values(by=["year", "ref_mktcap"])
+        _cell = ["year"]
         ref["ref_pct_rank"] = (ref.groupby(_cell).cumcount() + 1) / ref.groupby(_cell)[
             "ref_mktcap"
         ].transform("size")
@@ -261,8 +299,8 @@ def process_global_universe(
         ref["year"] = ref["year"] + 1
         global_universe = pd.merge(
             global_universe,
-            ref[["year", "curcdd", "gvkey", "iid", "ref_mktcap", "ref_pct_rank", "drop_ref"]],
-            on=["year", "curcdd", "gvkey", "iid"],
+            ref[["year", "gvkey", "iid", "ref_mktcap", "ref_pct_rank", "drop_ref"]],
+            on=["year", "gvkey", "iid"],
             how="left",
         )
 

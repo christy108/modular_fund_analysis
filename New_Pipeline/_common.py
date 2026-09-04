@@ -64,6 +64,15 @@ def mktcap_filter_kwargs(cfg: dict) -> dict:
 
     ``.get()`` with the frozen defaults, not ``[...]``: a hand-built cfg (or one written
     before these keys existed) then still runs the original screen rather than raising.
+
+    ``convert_to_USD`` is included here too: the screen pools market caps across every
+    currency area in the universe, which is only valid once they are all in one
+    numéraire, so it needs to know whether that conversion already happened upstream
+    (``process_row_universe``/``process_japan_universe``) to decide whether to raise on
+    a multi-currency universe. Default ``False`` (not ``None``, unlike the function's
+    own default) matches the OLD implicit behaviour of a hand-built or pre-existing cfg
+    that has never heard of this key: no conversion happened, so a multi-currency
+    universe should still raise.
     """
     return dict(
         market_cap_filter=cfg.get("market_cap_filter", "percent_total_mcap"),
@@ -71,6 +80,7 @@ def mktcap_filter_kwargs(cfg: dict) -> dict:
             "percentage_stocks_removed_if_percent_stocks_true", 0.01
         ),
         floor_if_percent_stocks_true=cfg.get("floor_if_percent_stocks_true", 100e6),
+        convert_to_USD=cfg.get("convert_to_USD", False),
     )
 
 

@@ -400,7 +400,7 @@ def prepare_esg_universe_sorting_inputs(
 
     signal_columns = list(universe_signals)
     signal_names = dict(universe_signals)
-    cols_standardization = [year_col, "curcdd", "Industry"]
+    cols_standardization = [year_col, "Industry"]
 
     gu = global_universe.copy()
     missing_sig = [c for c in signal_columns if c not in gu.columns]

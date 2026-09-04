@@ -359,7 +359,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         lc_signals=C["lc_signals"],
         universe_signals=C["universe_signals"],
         category_columns=sorted(C["categories_dict"].keys()),
-        cols_standardization=["rfyear", "curcdd", "Industry"],
+        cols_standardization=["rfyear", "Industry"],
         apply_geo_filter=False,
         show_corr_matrices=C["show_esg_corr_matricies"],
         corr_method=C["esg_corr_method"],
