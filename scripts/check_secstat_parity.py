@@ -61,7 +61,7 @@ REGIONS = {
         ["mktcap", "tri"],
     ),
     "row": (
-        "./data/row_universe_all_secstat.csv",
+        "./data/row_universe_all_secstat_new.csv",
         "./data/old_universes/row_universe.csv",
         ["mktcap_lcu", "tri_lcu"],
     ),

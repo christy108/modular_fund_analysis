@@ -37,7 +37,7 @@ def build_cfg(**overrides) -> dict:
     # ---- cell 2: baseline scalar defaults --------------------------------- #
     c: dict = dict(
         golden_data="v_2A1",
-        region_analysis="United_States",
+        region_analysis="Europe",
         fama_factors_currency="JPY",
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
         action_characterization="Material_Immaterial_only",
@@ -747,6 +747,16 @@ def base_materiality():
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only"))
 
+
+ 
+
+def base_materiality_US():
+    # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
+    # filters lc to firm-years present in the materiality workbook).
+    return make_experiment("base_materiality_US", build_cfg(add_materiality=True, region_analysis="United_States" , action_characterization = "Material_Immaterial_only"))
+
+
+ 
 def base_materiality_counts():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
@@ -1116,6 +1126,7 @@ EXPERIMENTS = {
 
 
     "base_materiality": base_materiality,
+    "base_materiality_US":base_materiality_US,
     "base_materiality_counts":base_materiality_counts,
     "base_materiality_per_revenue": base_materiality_per_revenue,
     "base_total_initiatives_counts": base_total_initiatives_counts,

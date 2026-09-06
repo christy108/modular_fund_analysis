@@ -13,7 +13,7 @@ import wrds
 # rescaling across six weeks on the Japan extract.) Write path and read path share these
 # constants so they cannot drift apart.
 USA_UNIVERSE_PATH = "./data/usa_universe_all_secstat.csv"
-ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat.csv"
+ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat_new.csv"
 JAPAN_UNIVERSE_PATH = "./data/japan_universe_all_secstat.csv"
 
 SECURITY_STATUS_CHOICES = ("active_only", "all_firms_even_delisted")
