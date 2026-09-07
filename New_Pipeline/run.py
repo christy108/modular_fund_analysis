@@ -46,6 +46,10 @@ _MERGED_EXPORTS = {
     # "(only in new: ...)" -- informational, it cannot fail on them.
     "portfolio_coverage": None,
     "portfolio_gate_summary": None,
+    # Per bucket-month concentration under portfolio_weighting="mktcap"; the frame is empty
+    # on the equal-weight path, and .get() below skips a frame a config does not produce.
+    "portfolio_weight_diagnostics": None,
+    "portfolio_weight_summary": None,
 }
 
 

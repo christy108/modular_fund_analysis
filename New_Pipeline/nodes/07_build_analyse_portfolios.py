@@ -64,6 +64,44 @@ def _portfolio_coverage(bundle):
     return bundle.get("portfolio_coverage")
 
 
+def _portfolio_weight_summary(bundle):
+    """One row per High/Low leg: how concentrated cap weighting actually made it.
+
+    EMPTY unless ``cfg.portfolio_weighting="mktcap"`` -- under equal weighting every weight
+    is 1/n by construction, so there is nothing to measure and the widget renders blank.
+    Gated legs are dropped here as everywhere else, so the table describes the legs the
+    dashboard actually shows.
+    """
+    return _drop_rows(bundle.get("portfolio_weight_summary"), bundle, col="label")
+
+
+def _effective_n_series(bundle) -> list[dict]:
+    """Effective number of holdings (1/HHI) per month, one line per High/Low leg.
+
+    The table gives the median; this shows whether it is stable or drifting. Read against
+    the leg's actual holding count: the gap between them is the concentration. Empty under
+    equal weighting, where 1/HHI is identically the holding count.
+    """
+    raw = bundle.get("portfolio_weight_diagnostics")
+    if raw is None or raw.empty or "label" not in raw.columns:
+        return []
+    labelled = raw[raw["label"].notna()]
+    keep = sorted(set(labelled["label"]) - _dropped(bundle))
+    out = []
+    for label in keep:
+        rows = labelled[labelled["label"] == label].sort_values("date")
+        if rows.empty:
+            continue
+        out.append({
+            "name": label,
+            "x": [str(d)[:10] for d in rows["date"]],
+            # Discarded months carry NaN by design -- passed through as None so the line
+            # BREAKS there rather than interpolating across a month that was thrown out.
+            "y": [None if v != v else float(v) for v in rows["effective_n"]],
+        })
+    return out
+
+
 def _cumulative_wealth_series(bundle, *, spreads: bool) -> list[dict]:
     """Cumulative wealth (1+r).cumprod() per column of table_returns, matching
     Main.ipynb cell 51's plot split: spread columns (the High-Low legs) go on
@@ -583,6 +621,64 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
                 "reasons are independent and both are listed when both apply."
             ),
         ),
+        # ---- market-cap weighting: how concentrated the legs really are ------------- #
+        # Both widgets render BLANK unless cfg.portfolio_weighting="mktcap". Under equal
+        # weighting every weight is 1/n, so there is nothing to report.
+        BundleTableViz(
+            _portfolio_weight_summary,
+            title="Cap weighting — concentration per leg (blank unless portfolio_weighting='mktcap')",
+            key="table:portfolio_weight_summary",
+            description=(
+                "**Empty under `portfolio_weighting=\"equal\"`** — every weight is then "
+                "`1/n` and there is no concentration to measure.\n\n"
+                "Under `\"mktcap\"` each leg is weighted by `last_mktcap` at the FORMATION "
+                "month, with any name over `cfg.max_portfolio_weight` pinned at the cap and "
+                "the remainder split PRO-RATA by market cap among the uncapped names, "
+                "iterated until nothing breaches (the MSCI/S&P rule). One row per High/Low "
+                "leg, least diversified first.\n\n"
+                "- **median_effective_n** / **min_effective_n** — **the measure.** `1/HHI`, "
+                "the number of equally-weighted names the leg behaves like. Read it against "
+                "**median_holdings**: the gap between the two IS the concentration. A leg "
+                "holding 68 names with an effective N of 23 is, for risk purposes, a "
+                "23-stock portfolio.\n"
+                "- **median_max_weight** / **max_max_weight** — the largest single position. "
+                "Equal to **cap** whenever the ceiling binds.\n"
+                "- **median_n_pinned** / **max_n_pinned** — how many names sat AT the "
+                "ceiling. 0 means the cap never bound that month and the leg is plain "
+                "value-weighted.\n"
+                "- **median_top5_share** / **max_top5_share** — share of the portfolio in "
+                "its five largest positions. This is the number a single-name cap does NOT "
+                "control: a 12-name leg under a 10% cap can legally hold 80% in eight "
+                "names, which is why MSCI's real UCITS rule is 10/40 and not just 10%.\n"
+                "- **n_months_discarded** — months thrown out because `n_holdings x cap <= "
+                "1`, where no capped weight vector exists at all (10 names or fewer at a "
+                "10% cap). Those months get NO return: not equal-weighted, not "
+                "value-weighted, discarded. Any value above 0 also hides the leg via the "
+                "gate above, because a NaN return is booked by `(1+r).cumprod()` as a "
+                "fabricated 0% month rather than being skipped.\n"
+                "- **cap** — `cfg.max_portfolio_weight`, echoed so the table reads "
+                "standalone."
+            ),
+        ),
+        BundleMultiSeriesViz(
+            _effective_n_series,
+            title="Cap weighting — effective holdings (1/HHI) over time",
+            key="lines:effective_n",
+            description=(
+                "**Blank unless `portfolio_weighting=\"mktcap\"`.** The table above gives "
+                "the median; this shows whether it is stable or trending. One line per "
+                "High/Low leg.\n\n"
+                "Compare each line against the leg's holding count in *Stocks in portfolio "
+                "over time* below — the two coinciding would mean equal weighting, and the "
+                "gap between them is how much the cap-weighting concentrates the leg. A "
+                "line that falls while the holding count is flat means the universe's "
+                "market cap is concentrating, not that the leg is shrinking.\n\n"
+                "Lines BREAK at any month discarded for `n x cap <= 1` rather than "
+                "interpolating across it, so a gap is a month with no portfolio."
+            ),
+            collapsible=True,
+            expanded=False,
+        ),
         BundleSeriesViz(_stocks_over_time, title="Stocks in portfolio over time"),
         # Per-bucket constituent widgets — all collapsed by default so the page
         # stays scannable; expand the ones you care about.
@@ -643,9 +739,62 @@ def build_analyse_portfolios_v1(prep, cfg):
     # backwards-compat pattern as signal_type in 02_derive_signals.py.
     quantile_interval_bounds = C.get("quantile_interval_bounds", "half_open")
 
+    # ---- portfolio weighting (market cap, with a single-name cap) --------- #
+    # Same .get() backwards-compat pattern: default "equal" reproduces the frozen
+    # equal-weight behaviour exactly, so every archived Process and every parity artifact is
+    # untouched unless a config asks for weighting.
+    portfolio_weighting = C.get("portfolio_weighting", "equal")
+    max_portfolio_weight = C.get("max_portfolio_weight", 0.10)
+    global_mktcap = None
+    if portfolio_weighting == "mktcap":
+        # `last_mktcap` is the cap of this listing in this firm-month -- the canonical size
+        # column in this repo (the market-cap screen, mktcap_filter_audit and
+        # descriptive_stats/ all use it). Pivoted the same way global_returns is
+        # (univariate_sorting_preprocess.dropna_std_cols_and_build_pivots), which is safe for
+        # the same reason: prepare_panel's global_universe is exactly one row per
+        # (gvkey_iid, date), because to_monthly_last_trading_date collapses AFTER the
+        # row-multiplying LC merge.
+        if "last_mktcap" not in global_universe.columns:
+            raise KeyError(
+                "portfolio_weighting='mktcap' needs `last_mktcap` in prep.global_universe; "
+                f"available: {sorted(global_universe.columns)[:40]}..."
+            )
+        # A pooled cap-weighting is only meaningful once every cap is in one numeraire.
+        # `mktcap` is in the LISTING currency unless converted upstream (process_data.py:19/55
+        # divide by the FX rate), so summing a JPY cap with a USD cap is wrong by ~150x. The
+        # same guard process_global_universe applies to its screen -- repeated here rather
+        # than inherited, because the two can be configured independently.
+        _ccy = sorted(global_universe["curcdd"].dropna().unique()) if "curcdd" in global_universe else []
+        if len(_ccy) > 1 and not C.get("convert_to_USD", False):
+            raise ValueError(
+                f"portfolio_weighting='mktcap' pools market caps across currency areas, but "
+                f"the sample spans {_ccy} and convert_to_USD is not set. Use a "
+                f"single-currency currency_filter, or convert the universe to USD upstream."
+            )
+        global_mktcap = global_universe.pivot(
+            index="date", columns="gvkey_iid", values="last_mktcap"
+        )
+        # `last_mktcap` is built pre-filter (process_data.py:231) while the collapsed
+        # `mktcap` is the surviving panel's own last observation in the firm-month. They
+        # should agree; report the worst disagreement rather than assume it.
+        if "mktcap" in global_universe.columns:
+            _alt = global_universe.pivot(index="date", columns="gvkey_iid", values="mktcap")
+            _alt = _alt.reindex(index=global_mktcap.index, columns=global_mktcap.columns)
+            _rel = ((global_mktcap - _alt).abs() / global_mktcap.abs()).to_numpy()
+            _rel = _rel[np.isfinite(_rel)]
+            print(f"[weighting] last_mktcap vs mktcap: max relative deviation "
+                  f"{(float(_rel.max()) if _rel.size else 0.0):.3e}")
+        print(f"[weighting] market-cap weighted, single-name cap "
+              f"{max_portfolio_weight:.1%}; caps pivot {global_mktcap.shape}")
+    elif portfolio_weighting != "equal":
+        raise ValueError(
+            f"portfolio_weighting must be 'equal' or 'mktcap', got {portfolio_weighting!r}"
+        )
+
     # ---- cell 36: quantile portfolios + constituents --------------------- #
     signal_quantiles: dict = {}
     signal_quantile_constituents: dict = {}
+    _weight_diag_rows: list = []
     for col, pivot in signals.items():
         U = UnivariateQuantilePortfolio(
             signal=pivot,
@@ -655,9 +804,72 @@ def build_analyse_portfolios_v1(prep, cfg):
             take_extremes=take_extremes,
             n_extremes_quantiles=no_simple_extremes_quantiles,
             quantile_interval_bounds=quantile_interval_bounds,
+            # Nothing passed on the equal-weight path, so that branch is bit-identical.
+            weights=global_mktcap,
+            weight_cap=(max_portfolio_weight if global_mktcap is not None else None),
         )
         signal_quantiles[col] = U.compute_returns()
         signal_quantile_constituents[col] = U.get_constituents_over_time()
+        for _row in U.weight_diagnostics:
+            _weight_diag_rows.append({"signal": signal_names.get(col, col), **_row})
+
+    # Every bucket-month's concentration, so "is a 10% cap enough" is answerable from the
+    # artifact rather than by eye. effective_n (1/HHI) is the number to read: a 12-name
+    # bucket under a 10% cap can legally hold 80% in eight names, which is why MSCI's real
+    # UCITS rule is 10/40 and not just 10%.
+    portfolio_weight_diagnostics = pd.DataFrame(_weight_diag_rows)
+    if not portfolio_weight_diagnostics.empty:
+        _hi_lo = portfolio_weight_diagnostics["portfolio"].isin(["p_1", f"p_{K}"])
+        _legs = portfolio_weight_diagnostics[_hi_lo]
+        print(f"[weighting] {len(portfolio_weight_diagnostics)} bucket-months; High/Low legs: "
+              f"median effective N {_legs['effective_n'].median():.1f}, "
+              f"max weight {_legs['max_weight'].max():.4f}, "
+              f"{int(_legs['discarded'].sum())} of {len(_legs)} discarded "
+              f"(n x cap <= 1)")
+        _bad = float(_legs.loc[~_legs["discarded"], "weight_sum"].sub(1.0).abs().max())
+        if _bad > 1e-10:
+            raise RuntimeError(f"portfolio weights do not sum to 1 (max deviation {_bad})")
+
+    # Per-leg roll-up of the above. The raw frame is one row per bucket-month (~1,250 rows),
+    # which is an artifact to query, not a dashboard table -- this is the version you read.
+    # High/Low only, and labelled to match `dropped_portfolio_labels` so the presentation
+    # gate can hide a leg here exactly as it does in every other table.
+    portfolio_weight_summary = pd.DataFrame()
+    if not portfolio_weight_diagnostics.empty:
+        # Label the High/Low rows on the RAW frame (middle buckets get NaN, since they are
+        # never presented), so both the summary below and the dashboard extractors can
+        # filter on `label` alone -- the same strings `dropped_portfolio_labels` uses.
+        _bkt_name = {"p_1": "Low", f"p_{K}": "High"}
+        portfolio_weight_diagnostics["bucket"] = (
+            portfolio_weight_diagnostics["portfolio"].map(_bkt_name))
+        portfolio_weight_diagnostics["label"] = (
+            portfolio_weight_diagnostics["bucket"] + " " + portfolio_weight_diagnostics["signal"])
+        _d = portfolio_weight_diagnostics[portfolio_weight_diagnostics["bucket"].notna()]
+        _rows = []
+        for (_lab, _sig, _bkt), _g in _d.groupby(["label", "signal", "bucket"], sort=True):
+            _ok = _g[~_g["discarded"]]
+            _rows.append({
+                "label": _lab, "signal": _sig, "bucket": _bkt,
+                "n_months": int(len(_g)),
+                "n_months_discarded": int(_g["discarded"].sum()),
+                "median_holdings": int(_g["n_holdings"].median()),
+                "min_holdings": int(_g["n_holdings"].min()),
+                # The headline: 1/HHI, the number of equally-weighted names the leg behaves
+                # like. Compare it with median_holdings -- the gap IS the concentration.
+                "median_effective_n": round(float(_ok["effective_n"].median()), 1),
+                "min_effective_n": round(float(_ok["effective_n"].min()), 1),
+                "median_max_weight": round(float(_ok["max_weight"].median()), 4),
+                "max_max_weight": round(float(_ok["max_weight"].max()), 4),
+                "median_n_pinned": int(_ok["n_pinned"].median()),
+                "max_n_pinned": int(_ok["n_pinned"].max()),
+                "median_top5_share": round(float(_ok["top5_share"].median()), 3),
+                "max_top5_share": round(float(_ok["top5_share"].max()), 3),
+                "cap": max_portfolio_weight,
+            })
+        portfolio_weight_summary = (pd.DataFrame(_rows)
+                                    .sort_values("median_effective_n")
+                                    .reset_index(drop=True))
+        print(portfolio_weight_summary.to_string(index=False))
 
     # ---- thin-portfolio gate (PRESENTATION ONLY) -------------------------- #
     # A bucket of a handful of names is not a portfolio -- its return is idiosyncratic
@@ -681,7 +893,16 @@ def build_analyse_portfolios_v1(prep, cfg):
                 continue
             _sizes = pd.Series(_sizes, dtype=float)
             _pct = round(float((_sizes >= _min_stocks).mean()) * 100, 1)
-            _n_empty = int((_sizes == 0).sum())
+            # An INFEASIBLE month under cap weighting is discarded by compute_returns (NaN),
+            # so it belongs with the empty months here, not with the merely-small ones. Same
+            # correctness argument as `== 0`: NaN is skipped by (1+r).cumprod(), which books
+            # the month as a fabricated 0% return rather than excluding it, so a leg with any
+            # such month has a corrupted cumulative series and must be hidden outright. Only
+            # counted under "mktcap" -- equal weighting has no cap to be infeasible against,
+            # which is why the threshold is 0 there.
+            _infeasible_below = (1.0 / max_portfolio_weight) if global_mktcap is not None else 0.0
+            _n_discarded = int(((_sizes > 0) & (_sizes <= _infeasible_below)).sum())
+            _n_empty = int((_sizes == 0).sum()) + _n_discarded
             _label = f"{_bkt} {_nm}"
             # Two independent reasons to hide a leg:
             #  * EMPTY in any month -- unconditional, and a correctness issue rather than a
@@ -691,8 +912,13 @@ def build_analyse_portfolios_v1(prep, cfg):
             #    This fires even when min_stocks_per_portfolio=0 turns the coverage rule off.
             #  * too small too often -- the coverage rule.
             _reasons = []
-            if _n_empty:
-                _reasons.append(f"empty in {_n_empty} month(s)")
+            if _n_discarded:
+                _reasons.append(
+                    f"discarded in {_n_discarded} month(s) (n x cap <= 1, no capped "
+                    f"weight vector exists)"
+                )
+            if _n_empty - _n_discarded:
+                _reasons.append(f"empty in {_n_empty - _n_discarded} month(s)")
             if _pct < _min_cov:
                 _reasons.append(f"coverage {_pct}% < {_min_cov:.0f}%")
             _kept = not _reasons
@@ -705,7 +931,8 @@ def build_analyse_portfolios_v1(prep, cfg):
                 "label": _label, "signal": _nm, "bucket": _bkt,
                 "n_months": int(len(_sizes)),
                 "min_stocks": int(_sizes.min()), "median_stocks": int(_sizes.median()),
-                "n_months_empty": _n_empty,
+                "n_months_empty": _n_empty - _n_discarded,
+                "n_months_discarded_infeasible": _n_discarded,
                 "pct_months_at_least_x": _pct,
                 "min_stocks_required": _min_stocks,
                 "kept": bool(_kept),
@@ -734,9 +961,21 @@ def build_analyse_portfolios_v1(prep, cfg):
     market_factor = fama_french["mktrf"]
     for col in signal_quantiles:
         signal_quantiles[col] = signal_quantiles[col].sub(fama_french["rf"].values, axis=0)
-    Excess_returns_sample = (
-        global_returns.mean(axis=1).sub(fama_french["rf"].values, axis=0).to_frame("Sample")
-    )
+    # The "Sample" proxy must be weighted the same way the legs are, or the comparison is
+    # between two different objects. UNCAPPED cap weighting here on purpose: this is a market
+    # benchmark, and a concentration constraint belongs on a portfolio, not on the market.
+    # The weights are lagged one row (shift(1)) because a cap-weighted average needs the
+    # PREVIOUS month's caps to avoid a look-ahead -- the equal-weight version has no such
+    # problem, which is why the original line needs no shift.
+    def _sample_mean(_ret):
+        if global_mktcap is None:
+            return _ret.mean(axis=1)
+        _w = global_mktcap.reindex(index=_ret.index, columns=_ret.columns).shift(1)
+        _w = _w.where(_ret.notna())
+        return (_w * _ret).sum(axis=1, min_count=1) / _w.sum(axis=1, min_count=1)
+
+    _sample_ret = _sample_mean(global_returns)
+    Excess_returns_sample = _sample_ret.sub(fama_french["rf"].values, axis=0).to_frame("Sample")
 
     # ---- cell 39: zeroed-first-row copies for compounding ---------------- #
     global_returns_cum = set_first_row_to_zero(global_returns)
@@ -838,7 +1077,14 @@ def build_analyse_portfolios_v1(prep, cfg):
     show_sample_portfolio = C["show_sample_portfolio"]
     _all_gross = pd.DataFrame(index=global_returns_cum.index)
     if show_sample_portfolio:
-        _all_gross["Sample"] = 1 + global_returns_cum.mean(axis=1).sub(fama_french["rf"].values, axis=0)
+        # Zeroed first row, the same way market_factor_cum gets one, instead of averaging the
+        # already-zeroed global_returns_cum. Identical on the equal-weight path (the mean of
+        # an all-zero row IS zero), but under cap weighting the shifted weights make row 0
+        # NaN -- which would silently compound the Sample over one month less than every
+        # other column, since _compound_returns dropna()s per column.
+        _sample_cum = _sample_ret.copy()
+        _sample_cum.iloc[0] = 0.0
+        _all_gross["Sample"] = 1 + _sample_cum.sub(fama_french["rf"].values, axis=0)
     _all_gross["Market"] = 1 + market_factor_cum
     _lc_keys = [k for k in signal_quantiles if k.startswith("signal_")]
     _esg_keys = [k for k in signal_quantiles if not k.startswith("signal_")]
@@ -1152,9 +1398,16 @@ def build_analyse_portfolios_v1(prep, cfg):
             _den = _g[_NUM].sum()
             _pool_pct = _num.div(_den.where(_den > 0), axis=0) * 100.0
 
-            # EQUAL-WEIGHT: each firm's own mix, then average across holdings. Matches how
-            # the portfolio is weighted in returns. Undefined for a holding with no material
-            # initiatives at all, which is why _keyed is filtered here and not above.
+            # EQUAL-WEIGHT: each firm's own mix, then average across holdings. Undefined for
+            # a holding with no material initiatives at all, which is why _keyed is filtered
+            # here and not above.
+            #
+            # This used to say it "matches how the portfolio is weighted in returns", which is
+            # only true under portfolio_weighting="equal". Under "mktcap" NEITHER of these two
+            # mixes matches the return weighting -- pooled is set by the heaviest reporters and
+            # this one is one-firm-one-vote, while the return is cap-weighted. A cap-weighted
+            # third mix is the fix; until then read both as descriptive of the HOLDINGS, not of
+            # the portfolio's exposure.
             _nz = _keyed[_keyed[_NUM] > 0]
             _ew_pct = (
                 _nz[list(_bf.columns)].div(_nz[_NUM], axis=0)
@@ -1301,6 +1554,10 @@ def build_analyse_portfolios_v1(prep, cfg):
         # so the exported parquets are unaffected.
         "portfolio_coverage": portfolio_coverage,
         "portfolio_gate_summary": portfolio_gate_summary,
+        # Per bucket-month concentration under market-cap weighting; empty on the
+        # equal-weight path (where every weight is 1/n by construction).
+        "portfolio_weight_diagnostics": portfolio_weight_diagnostics,
+        "portfolio_weight_summary": portfolio_weight_summary,
         "dropped_portfolio_labels": _dropped_labels,
     })
 

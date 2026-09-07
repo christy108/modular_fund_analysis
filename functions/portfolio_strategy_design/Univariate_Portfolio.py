@@ -7,6 +7,12 @@ import numpy as np
 import pandas as pd
 
 from functions.functions import univariate_portfolio_sorting
+from functions.portfolio_strategy_design.cap_weights import (
+    InfeasibleCapError,
+    capped_weights,
+    concentration_stats,
+    discarded_row,
+)
 
 
 @dataclass
@@ -26,9 +32,15 @@ class UnivariateQuantilePortfolio:
     first_conditioning_set: int = 0
     take_extremes: bool = False
     n_extremes_quantiles: int | None = None
-    # "half_open" (frozen behaviour) or "closed"; see univariate_portfolio_sorting. Last
-    # field so positional construction of the existing ones is unaffected.
+    # "half_open" (frozen behaviour) or "closed"; see univariate_portfolio_sorting.
     quantile_interval_bounds: str = "half_open"
+    # Market-cap weighting. `weights` is a date x gvkey_iid frame of market caps, read at the
+    # FORMATION row; `weight_cap` is the single-name ceiling (e.g. 0.10). Both None keeps the
+    # frozen equal-weight behaviour, and that is the default so an existing caller is
+    # unaffected. Declared last so positional construction of the earlier fields still works
+    # -- the same reason quantile_interval_bounds sits where it does.
+    weights: pd.DataFrame | None = None
+    weight_cap: float | None = None
 
     def __post_init__(self) -> None:
         self.signal = self.signal.copy()
@@ -53,7 +65,32 @@ class UnivariateQuantilePortfolio:
         self.signal = self.signal.loc[common_index, common_cols]
         self.returns = self.returns.loc[common_index, common_cols]
 
+        if self.weights is not None:
+            if self.weight_cap is None:
+                raise ValueError(
+                    "weights were given without weight_cap; pass the single-name ceiling "
+                    "explicitly (use 1.0 for uncapped value weighting)"
+                )
+            self.weights = self.weights.copy()
+            if not isinstance(self.weights.index, pd.DatetimeIndex):
+                self.weights.index = pd.to_datetime(self.weights.index)
+            self.weights.sort_index(inplace=True)
+            # Reindexed rather than intersected, so `weights` always has EXACTLY the shape of
+            # signal/returns and `.iloc[i, :]` lines up row-for-row with `current_signal`. A
+            # cell that comes back NaN is only a problem if that name is actually held, and
+            # capped_weights raises there with the offending gvkey_iids -- a far better error
+            # than failing construction over a name no bucket ever picks up. The count is
+            # printed so a systematic gap is still visible.
+            self.weights = self.weights.reindex(index=common_index, columns=common_cols)
+            _n_missing = int(self.weights.isna().to_numpy().sum())
+            if _n_missing:
+                _cells = self.weights.shape[0] * self.weights.shape[1]
+                print(f"[UnivariateQuantilePortfolio] weights have {_n_missing} NaN cell(s) "
+                      f"of {_cells} ({_n_missing / _cells:.4%}); a bucket that holds one will raise")
+
         self.constituents_over_time: list[pd.Series] = []
+        # One row per (formation date, bucket) when weighting is on; empty otherwise.
+        self.weight_diagnostics: list[dict] = []
         self._quantile_returns: pd.DataFrame | None = None
 
     @property
@@ -96,6 +133,7 @@ class UnivariateQuantilePortfolio:
             out.iloc[start:, :] = 0.0
 
         self.constituents_over_time = []
+        self.weight_diagnostics = []
 
         n_ext = 1 if self.n_extremes_quantiles is None else int(self.n_extremes_quantiles)
 
@@ -118,9 +156,47 @@ class UnivariateQuantilePortfolio:
                 tickers = pd.Index(selected[label])
                 if tickers.empty:
                     val = np.nan
-                else:
+                elif self.weights is None:
+                    # Equal weight: .mean() over the surviving names IS the weighting, and it
+                    # renormalises for free when a name's return is missing. Untouched.
                     s = next_ret.reindex(tickers).dropna()
                     val = float(s.mean()) if len(s) else np.nan
+                else:
+                    r = next_ret.reindex(tickers)
+                    alive = r.notna()
+                    if not bool(alive.any()):
+                        val = np.nan
+                    else:
+                        # Caps come from row i -- the FORMATION row, the same row as
+                        # `current_signal` -- while the return comes from row i+1. Reading
+                        # row i+1's caps would be a look-ahead that mechanically favours
+                        # whatever went up. The cap loop is then re-run on the SURVIVORS
+                        # rather than the formation weights being rescaled, so the ceiling
+                        # holds exactly in the weights that actually earn the return; a
+                        # rescale would let a pinned name drift above it whenever a large
+                        # peer delists.
+                        c = self.weights.iloc[i, :].reindex(tickers)[alive]
+                        try:
+                            w = capped_weights(c, self.weight_cap)
+                        except InfeasibleCapError:
+                            # n * cap <= 1: no capped weight vector exists, and a bucket
+                            # that small is not a portfolio. DISCARD the bucket-month --
+                            # NaN, exactly as an empty bucket produces. Note NaN is not
+                            # self-excluding downstream: (1+r).cumprod() SKIPS it, which
+                            # books the month as a fabricated 0% return, so the caller must
+                            # also hide the leg (see the thin-portfolio gate in
+                            # 07_build_analyse_portfolios.py, which counts these alongside
+                            # empty months for exactly that reason).
+                            val = np.nan
+                            _stats = discarded_row(int(alive.sum()))
+                        else:
+                            val = float((w * r[alive]).sum())
+                            _stats = concentration_stats(w, self.weight_cap)
+                        self.weight_diagnostics.append({
+                            "date": formation_date,
+                            "portfolio": label,
+                            **_stats,
+                        })
 
                 if j < len(out.columns):
                     out.iat[i + 1, j] += val

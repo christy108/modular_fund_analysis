@@ -838,6 +838,9 @@ _PARAM_DOCS: dict[str, str] = {
     "end_year": "Last calendar year. Overridden by esg_choice (refinitiv or msci -> 2024, s&p -> 2022).",
     "security_status": "'active_only' keeps Compustat secstat=='A' (the frozen behaviour); 'all_firms_even_delisted' keeps inactive securities, so a delisted name retains its full price history.",
     "no_simple_quantiles": "Number of buckets in the univariate quantile sort (7 = septiles).",
+    "quantile_interval_bounds": "How a firm sitting exactly ON a cutpoint is bucketed. 'half_open' (frozen) sends a tie block to the bucket below; 'closed' gives it to both adjacent buckets, making complementary-signal mirrors exact at the cost of the buckets no longer partitioning the universe.",
+    "portfolio_weighting": "How each bucket's return is weighted across holdings. 'equal' (frozen) gives every name 1/n; 'mktcap' weights by last_mktcap at the formation month, capped per name at max_portfolio_weight.",
+    "max_portfolio_weight": "Single-name ceiling under portfolio_weighting='mktcap' (0.10 = 10%); ignored under 'equal'. Excess is redistributed pro-rata by market cap and re-checked, iteratively. Where n x cap <= 1 no capped vector exists and the bucket falls back to equal weight.",
     "ff_factors_number": "Factors in the alpha regression (3 = Mkt-RF, SMB, HML).",
     # ---- cell 2: ESG provider ----------------------------------------------
     "esg_choice": "ESG provider merged into the universe: none / refinitiv / msci / s&p. Also picks which Process runs at merge_esg_provider.",

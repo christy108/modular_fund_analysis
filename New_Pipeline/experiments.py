@@ -37,7 +37,7 @@ def build_cfg(**overrides) -> dict:
     # ---- cell 2: baseline scalar defaults --------------------------------- #
     c: dict = dict(
         golden_data="v_2A1",
-        region_analysis="Europe",
+        region_analysis="United_States",
         fama_factors_currency="JPY",
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
         action_characterization="Material_Immaterial_only",
@@ -64,6 +64,26 @@ def build_cfg(**overrides) -> dict:
         #       (memberships sum to > N, bucket returns stop decomposing to the market).
         #       High and Low never share a cutpoint for K >= 3, so the spread is unaffected.
         quantile_interval_bounds="closed",   # half_open or "closed"   closed: [max,q1],[q1,q2][q2,max] in sorts--- half_open: [max,q1],(q1,q2](q2,max] 
+        # How each quantile bucket's return is weighted across its holdings.
+        #   "equal" (frozen behaviour): every holding gets 1/n. Puts the same money in a
+        #       $200m firm as in a $2tn one, so the legs are driven by the small end of the
+        #       surviving universe and carry a large SMB tilt.
+        #   "mktcap": weight by `last_mktcap` at the FORMATION month, then enforce
+        #       `max_portfolio_weight` as a single-name ceiling. The rule is MSCI's/S&P's:
+        #       anything over the cap is pinned AT the cap (that is a share of the WHOLE
+        #       portfolio, not of what is left), the remaining budget is split among the
+        #       still-free names PRO-RATA by their own caps, and it iterates -- a name can be
+        #       comfortably legal at first and breach only once a pinned name's excess lands
+        #       on it. See functions/portfolio_strategy_design/cap_weights.py.
+        # Note this re-caps EVERY month, which is stricter than MSCI/S&P, who cap at
+        # rebalance dates and let weights drift with prices in between.
+        portfolio_weighting="mktcap",
+        # Single-name ceiling for portfolio_weighting="mktcap"; ignored under "equal".
+        # 1.0 means no effective cap (plain value weighting). Where `n * cap <= 1` no weight
+        # vector can satisfy both the budget and the ceiling -- 10 names or fewer at 10% --
+        # and the bucket falls back to equal weight, which is the minimum-concentration
+        # portfolio and the continuous limit of capping (at n == 1/cap they coincide).
+        max_portfolio_weight=0.10,
         ff_factors_number=3,
         esg_choice="none",
         esg_full_universe=False,
@@ -261,6 +281,19 @@ def build_cfg(**overrides) -> dict:
             f"got {c['quantile_interval_bounds']!r}"
         )
 
+    if c["portfolio_weighting"] not in ("equal", "mktcap"):
+        raise ValueError(
+            f"portfolio_weighting must be 'equal' or 'mktcap', "
+            f"got {c['portfolio_weighting']!r}"
+        )
+    # A weight, so a fraction. Rejected here rather than at the first bucket-month, minutes
+    # into a run. 1.0 is legal and means "no effective ceiling".
+    if not 0.0 < c["max_portfolio_weight"] <= 1.0:
+        raise ValueError(
+            f"max_portfolio_weight is a FRACTION in (0, 1], got "
+            f"{c['max_portfolio_weight']!r} (0.10 caps any one name at 10%)"
+        )
+
     # Per-TAIL fraction, so 0.5 would clip everything to the median and anything above it
     # is nonsense (the lower cap would exceed the upper). Rejected here rather than
     # producing a silently degenerate signal minutes into a run.
@@ -352,6 +385,25 @@ def build_cfg(**overrides) -> dict:
                  execute_region_filters=True,
                  convert_to_USD=(c["fama_factors_currency"] == "USD"),
                  fama_factor_region="Japan")
+
+    # Cap weighting sums market caps across the portfolio's holdings, which is only
+    # meaningful once every cap is in ONE numeraire. `mktcap` is in the LISTING currency
+    # unless the universe was converted upstream (process_data.py divides by the FX rate), so
+    # a JPY cap summed with a USD cap is wrong by ~150x -- and unlike a currency-neutral
+    # equal weighting, that error lands directly in the weights. Checked HERE and not in the
+    # block above because `currency_filter` / `convert_to_USD` are derived by the region
+    # if/elif immediately preceding, well after the value-domain validations run.
+    # `currency_filter=None` means "every currency in the data", so it is the permissive case
+    # and needs the conversion just as much as an explicit multi-currency list.
+    if c["portfolio_weighting"] == "mktcap" and not c["convert_to_USD"]:
+        _ccy = c["currency_filter"]
+        if _ccy is None or len(_ccy) > 1:
+            raise ValueError(
+                f"portfolio_weighting='mktcap' pools market caps across currency areas, but "
+                f"region_analysis={region!r} gives currency_filter={_ccy!r} with "
+                f"convert_to_USD=False. Use a single-currency currency_filter, or a region "
+                f"whose universe is converted to USD."
+            )
 
     # ---- cell 8: signal design ------------------------------------------- #
     from functions.signal_design.signal_definitions import (
@@ -749,6 +801,17 @@ def base_materiality():
 
 
  
+
+def base_materiality_vw_cap10():
+    # base_materiality with the legs weighted by market cap instead of equally, capped at
+    # 10% per name. The ONLY change from base_materiality, so the pair isolates the
+    # weighting: any difference in ff3_parts_df between the two is the weighting and nothing
+    # else. Read portfolio_weight_diagnostics.parquet alongside it -- effective_n is what
+    # says whether 10% is a tight enough ceiling for these bucket sizes.
+    return make_experiment("base_materiality_vw_cap10", build_cfg(
+        add_materiality=True, action_characterization="Material_Immaterial_only",
+        portfolio_weighting="mktcap", max_portfolio_weight=0.10))
+
 
 def base_materiality_US():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
@@ -1194,6 +1257,7 @@ EXPERIMENTS = {
 
 
     "base_materiality": base_materiality,
+    "base_materiality_vw_cap10": base_materiality_vw_cap10,
     "base_materiality_US":base_materiality_US,
 
     # Size screen made comparable across regions -- see the block above these builders.
