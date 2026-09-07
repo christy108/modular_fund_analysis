@@ -756,7 +756,75 @@ def base_materiality_US():
     return make_experiment("base_materiality_US", build_cfg(add_materiality=True, region_analysis="United_States" , action_characterization = "Material_Immaterial_only"))
 
 
- 
+# ---- size screen made comparable across regions -------------------------------- #
+# `percent_total_mcap` at 0.95 is a share of aggregate market-cap VALUE, so the absolute
+# size floor it produces depends on how concentrated the region is. Measured on the
+# current extracts (December 2024): $6.15bn in the US, $1.34bn in Europe, ¥75bn (~$490m)
+# in Japan. Europe's bottom 80% of listings hold 4.8% of its aggregate cap against the
+# US bottom 80%'s 8.8%, so the same 5%-of-value budget removes 80% of European listings
+# and 71% of US ones. One `mktcap_covered_...` value is therefore three different screens.
+#
+# These configs replace it with ONE absolute USD floor, which is comparable by
+# construction. `percentage_stocks_removed_if_percent_stocks_true=1.0` makes the count
+# condition vacuous (`ref_pct_rank <= 1.0` is always true), so the `percent_stocks` branch
+# of process_global_universe collapses to a pure floor: drop iff last cap in Y-1 < floor.
+# See functions/data_functions/process_data.py:266-312.
+#
+# $2bn is the calibrated level: it keeps ~843 European listings/month in 2024 (vs 1,016
+# at 0.95, so a mild 17% tightening that stays clear of min_stocks_per_portfolio) while
+# retaining 93% of Europe's aggregate cap and 98% of the US's. See
+# descriptive_stats/outputs/screen_absolute_floor_options.csv for the $1/2/3/5bn grid.
+#
+# TWO behavioural differences from percent_total_mcap, both inherent to that branch:
+#   * membership is decided per YEAR on the previous year's last cap, not per month, so
+#     the floor no longer drifts with the market inside a year;
+#   * a listing with no Y-1 observation is dropped, so a firm's IPO year is excluded.
+_FLOOR_2BN = dict(
+    market_cap_filter="percent_stocks",
+    percentage_stocks_removed_if_percent_stocks_true=1.0,   # vacuous -> pure floor
+    floor_if_percent_stocks_true=2e9,                       # USD
+)
+
+
+def base_materiality_EU_floor2bn():
+    # Europe on a $2bn absolute floor. convert_to_USD is already True for this region
+    # (build_cfg's Europe branch), so the floor is in the same numeraire as the caps.
+    return make_experiment(
+        "base_materiality_EU_floor2bn",
+        build_cfg(add_materiality=True, region_analysis="Europe",
+                  action_characterization="Material_Immaterial_only", **_FLOOR_2BN),
+    )
+
+
+def base_materiality_US_floor2bn():
+    # The comparison arm: same floor, US region. Needed for the Europe/US pair to mean
+    # anything -- changing only Europe swaps one incomparable pair for another.
+    return make_experiment(
+        "base_materiality_US_floor2bn",
+        build_cfg(add_materiality=True, region_analysis="United_States",
+                  action_characterization="Material_Immaterial_only", **_FLOOR_2BN),
+    )
+
+
+def base_materiality_EU_mcap087():
+    # Fallback if you would rather not change the screen MECHANISM: keep
+    # percent_total_mcap and lower Europe's coverage instead. 0.87 is the value that
+    # reproduces the US size floor on average over 2016-2024 (the exact match drifts from
+    # 0.893 in 2016 to 0.850 in 2024, because the US floor rises faster than Europe's --
+    # see descriptive_stats/outputs/screen_calibration_to_us_floor.csv).
+    #
+    # Costs a lot more sample than the floor: ~450-550 European listings/month against
+    # 1,016 at 0.95, which is close enough to min_stocks_per_portfolio=25 on a
+    # seven-quantile sort that legs may start failing the coverage gate.
+    return make_experiment(
+        "base_materiality_EU_mcap087",
+        build_cfg(add_materiality=True, region_analysis="Europe",
+                  action_characterization="Material_Immaterial_only",
+                  mktcap_covered_if_filter_by_cum_market_cap=0.87),
+    )
+
+
+
 def base_materiality_counts():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
@@ -1127,6 +1195,12 @@ EXPERIMENTS = {
 
     "base_materiality": base_materiality,
     "base_materiality_US":base_materiality_US,
+
+    # Size screen made comparable across regions -- see the block above these builders.
+    "base_materiality_EU_floor2bn": base_materiality_EU_floor2bn,
+    "base_materiality_US_floor2bn": base_materiality_US_floor2bn,
+    "base_materiality_EU_mcap087": base_materiality_EU_mcap087,
+
     "base_materiality_counts":base_materiality_counts,
     "base_materiality_per_revenue": base_materiality_per_revenue,
     "base_total_initiatives_counts": base_total_initiatives_counts,
