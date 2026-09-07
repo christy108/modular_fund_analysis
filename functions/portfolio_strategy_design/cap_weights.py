@@ -55,7 +55,7 @@ def capped_weights(caps: pd.Series, cap: float) -> pd.Series:
     rather than picking some weighting anyway: a bucket that small is not a portfolio, its
     return is idiosyncratic noise however it is weighted, and it is discarded from the
     analysis entirely. The test is ``n * cap <= 1`` rather than a hardcoded 10 so it tracks
-    ``max_portfolio_weight`` when that is swept -- at a 5% cap the boundary is 20 names.
+    ``max_portfolio_weight_if_portfolio_weighting_equal`` when that is swept -- at a 5% cap the boundary is 20 names.
 
     Note this applies ONLY to cap weighting. Equal weighting has no such constraint to
     violate, so a small equal-weighted bucket is not gated here.
@@ -149,6 +149,7 @@ def concentration_stats(w: pd.Series, cap: float) -> dict:
     return {
         "n_holdings": n,
         "max_weight": float(w.max()),
+        "median_weight": float(w.median()),
         "min_weight": float(w.min()),
         "hhi": hhi,
         "effective_n": float(1.0 / hhi) if hhi > 0 else np.nan,
@@ -170,6 +171,7 @@ def discarded_row(n_holdings: int) -> dict:
     return {
         "n_holdings": int(n_holdings),
         "max_weight": np.nan,
+        "median_weight": np.nan,
         "min_weight": np.nan,
         "hhi": np.nan,
         "effective_n": np.nan,

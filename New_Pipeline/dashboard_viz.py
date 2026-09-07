@@ -41,8 +41,10 @@ _DEFERRED_SECTIONS = ("mktcap_filter_audit", "sample_funnel_audit", "sort_cutpoi
 # large filled blocks. These are ordered so neighbouring bands stay distinguishable when
 # one of them is a sliver.
 #
-# 18 entries because the widest scheme (Climate & Natural Capital vs each SDG) has 15 bands
-# and any scheme may gain an Unclassified residual. Beyond ~8 bands an area chart is at the
+# 18 entries because the widest scheme (Climate & Natural Capital vs each SDG) has 15 bands.
+# (The old Unclassified residual is no longer drawn -- shares are taken over each scheme's own
+# classified total -- so the headroom here is larger than it needs to be, harmlessly.)
+# Beyond ~8 bands an area chart is at the
 # limit of what colour alone can separate -- read those against the coarser schemes rather
 # than trying to identify a 2%-tall band by hue.
 _AREA_COLORS = (
@@ -839,8 +841,8 @@ _PARAM_DOCS: dict[str, str] = {
     "security_status": "'active_only' keeps Compustat secstat=='A' (the frozen behaviour); 'all_firms_even_delisted' keeps inactive securities, so a delisted name retains its full price history.",
     "no_simple_quantiles": "Number of buckets in the univariate quantile sort (7 = septiles).",
     "quantile_interval_bounds": "How a firm sitting exactly ON a cutpoint is bucketed. 'half_open' (frozen) sends a tie block to the bucket below; 'closed' gives it to both adjacent buckets, making complementary-signal mirrors exact at the cost of the buckets no longer partitioning the universe.",
-    "portfolio_weighting": "How each bucket's return is weighted across holdings. 'equal' (frozen) gives every name 1/n; 'mktcap' weights by last_mktcap at the formation month, capped per name at max_portfolio_weight.",
-    "max_portfolio_weight": "Single-name ceiling under portfolio_weighting='mktcap' (0.10 = 10%); ignored under 'equal'. Excess is redistributed pro-rata by market cap and re-checked, iteratively. Where n x cap <= 1 no capped vector exists and the bucket falls back to equal weight.",
+    "portfolio_weighting": "How each bucket's return is weighted across holdings. 'equal' (frozen) gives every name 1/n; 'mktcap' weights by last_mktcap at the formation month, capped per name at max_portfolio_weight_if_portfolio_weighting_equal.",
+    "max_portfolio_weight_if_portfolio_weighting_equal": "Single-name ceiling under portfolio_weighting='mktcap' (0.10 = 10%); ignored under 'equal'. Excess is redistributed pro-rata by market cap and re-checked, iteratively. Where n x cap <= 1 no capped vector exists and the bucket falls back to equal weight.",
     "ff_factors_number": "Factors in the alpha regression (3 = Mkt-RF, SMB, HML).",
     # ---- cell 2: ESG provider ----------------------------------------------
     "esg_choice": "ESG provider merged into the universe: none / refinitiv / msci / s&p. Also picks which Process runs at merge_esg_provider.",

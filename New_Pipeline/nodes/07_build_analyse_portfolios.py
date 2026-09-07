@@ -75,13 +75,25 @@ def _portfolio_weight_summary(bundle):
     return _drop_rows(bundle.get("portfolio_weight_summary"), bundle, col="label")
 
 
-def _effective_n_series(bundle) -> list[dict]:
-    """Effective number of holdings (1/HHI) per month, one line per High/Low leg.
+def _portfolio_top_holding(bundle):
+    """Largest average position per leg per year, ties included.
 
-    The table gives the median; this shows whether it is stable or drifting. Read against
-    the leg's actual holding count: the gap between them is the concentration. Empty under
-    equal weighting, where 1/HHI is identically the holding count.
+    Blank unless cap weighting is on. Gated legs are dropped, as everywhere else.
     """
+    return _drop_rows(bundle.get("portfolio_top_holding"), bundle, col="label")
+
+
+def _weight_series(col: str):
+    """One line per High/Low leg of `col` (a weight column) over time.
+
+    Empty under equal weighting, where every weight is 1/n by construction.
+    """
+    def _extract(bundle) -> list[dict]:
+        return _weight_series_impl(bundle, col)
+    return _extract
+
+
+def _weight_series_impl(bundle, col: str) -> list[dict]:
     raw = bundle.get("portfolio_weight_diagnostics")
     if raw is None or raw.empty or "label" not in raw.columns:
         return []
@@ -97,7 +109,7 @@ def _effective_n_series(bundle) -> list[dict]:
             "x": [str(d)[:10] for d in rows["date"]],
             # Discarded months carry NaN by design -- passed through as None so the line
             # BREAKS there rather than interpolating across a month that was thrown out.
-            "y": [None if v != v else float(v) for v in rows["effective_n"]],
+            "y": [None if v != v else float(v) for v in rows[col]],
         })
     return out
 
@@ -536,9 +548,12 @@ over time
 counts (``BundleMultiSeriesViz``)
 and a coverage table (``BundleTableViz``). ``material__total`` is an opaque count, so the High-Low
 alpha cannot otherwise be attributed to a behaviour or an SDG; this says what the leg's material
-initiatives actually ARE and whether that mix drifts. Every scheme is normalised by
-``material__total`` — including the old 3-way split, which covers only ~91% of it and therefore
-carries an explicit ``Unclassified`` band rather than being rescaled to its own smaller total.
+initiatives actually ARE and whether that mix drifts. Each scheme is normalised by ITS OWN
+classified total, so its bands sum to 100% and no ``Unclassified`` residual is drawn. That is
+the same denominator as ``material__total`` for the five exhaustive schemes; only the old 3-way
+split differs, covering ~91% of the numerator. The shortfall is reported per scheme, leg and
+month by ``scheme_coverage`` (written to the run's ``initiative_decomposition.csv``) rather than
+as a band on the chart.
 Each holding's fiscal year is read back off ``global_universe``'s ``rfyear``, the same point-in-time
 key the signal merge used, so the initiatives shown for a formation month are the ones that month's
 sort actually saw. Only ``signal_0`` is decomposed: under this characterization ``signal_1`` is its
@@ -621,60 +636,73 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
                 "reasons are independent and both are listed when both apply."
             ),
         ),
-        # ---- market-cap weighting: how concentrated the legs really are ------------- #
-        # Both widgets render BLANK unless cfg.portfolio_weighting="mktcap". Under equal
-        # weighting every weight is 1/n, so there is nothing to report.
+        # ---- market-cap weighting: position sizes per leg ---------------------------- #
+        # All four widgets render BLANK unless cfg.portfolio_weighting="mktcap"; under equal
+        # weighting every weight is 1/n and there is nothing to show.
         BundleTableViz(
             _portfolio_weight_summary,
-            title="Cap weighting — concentration per leg (blank unless portfolio_weighting='mktcap')",
+            title="Cap weighting — position sizes per leg",
             key="table:portfolio_weight_summary",
             description=(
-                "**Empty under `portfolio_weighting=\"equal\"`** — every weight is then "
-                "`1/n` and there is no concentration to measure.\n\n"
-                "Under `\"mktcap\"` each leg is weighted by `last_mktcap` at the FORMATION "
-                "month, with any name over `cfg.max_portfolio_weight` pinned at the cap and "
-                "the remainder split PRO-RATA by market cap among the uncapped names, "
-                "iterated until nothing breaches (the MSCI/S&P rule). One row per High/Low "
-                "leg, least diversified first.\n\n"
-                "- **median_effective_n** / **min_effective_n** — **the measure.** `1/HHI`, "
-                "the number of equally-weighted names the leg behaves like. Read it against "
-                "**median_holdings**: the gap between the two IS the concentration. A leg "
-                "holding 68 names with an effective N of 23 is, for risk purposes, a "
-                "23-stock portfolio.\n"
-                "- **median_max_weight** / **max_max_weight** — the largest single position. "
-                "Equal to **cap** whenever the ceiling binds.\n"
-                "- **median_n_pinned** / **max_n_pinned** — how many names sat AT the "
-                "ceiling. 0 means the cap never bound that month and the leg is plain "
-                "value-weighted.\n"
-                "- **median_top5_share** / **max_top5_share** — share of the portfolio in "
-                "its five largest positions. This is the number a single-name cap does NOT "
-                "control: a 12-name leg under a 10% cap can legally hold 80% in eight "
-                "names, which is why MSCI's real UCITS rule is 10/40 and not just 10%.\n"
-                "- **n_months_discarded** — months thrown out because `n_holdings x cap <= "
-                "1`, where no capped weight vector exists at all (10 names or fewer at a "
-                "10% cap). Those months get NO return: not equal-weighted, not "
-                "value-weighted, discarded. Any value above 0 also hides the leg via the "
-                "gate above, because a NaN return is booked by `(1+r).cumprod()` as a "
-                "fabricated 0% month rather than being skipped.\n"
-                "- **cap** — `cfg.max_portfolio_weight`, echoed so the table reads "
-                "standalone."
+                "Blank unless `cfg.portfolio_weighting=\"mktcap\"`. One row per High/Low "
+                "leg, least diversified first. Weights are fractions, so 0.1 = 10%.\n\n"
+                "**median_effective_n** is `1/HHI` — the number of equally-weighted names "
+                "the leg behaves like. Read it against **median_stocks**: the gap between "
+                "the two is the concentration. **n_months_discarded** counts months thrown "
+                "out because `stocks x cap <= 1`, where no capped weight vector exists; "
+                "those months get no return at all, and any value above 0 also hides the leg."
+            ),
+        ),
+        BundleTableViz(
+            _portfolio_top_holding,
+            title="Cap weighting — largest average holding per leg, per year",
+            key="table:portfolio_top_holding",
+            n=400,
+            description=(
+                "Blank unless `cfg.portfolio_weighting=\"mktcap\"`. For each High/Low leg "
+                "and each calendar year, the `gvkey_iid` with the highest average weight.\n\n"
+                "- **avg_weight** — mean weight across the months the name was actually "
+                "HELD, not across all twelve. **n_months_held** is shown beside it for that "
+                "reason: a name held once at 10% would otherwise outrank one held all year "
+                "at 9%.\n"
+                "- **n_tied** — how many names share that year's maximum. All ties are "
+                "listed rather than one being picked arbitrarily, which matters under a "
+                "binding cap: several names pinned at exactly `cfg.max_portfolio_weight_if_portfolio_weighting_equal` "
+                "for a whole year tie exactly."
             ),
         ),
         BundleMultiSeriesViz(
-            _effective_n_series,
-            title="Cap weighting — effective holdings (1/HHI) over time",
-            key="lines:effective_n",
+            _weight_series("max_weight"),
+            title="Cap weighting — Largest position (max weight) over time",
+            key="lines:weight:max_weight",
             description=(
-                "**Blank unless `portfolio_weighting=\"mktcap\"`.** The table above gives "
-                "the median; this shows whether it is stable or trending. One line per "
-                "High/Low leg.\n\n"
-                "Compare each line against the leg's holding count in *Stocks in portfolio "
-                "over time* below — the two coinciding would mean equal weighting, and the "
-                "gap between them is how much the cap-weighting concentrates the leg. A "
-                "line that falls while the holding count is flat means the universe's "
-                "market cap is concentrating, not that the leg is shrinking.\n\n"
-                "Lines BREAK at any month discarded for `n x cap <= 1` rather than "
-                "interpolating across it, so a gap is a month with no portfolio."
+                "Blank unless `cfg.portfolio_weighting=\"mktcap\"`. One line per High/Low "
+                "leg; weights are fractions (0.1 = 10%). The biggest single holding each month. Flat at `cfg.max_portfolio_weight_if_portfolio_weighting_equal` means the cap is binding; below it means the leg is plain value-weighted that month.\n\n"
+                "Lines break at any discarded month, so a gap means no portfolio was formed."
+            ),
+            collapsible=True,
+            expanded=False,
+        ),
+        BundleMultiSeriesViz(
+            _weight_series("median_weight"),
+            title="Cap weighting — Median position weight over time",
+            key="lines:weight:median_weight",
+            description=(
+                "Blank unless `cfg.portfolio_weighting=\"mktcap\"`. One line per High/Low "
+                "leg; weights are fractions (0.1 = 10%). The typical holding's weight. Roughly `1/stocks` — so it tracks the leg's size, and the spread between this and the max line is the size dispersion.\n\n"
+                "Lines break at any discarded month, so a gap means no portfolio was formed."
+            ),
+            collapsible=True,
+            expanded=False,
+        ),
+        BundleMultiSeriesViz(
+            _weight_series("min_weight"),
+            title="Cap weighting — Smallest position (min weight) over time",
+            key="lines:weight:min_weight",
+            description=(
+                "Blank unless `cfg.portfolio_weighting=\"mktcap\"`. One line per High/Low "
+                "leg; weights are fractions (0.1 = 10%). The smallest holding each month. Very small values mean the leg carries names that contribute almost nothing to its return.\n\n"
+                "Lines break at any discarded month, so a gap means no portfolio was formed."
             ),
             collapsible=True,
             expanded=False,
@@ -744,7 +772,7 @@ def build_analyse_portfolios_v1(prep, cfg):
     # equal-weight behaviour exactly, so every archived Process and every parity artifact is
     # untouched unless a config asks for weighting.
     portfolio_weighting = C.get("portfolio_weighting", "equal")
-    max_portfolio_weight = C.get("max_portfolio_weight", 0.10)
+    max_portfolio_weight_if_portfolio_weighting_equal = C.get("max_portfolio_weight_if_portfolio_weighting_equal", 0.10)
     global_mktcap = None
     if portfolio_weighting == "mktcap":
         # `last_mktcap` is the cap of this listing in this firm-month -- the canonical size
@@ -785,7 +813,7 @@ def build_analyse_portfolios_v1(prep, cfg):
             print(f"[weighting] last_mktcap vs mktcap: max relative deviation "
                   f"{(float(_rel.max()) if _rel.size else 0.0):.3e}")
         print(f"[weighting] market-cap weighted, single-name cap "
-              f"{max_portfolio_weight:.1%}; caps pivot {global_mktcap.shape}")
+              f"{max_portfolio_weight_if_portfolio_weighting_equal:.1%}; caps pivot {global_mktcap.shape}")
     elif portfolio_weighting != "equal":
         raise ValueError(
             f"portfolio_weighting must be 'equal' or 'mktcap', got {portfolio_weighting!r}"
@@ -795,6 +823,7 @@ def build_analyse_portfolios_v1(prep, cfg):
     signal_quantiles: dict = {}
     signal_quantile_constituents: dict = {}
     _weight_diag_rows: list = []
+    _leg_weight_rows: list = []
     for col, pivot in signals.items():
         U = UnivariateQuantilePortfolio(
             signal=pivot,
@@ -806,12 +835,14 @@ def build_analyse_portfolios_v1(prep, cfg):
             quantile_interval_bounds=quantile_interval_bounds,
             # Nothing passed on the equal-weight path, so that branch is bit-identical.
             weights=global_mktcap,
-            weight_cap=(max_portfolio_weight if global_mktcap is not None else None),
+            weight_cap=(max_portfolio_weight_if_portfolio_weighting_equal if global_mktcap is not None else None),
         )
         signal_quantiles[col] = U.compute_returns()
         signal_quantile_constituents[col] = U.get_constituents_over_time()
         for _row in U.weight_diagnostics:
             _weight_diag_rows.append({"signal": signal_names.get(col, col), **_row})
+        for _row in U.leg_weights:
+            _leg_weight_rows.append({"signal": signal_names.get(col, col), **_row})
 
     # Every bucket-month's concentration, so "is a 10% cap enough" is answerable from the
     # artifact rather than by eye. effective_n (1/HHI) is the number to read: a 12-name
@@ -850,26 +881,45 @@ def build_analyse_portfolios_v1(prep, cfg):
             _ok = _g[~_g["discarded"]]
             _rows.append({
                 "label": _lab, "signal": _sig, "bucket": _bkt,
+                "median_stocks": int(_g["n_holdings"].median()),
+                "min_stocks": int(_g["n_holdings"].min()),
+                "median_weight": round(float(_ok["median_weight"].median()), 4),
+                "min_weight": round(float(_ok["min_weight"].min()), 5),
+                "max_weight": round(float(_ok["max_weight"].max()), 4),
+                # 1/HHI: the number of equally-weighted names the leg behaves like. The gap
+                # against median_stocks IS the concentration.
+                "median_effective_n": round(float(_ok["effective_n"].median()), 1),
+                "median_top5_share": round(float(_ok["top5_share"].median()), 3),
                 "n_months": int(len(_g)),
                 "n_months_discarded": int(_g["discarded"].sum()),
-                "median_holdings": int(_g["n_holdings"].median()),
-                "min_holdings": int(_g["n_holdings"].min()),
-                # The headline: 1/HHI, the number of equally-weighted names the leg behaves
-                # like. Compare it with median_holdings -- the gap IS the concentration.
-                "median_effective_n": round(float(_ok["effective_n"].median()), 1),
-                "min_effective_n": round(float(_ok["effective_n"].min()), 1),
-                "median_max_weight": round(float(_ok["max_weight"].median()), 4),
-                "max_max_weight": round(float(_ok["max_weight"].max()), 4),
-                "median_n_pinned": int(_ok["n_pinned"].median()),
-                "max_n_pinned": int(_ok["n_pinned"].max()),
-                "median_top5_share": round(float(_ok["top5_share"].median()), 3),
-                "max_top5_share": round(float(_ok["top5_share"].max()), 3),
-                "cap": max_portfolio_weight,
             })
         portfolio_weight_summary = (pd.DataFrame(_rows)
                                     .sort_values("median_effective_n")
                                     .reset_index(drop=True))
-        print(portfolio_weight_summary.to_string(index=False))
+
+    # Largest average position per leg per calendar year. The average is taken over the
+    # months the name was actually HELD, not over all twelve -- so `n_months_held` is
+    # reported beside it, because a name held once at 10% would otherwise outrank one held
+    # all year at 9%. Ties are all kept (n_tied says how many), which is what makes this
+    # useful under a binding cap: several names pinned at exactly the ceiling for the whole
+    # year tie exactly, and picking one arbitrarily would misrepresent the leg.
+    portfolio_top_holding = pd.DataFrame()
+    if _leg_weight_rows:
+        _lw = pd.DataFrame(_leg_weight_rows)
+        _lw["bucket"] = _lw["portfolio"].map(_bkt_name)
+        _lw["label"] = _lw["bucket"] + " " + _lw["signal"]
+        _lw["year"] = pd.to_datetime(_lw["date"]).dt.year
+        _avg = (_lw.groupby(["label", "year", "gvkey_iid"], as_index=False)
+                   .agg(avg_weight=("weight", "mean"), n_months_held=("weight", "size")))
+        _mx = _avg.groupby(["label", "year"])["avg_weight"].transform("max")
+        _top = _avg[_avg["avg_weight"] >= _mx - 1e-12].copy()
+        _top["n_tied"] = _top.groupby(["label", "year"])["gvkey_iid"].transform("size")
+        _top["avg_weight"] = _top["avg_weight"].round(5)
+        _top["gvkey"] = _top["gvkey_iid"].astype(str).str.split("_").str[0]
+        portfolio_top_holding = (_top[["label", "year", "gvkey_iid", "gvkey", "avg_weight",
+                                       "n_months_held", "n_tied"]]
+                                 .sort_values(["label", "year", "gvkey_iid"])
+                                 .reset_index(drop=True))
 
     # ---- thin-portfolio gate (PRESENTATION ONLY) -------------------------- #
     # A bucket of a handful of names is not a portfolio -- its return is idiosyncratic
@@ -900,7 +950,7 @@ def build_analyse_portfolios_v1(prep, cfg):
             # such month has a corrupted cumulative series and must be hidden outright. Only
             # counted under "mktcap" -- equal weighting has no cap to be infeasible against,
             # which is why the threshold is 0 there.
-            _infeasible_below = (1.0 / max_portfolio_weight) if global_mktcap is not None else 0.0
+            _infeasible_below = (1.0 / max_portfolio_weight_if_portfolio_weighting_equal) if global_mktcap is not None else 0.0
             _n_discarded = int(((_sizes > 0) & (_sizes <= _infeasible_below)).sum())
             _n_empty = int((_sizes == 0).sum()) + _n_discarded
             _label = f"{_bkt} {_nm}"
@@ -1242,12 +1292,12 @@ def build_analyse_portfolios_v1(prep, cfg):
             and _DECOMP_SIGNAL is not None
             and _DECOMP_SIGNAL in signal_quantile_constituents):
         from New_Pipeline.initiative_brackets import (
-            RESIDUAL_BAND,
             SCHEME_SLUGS,
             TOTAL_COLUMN,
             bands_for_numerator,
             parse_numerator,
             required_columns_for,
+            scheme_title,
         )
 
         # The signal's numerator: the categories_dict columns feeding the MATERIAL side of
@@ -1356,6 +1406,7 @@ def build_analyse_portfolios_v1(prep, cfg):
         _pooled: dict = {}
         _equal: dict = {}
         _max_dev = 0.0
+        _scheme_cov_rows: list = []
         for _slug in SCHEME_SLUGS:
             # Key space stays the full static SCHEME_SLUGS -- the Contract is built at
             # import time, so a dropped scheme must still have its (empty) widget key.
@@ -1371,32 +1422,60 @@ def build_analyse_portfolios_v1(prep, cfg):
                 {_label: _matched[_cols].sum(axis=1) for _label, _cols in _bands.items()},
                 index=_matched.index,
             )
-            # Explicit residual instead of rescaling to the scheme's own smaller total: the
-            # old 3-way split covers only ~91% of material initiatives, and rescaling would
-            # hide that AND make its bands incomparable with the other four schemes. Every
-            # scheme therefore sums to material__total exactly.
+            # The bands must never EXCEED the signal numerator -- that would mean a column
+            # is being counted by two bands at once, and every share below would be wrong.
+            # Still checked, and still fatal.
             _resid = _matched[_NUM] - _bf.sum(axis=1)
-            if float(_resid.abs().max()) > 0:
-                if float(_resid.min()) < 0:
-                    raise ValueError(
-                        f"scheme {_slug!r} DOUBLE-COUNTS: its bands exceed the signal "
-                        f"numerator ({_decomp_action}, {len(_decomp_sdgs)} SDGs) "
-                        f"on {int((_resid < 0).sum())} holdings"
-                    )
-                _bf[RESIDUAL_BAND] = _resid
-            _dev = float((_bf.sum(axis=1) - _matched[_NUM]).abs().max())
-            if _dev > 0:
-                raise ValueError(f"scheme {_slug!r} bands do not sum to the signal numerator "
-                                 f"(max dev {_dev})")
+            if float(_resid.min()) < 0:
+                raise ValueError(
+                    f"scheme {_slug!r} DOUBLE-COUNTS: its bands exceed the signal "
+                    f"numerator ({_decomp_action}, {len(_decomp_sdgs)} SDGs) "
+                    f"on {int((_resid < 0).sum())} holdings"
+                )
 
+            # DENOMINATOR = the scheme's OWN classified total, not the signal numerator.
+            # So each chart reads "of the initiatives THIS SCHEME can classify, how many
+            # were X", and its bands sum to 100% with no `Unclassified` band drawn.
+            #
+            # This changes exactly one scheme. The 4-way behavioural, 3/5-way SDG and both
+            # climate splits are exhaustive on the numerator, so their classified total IS
+            # the numerator and every number here is unchanged. Only `matteo3`
+            # (advocacy_old_def / preparation / transformation) is a strict subset -- it
+            # carries no label on ~9% of material initiatives -- and it is that scheme's
+            # residual band that disappears.
+            #
+            # The coverage it used to show on the chart is NOT lost: `scheme_coverage`
+            # below records, per scheme and per leg, what share of the numerator the bands
+            # actually describe, and it is written to the run's decomposition CSV. Read it
+            # alongside these charts -- a scheme covering 91% of the initiatives is
+            # describing the mix of that 91%, not of the whole leg.
+            _bf_sum = _bf.sum(axis=1)
             _keyed = pd.concat([_matched[["bucket", "date", _NUM]], _bf], axis=1)
+            _keyed["_classified"] = _bf_sum
 
             # POOLED: sum every holding's initiatives, then share. Literally "the
             # initiatives that make up this portfolio" -- but set by the heaviest reporters.
             _g = _keyed.groupby(["bucket", "date"], sort=True)
             _num = _g[list(_bf.columns)].sum()
-            _den = _g[_NUM].sum()
+            _den = _g["_classified"].sum()
             _pool_pct = _num.div(_den.where(_den > 0), axis=0) * 100.0
+
+            # How much of the leg these bands actually describe, kept beside the shares.
+            _cov = _g[["_classified"]].sum()
+            _cov["numerator"] = _g[_NUM].sum()
+            for (_cb, _cd), _cr in _cov.iterrows():
+                _scheme_cov_rows.append({
+                    "scheme_slug": _slug,
+                    "scheme_title": scheme_title(_slug),
+                    "bucket": _cb,
+                    "date": _cd,
+                    "classified_initiatives": float(_cr["_classified"]),
+                    "numerator_initiatives": float(_cr["numerator"]),
+                    "pct_of_numerator_classified": (
+                        round(float(_cr["_classified"]) / float(_cr["numerator"]) * 100, 3)
+                        if float(_cr["numerator"]) > 0 else float("nan")
+                    ),
+                })
 
             # EQUAL-WEIGHT: each firm's own mix, then average across holdings. Undefined for
             # a holding with no material initiatives at all, which is why _keyed is filtered
@@ -1408,9 +1487,12 @@ def build_analyse_portfolios_v1(prep, cfg):
             # this one is one-firm-one-vote, while the return is cap-weighted. A cap-weighted
             # third mix is the fix; until then read both as descriptive of the HOLDINGS, not of
             # the portfolio's exposure.
-            _nz = _keyed[_keyed[_NUM] > 0]
+            # Filtered on the CLASSIFIED total, not the numerator: a holding whose material
+            # initiatives all fall outside this scheme has no mix for it to contribute, and
+            # dividing by its numerator would have put it wholly in the old residual band.
+            _nz = _keyed[_keyed["_classified"] > 0]
             _ew_pct = (
-                _nz[list(_bf.columns)].div(_nz[_NUM], axis=0)
+                _nz[list(_bf.columns)].div(_nz["_classified"], axis=0)
                 .groupby([_nz["bucket"], _nz["date"]], sort=True).mean() * 100.0
             )
             _ew_pct.index.names = ["bucket", "date"]
@@ -1510,6 +1592,11 @@ def build_analyse_portfolios_v1(prep, cfg):
             "equal_weight": _equal,
             "levels": _levels,
             "coverage_summary": pd.DataFrame(_cov_rows),
+            # Per scheme per leg per month: what share of the signal numerator the scheme's
+            # bands classify. The charts are shares OF THIS, so it is the context needed to
+            # read them -- especially for matteo3, which labels only ~91% of material
+            # initiatives. Written to the run's decomposition CSV.
+            "scheme_coverage": pd.DataFrame(_scheme_cov_rows),
         }
         print(f"[decomposition] {len(_bands_by_slug)} of {len(SCHEME_SLUGS)} schemes "
               f"x 2 buckets x 2 weightings; max |band sum - 100| = {_max_dev:.10f}")
@@ -1558,6 +1645,7 @@ def build_analyse_portfolios_v1(prep, cfg):
         # equal-weight path (where every weight is 1/n by construction).
         "portfolio_weight_diagnostics": portfolio_weight_diagnostics,
         "portfolio_weight_summary": portfolio_weight_summary,
+        "portfolio_top_holding": portfolio_top_holding,
         "dropped_portfolio_labels": _dropped_labels,
     })
 

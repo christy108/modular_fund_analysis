@@ -91,6 +91,10 @@ class UnivariateQuantilePortfolio:
         self.constituents_over_time: list[pd.Series] = []
         # One row per (formation date, bucket) when weighting is on; empty otherwise.
         self.weight_diagnostics: list[dict] = []
+        # Per-NAME weights, first and last bucket only (the High/Low legs -- the same two
+        # `low_high` keeps). Only these, because the middle buckets are never presented and
+        # storing every name of every bucket would bloat the pickled bundle for nothing.
+        self.leg_weights: list[dict] = []
         self._quantile_returns: pd.DataFrame | None = None
 
     @property
@@ -134,6 +138,9 @@ class UnivariateQuantilePortfolio:
 
         self.constituents_over_time = []
         self.weight_diagnostics = []
+        self.leg_weights = []
+        # First and last output column = the Low and High legs, matching low_high().
+        _leg_cols = {cols[0], cols[-1]}
 
         n_ext = 1 if self.n_extremes_quantiles is None else int(self.n_extremes_quantiles)
 
@@ -192,6 +199,12 @@ class UnivariateQuantilePortfolio:
                         else:
                             val = float((w * r[alive]).sum())
                             _stats = concentration_stats(w, self.weight_cap)
+                            if label in _leg_cols:
+                                self.leg_weights.extend(
+                                    {"date": formation_date, "portfolio": label,
+                                     "gvkey_iid": _k, "weight": float(_v)}
+                                    for _k, _v in w.items()
+                                )
                         self.weight_diagnostics.append({
                             "date": formation_date,
                             "portfolio": label,

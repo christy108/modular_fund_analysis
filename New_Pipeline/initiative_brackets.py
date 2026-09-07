@@ -31,11 +31,17 @@ Exactness, measured on the v_2A1 workbook (72,412 firm-years):
     strict SUBSET -- never over -- covering 90.79% of material initiatives, per-SDG row-match
     72.4% (SDG 12) to 99.6%. ~9.2% carry no old-3-way label.
 
-Rather than rescale that scheme to its own smaller total (which would silently hide the gap
-and make its bands non-comparable with the others), the caller appends an explicit
-``Unclassified`` residual. Every applicable scheme then sums to the numerator exactly and the
-gap is visible on the chart -- so a future workbook whose behavioural split stops being
-exhaustive fails loudly on the chart rather than quietly in the arithmetic.
+Each scheme is therefore normalised by ITS OWN classified total, not by the numerator: every
+chart reads "of the initiatives this scheme can classify, how many were X", and its bands sum
+to 100% with no residual band drawn. For the five exhaustive schemes the two denominators are
+the same number and nothing changes; only ``matteo3`` is rescaled.
+
+The cost is that the ~9% gap is no longer visible ON the chart. It is not lost: node 07 emits
+``scheme_coverage`` -- per scheme, per leg, per month, the share of the numerator the bands
+classify -- which reaches the run's ``initiative_decomposition.csv``. Read it alongside the
+matteo3 charts; they describe the mix of that ~91%, not of the whole leg. A future workbook
+whose split stops being exhaustive shows up as a fall in that series rather than as a growing
+band, so watch it if these schemes are ever rebuilt.
 
 SDG membership is imported from ``functions/signal_design/signal_definitions.py`` -- the same
 dicts the SDG *signal designs* are cut from -- so a decomposition band and a sorting signal can
@@ -54,7 +60,11 @@ from functions.signal_design.signal_definitions import (
 # The quantity every scheme partitions. Also the denominator of every share.
 TOTAL_COLUMN = "material__total"
 
-# Band appended when a scheme's own columns fall short of TOTAL_COLUMN.
+# Band that USED to be appended when a scheme's own columns fell short of TOTAL_COLUMN.
+# No longer drawn -- shares are taken over each scheme's own classified total instead (see
+# the module docstring), and the shortfall is reported by node 07's ``scheme_coverage``.
+# Kept only so an older archived Process, whose source still imports this name, can be
+# replayed; nothing live reads it.
 RESIDUAL_BAND = "Unclassified"
 
 # Climate-vs-rest is NOT in signal_definitions: the closest thing there,

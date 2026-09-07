@@ -50,6 +50,7 @@ _MERGED_EXPORTS = {
     # on the equal-weight path, and .get() below skips a frame a config does not produce.
     "portfolio_weight_diagnostics": None,
     "portfolio_weight_summary": None,
+    "portfolio_top_holding": None,
 }
 
 
@@ -151,6 +152,21 @@ def run(name: str, out_dir: str | None = None):
         _n_pages = build_decomposition_pdf(manifest, name, _pdf)
         if _n_pages:
             print(f"[run] decomposition PDF    -> {_pdf}  ({_n_pages} pages)")
+
+        # The same numbers as a tidy CSV, so the charts can be redrawn without the
+        # pipeline. Read from the manifest payloads the PDF plots from, so the two cannot
+        # disagree; `scheme_coverage` is the one panel that comes from the bundle, since it
+        # is context for the charts rather than a chart itself.
+        from New_Pipeline.boundary import unpack_obj
+        from New_Pipeline.decomposition_csv import build_decomposition_csv
+
+        _csv = run_dir / "initiative_decomposition.csv"
+        _merged = outputs.get(_MERGED_NODE)
+        _decomp = (unpack_obj(_merged).get("initiative_decomposition")
+                   if _merged is not None else None)
+        _n_rows = build_decomposition_csv(manifest, name, _csv, bundle=_decomp)
+        if _n_rows:
+            print(f"[run] decomposition CSV    -> {_csv}  ({_n_rows} rows)")
 
     # 2. "Latest" snapshot for parity.compare / parity.show (overwritten each run).
     latest = Path(out_dir) if out_dir else Path("parity/artifacts/new") / name

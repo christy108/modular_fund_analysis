@@ -69,7 +69,7 @@ def build_cfg(**overrides) -> dict:
         #       $200m firm as in a $2tn one, so the legs are driven by the small end of the
         #       surviving universe and carry a large SMB tilt.
         #   "mktcap": weight by `last_mktcap` at the FORMATION month, then enforce
-        #       `max_portfolio_weight` as a single-name ceiling. The rule is MSCI's/S&P's:
+        #       `max_portfolio_weight_if_portfolio_weighting_equal` as a single-name ceiling. The rule is MSCI's/S&P's:
         #       anything over the cap is pinned AT the cap (that is a share of the WHOLE
         #       portfolio, not of what is left), the remaining budget is split among the
         #       still-free names PRO-RATA by their own caps, and it iterates -- a name can be
@@ -77,13 +77,16 @@ def build_cfg(**overrides) -> dict:
         #       on it. See functions/portfolio_strategy_design/cap_weights.py.
         # Note this re-caps EVERY month, which is stricter than MSCI/S&P, who cap at
         # rebalance dates and let weights drift with prices in between.
-        portfolio_weighting="mktcap",
+        portfolio_weighting="equal",
         # Single-name ceiling for portfolio_weighting="mktcap"; ignored under "equal".
         # 1.0 means no effective cap (plain value weighting). Where `n * cap <= 1` no weight
         # vector can satisfy both the budget and the ceiling -- 10 names or fewer at 10% --
-        # and the bucket falls back to equal weight, which is the minimum-concentration
-        # portfolio and the continuous limit of capping (at n == 1/cap they coincide).
-        max_portfolio_weight=0.10,
+        # and the bucket-month is DISCARDED: no return, so no alpha and no contribution to
+        # cumulative performance. A leg with any such month is hidden entirely by the
+        # thin-portfolio gate, because a NaN return is booked by (1+r).cumprod() as a
+        # fabricated 0% month rather than being skipped. Equal weighting is not gated -- it
+        # has no ceiling to violate.
+        max_portfolio_weight_if_portfolio_weighting_equal = 0.10,
         ff_factors_number=3,
         esg_choice="none",
         esg_full_universe=False,
@@ -288,10 +291,10 @@ def build_cfg(**overrides) -> dict:
         )
     # A weight, so a fraction. Rejected here rather than at the first bucket-month, minutes
     # into a run. 1.0 is legal and means "no effective ceiling".
-    if not 0.0 < c["max_portfolio_weight"] <= 1.0:
+    if not 0.0 < c["max_portfolio_weight_if_portfolio_weighting_equal"] <= 1.0:
         raise ValueError(
-            f"max_portfolio_weight is a FRACTION in (0, 1], got "
-            f"{c['max_portfolio_weight']!r} (0.10 caps any one name at 10%)"
+            f"max_portfolio_weight_if_portfolio_weighting_equal is a FRACTION in (0, 1], got "
+            f"{c['max_portfolio_weight_if_portfolio_weighting_equal']!r} (0.10 caps any one name at 10%)"
         )
 
     # Per-TAIL fraction, so 0.5 would clip everything to the median and anything above it
@@ -810,7 +813,7 @@ def base_materiality_vw_cap10():
     # says whether 10% is a tight enough ceiling for these bucket sizes.
     return make_experiment("base_materiality_vw_cap10", build_cfg(
         add_materiality=True, action_characterization="Material_Immaterial_only",
-        portfolio_weighting="mktcap", max_portfolio_weight=0.10))
+        portfolio_weighting="mktcap", max_portfolio_weight_if_portfolio_weighting_equal=0.10))
 
 
 def base_materiality_US():
