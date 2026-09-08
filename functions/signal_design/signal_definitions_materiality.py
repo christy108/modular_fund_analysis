@@ -180,6 +180,21 @@ def Materiality_One_Health_SDGS():
     return _signals_from_groups({_group: Health_SDGS_Groups[_group]})
 
 
+
+
+def Materiality_One_Health_Ex_SDG_8_SDGS():
+    """2 signals: Material_One_Health, Immaterial_One_Health.
+
+    Health_SDGS_Groups is already {group: [sdg, ...]}, so it goes to
+    _signals_from_groups bare -- wrapping it in braces builds a set holding a dict,
+    which is a TypeError (dicts are unhashable).
+    """
+    _group = "One_Health_Ex_SDG_8"
+    return _signals_from_groups({_group: Health_SDGS_Groups[_group]})
+
+
+
+
 def Materiality_Narrow_Health_SDGS():
     """2 signals: Material_Narrow_Health, Immaterial_Narrow_Health.
 

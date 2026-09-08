@@ -43,6 +43,7 @@ PEOPLE_Plus_PROSPERITY_VS_PLANET= {
 
 Health_SDGS_Groups = {
     "One_Health": [3, 6, 8, 11, 14, 15],
+    "One_Health_Ex_SDG_8": [3, 6, 11, 14, 15], 
     "Narrow_Health": [3, 6, 11],
     "Health_and_Work": [3, 6, 8, 11],
 }
