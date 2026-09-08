@@ -431,6 +431,7 @@ def build_cfg(**overrides) -> dict:
         Materiality_People_Plus_Prosperity_Action_SDG,
         Materiality_People_Plus_Prosperity_VS_Planet_SDG,
         Materiality_One_Health_SDGS,
+        Materiality_One_Health_Ex_SDG_8_SDGS,
         Materiality_Narrow_Health_SDGS,
         Materiality_Health_and_Work_SDGS,
         Materiality_SDG_X,
@@ -587,6 +588,10 @@ def build_cfg(**overrides) -> dict:
     # single-group signals, never combined in the same run.
     elif ac == "Materiality_One_Health_SDGS":
         categories_dict, *names = Materiality_One_Health_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    elif ac == "Materiality_One_Health_Ex_SDG_8_SDGS":
+        categories_dict, *names = Materiality_One_Health_Ex_SDG_8_SDGS()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     elif ac == "Materiality_Narrow_Health_SDGS":

@@ -128,7 +128,7 @@ GRID: dict[str, list] = {
     "no_simple_quantiles": [3, 5],
     # Market-cap coverage of the screen. See the Europe note above: 0.99 is looser than
     # anything previously run on this region.
-    "mktcap_covered_if_filter_by_cum_market_cap": [0.95, 0.99],
+    "mktcap_covered_if_filter_by_cum_market_cap": [0.85, 0.95],
 }
 
 # --------------------------------------------------------------------------- #
