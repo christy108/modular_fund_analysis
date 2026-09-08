@@ -43,8 +43,8 @@ def load_fama_french_v1(cfg):
     )
 
     # JPY numeraire (Japanese-investor case) needs fx_rates; only reached for
-    # region_analysis == "Japan" with fama_factors_currency == "JPY".
-    if C["region_analysis"] == "Japan" and C["fama_factors_currency"] == "JPY":
+    # region_analysis == "Japan" with fama_factors_currency_if_Japan == "JPY".
+    if C["region_analysis"] == "Japan" and C["fama_factors_currency_if_Japan"] == "JPY":
         from functions.data_functions.get_data import get_processed_fx_rates
 
         fx_rates = get_processed_fx_rates(C["end_year"])

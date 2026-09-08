@@ -169,7 +169,7 @@ RUN_PARAM_NAMES = [
     # --- Data & universe ---
     "golden_data",
     "region_analysis",
-    "fama_factors_currency",
+    "fama_factors_currency_if_Japan",
     "RF_JAPAN_PATH",
     "action_characterization",
     "start_year",

@@ -833,7 +833,7 @@ _PARAM_DOCS: dict[str, str] = {
     # ---- cell 2: data vintage, window, region -------------------------------
     "golden_data": "Which Golden LC extract vintage to load from $GOLDEN_LOCATION (e.g. v_2C, v_2A1).",
     "region_analysis": "Region preset. Drives currency_filter / region_filter / convert_to_USD / fama_factor_region below.",
-    "fama_factors_currency": "Currency of the FF factor set. Consulted only when region_analysis='Japan' (05_load_fama_french).",
+    "fama_factors_currency_if_Japan": "Currency of the FF factor set. Consulted only when region_analysis='Japan' (05_load_fama_french).",
     "RF_JAPAN_PATH": "Workbook holding the Japanese monthly risk-free rate; read only on the Japan JPY path.",
     "action_characterization": "Which signal design to build -- selects the categories_dict + signal-name pair from signal_definitions(_materiality).py. Consumed by build_cfg only; nodes see the derived dicts.",
     "start_year": "First calendar year of the return / universe window.",

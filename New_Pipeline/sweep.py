@@ -7,6 +7,12 @@
     python -m New_Pipeline.sweep --only base_none     # a single named EXPERIMENTS entry
     python -m New_Pipeline.sweep --dry-run            # list what would run, run nothing
     python -m New_Pipeline.sweep --rebuild            # rebuild PDF/CSV from the ledger only
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_params_a
+                                                       # read GRID/EXPLICIT/FIXED/
+                                                       # SWEEP_NAME from THAT module
+                                                       # instead of sweep_parameters.py,
+                                                       # so several sweeps can be queued
+                                                       # back to back unattended
     python -m New_Pipeline.sweep --box                # also push results.{pdf,csv,xlsx}
                                                        # to Box once the sweep finishes
                                                        # (see New_Pipeline/box_upload.py
@@ -34,13 +40,35 @@ Output tree (all of it gitignored):
 
 from __future__ import annotations
 
+import importlib
 import itertools
+import os
 import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
 from New_Pipeline import sweep_parameters as SP
+
+
+def _load_params(argv: list[str]) -> None:
+    """Point ``SP`` at a different parameters module, if asked.
+
+    ``--params <dotted.module>`` (or ``$SWEEP_PARAMS``) replaces sweep_parameters as the
+    source of GRID / EXPLICIT / FIXED / SWEEP_NAME / OUTPUT_DIR / PDF_EVERY / JOBS. That is
+    the whole point: those live in a single file, so queueing three different sweeps in one
+    unattended shell command is otherwise impossible without editing that file between runs.
+
+    Rebinding the module global is safe under ``--jobs N``: workers are handed a fully
+    resolved ``cfg`` dict by ``run_one`` and never read SP themselves.
+    """
+    global SP
+    name = (argv[argv.index("--params") + 1] if "--params" in argv
+            else os.environ.get("SWEEP_PARAMS", ""))
+    if not name:
+        return
+    SP = importlib.import_module(name)
+    print(f"[sweep] parameters <- {SP.__name__}")
 from New_Pipeline.sweep_report import (
     SECTIONS,
     append_ledger,
@@ -308,10 +336,15 @@ def main(argv: list[str]) -> None:
         print(_HELP)
         return
 
+    # Before ANY read of SP below -- this may repoint it at another module.
+    _load_params(argv)
+
     def flag_value(flag, default):
         return argv[argv.index(flag) + 1] if flag in argv else default
 
-    pdf_every = max(1, int(flag_value("--pdf-every", SP.PDF_EVERY)))
+    # getattr, not attribute access: a --params module is allowed to define only the
+    # inputs (GRID/EXPLICIT/FIXED/SWEEP_NAME) and inherit these presentation knobs.
+    pdf_every = max(1, int(flag_value("--pdf-every", getattr(SP, "PDF_EVERY", 10))))
     jobs = max(1, int(flag_value("--jobs", getattr(SP, "JOBS", 1))))
     no_resume = "--no-resume" in argv
     dry_run = "--dry-run" in argv
@@ -319,7 +352,7 @@ def main(argv: list[str]) -> None:
     # --out names the folder outright; otherwise it is derived from SWEEP_NAME, reusing
     # an existing folder for that name so a re-run resumes rather than starting over.
     output_dir = (argv[argv.index("--out") + 1] if "--out" in argv else
-                  str(resolve_output_dir(SP.OUTPUT_DIR,
+                  str(resolve_output_dir(getattr(SP, "OUTPUT_DIR", "sweep_output"),
                                          getattr(SP, "SWEEP_NAME", "sweep"),
                                          new_run="--new-run" in argv)))
     paths = _paths(output_dir)

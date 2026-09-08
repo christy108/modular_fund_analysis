@@ -38,7 +38,7 @@ def build_cfg(**overrides) -> dict:
     c: dict = dict(
         golden_data="v_2A1",
         region_analysis="United_States",
-        fama_factors_currency="JPY",
+        
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
         action_characterization="Material_Immaterial_only",
         start_year=2016,
@@ -105,6 +105,7 @@ def build_cfg(**overrides) -> dict:
         # Set min_stocks_per_portfolio=0 to disable the gate entirely.
         min_stocks_per_portfolio=25,
         min_portfolio_coverage=0.80,
+        fama_factors_currency_if_Japan="JPY",
         show_sort_cutpoint_audit=True,
         drop_real_estate_Full_ESG=True,
         drop_utilities_Full_ESG=True,
@@ -822,6 +823,49 @@ def base_materiality_US():
     return make_experiment("base_materiality_US", build_cfg(add_materiality=True, region_analysis="United_States" , action_characterization = "Material_Immaterial_only"))
 
 
+def base_materiality_US_vw_cap10_k5():
+    # base_materiality_vw_cap10 + no_simple_quantiles=5 (baseline is K=7), with
+    # region_analysis="United_States" spelled out explicitly even though it is already the
+    # build_cfg baseline -- same reason base_materiality_US does, so this run's page is
+    # unambiguous about region on sight, without relying on the reader knowing the default.
+    # Everything else is left at baseline ("basic parameters"): alpha_bound=0.1,
+    # mktcap_covered_if_filter_by_cum_market_cap=0.95, execute_3_filters="all", etc.
+    #
+    # This is a single named point-in-time snapshot of one cell from sweep_params_b's grid
+    # (design 1, K=5, alpha 0.1, mktcap 0.95) so it can be opened on the live dashboard
+    # (New_Pipeline.dashboard) without waiting on that sweep to reach it.
+    return make_experiment("base_materiality_US_vw_cap10_k5", build_cfg(
+        add_materiality=True, action_characterization="Material_Immaterial_only",
+        region_analysis="United_States",
+        portfolio_weighting="mktcap", max_portfolio_weight_if_portfolio_weighting_equal=0.10,
+        no_simple_quantiles=5))
+
+
+def base_materiality_EU_vw_cap10_k5():
+    # The Europe twin of base_materiality_US_vw_cap10_k5 -- identical in every way except
+    # region_analysis. UNLIKE the US one, region_analysis="Europe" is NOT the build_cfg
+    # baseline (that's United_States), so this one DOES change the cfg diff and Europe
+    # reaches the run name/page title on its own -- no need to spell it out for clarity the
+    # way the US twin does.
+    #
+    # "Basic parameters" here means Europe's OWN baseline, not the US's: build_cfg's
+    # region if/elif sets currency_filter to the 6 European currencies, convert_to_USD=True
+    # (required for portfolio_weighting="mktcap" -- see the guard at build_cfg's cell 2) and
+    # fama_factor_region="Europe" automatically. mktcap_covered_if_filter_by_cum_market_cap
+    # is left at the SAME 0.95 default as the US twin -- sweep_params_c instead sweeps
+    # {0.85, 0.95} for Europe specifically, because 0.95 in the US and 0.95 in Europe screen
+    # different universes; this single named run does not attempt that comparison, it is
+    # the direct Europe analogue of the US snapshot above.
+    #
+    # Single named point-in-time snapshot of one cell from sweep_params_c's grid (design 1,
+    # K=5, alpha 0.1, mktcap 0.95), viewable on the dashboard without waiting on that sweep.
+    return make_experiment("base_materiality_EU_vw_cap10_k5", build_cfg(
+        add_materiality=True, action_characterization="Material_Immaterial_only",
+        region_analysis="Europe",
+        portfolio_weighting="mktcap", max_portfolio_weight_if_portfolio_weighting_equal=0.10,
+        no_simple_quantiles=5))
+
+
 # ---- size screen made comparable across regions -------------------------------- #
 # `percent_total_mcap` at 0.95 is a share of aggregate market-cap VALUE, so the absolute
 # size floor it produces depends on how concentrated the region is. Measured on the
@@ -1117,23 +1161,23 @@ def base_materiality_people_plus_prosperity_only():
                             "Materiality_People_Plus_Prosperity_SDG")
 
 
-def base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3():
+def base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3():
     # base_materiality_people_plus_prosperity_only + alpha_bound=0.05, mktcap_covered=0.99
     # (see base_materiality_people_only_alpha05_mcap99_k3 for what each knob does) and
     # no_simple_quantiles=3. No K=7 sibling is registered -- only 3 and 5 are.
-    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3",
+    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3",
                             "Materiality_People_Plus_Prosperity_SDG",
                             alpha_bound=0.05,
-                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.95,
                             no_simple_quantiles=3)
 
 
-def base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5():
+def base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5():
     # Same as _k3 but no_simple_quantiles=5.
-    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5",
+    return _sdg_materiality("base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5",
                             "Materiality_People_Plus_Prosperity_SDG",
                             alpha_bound=0.05,
-                            mktcap_covered_if_filter_by_cum_market_cap=0.99,
+                            mktcap_covered_if_filter_by_cum_market_cap=0.95,
                             no_simple_quantiles=5)
 
 
@@ -1262,6 +1306,8 @@ EXPERIMENTS = {
     "base_materiality": base_materiality,
     "base_materiality_vw_cap10": base_materiality_vw_cap10,
     "base_materiality_US":base_materiality_US,
+    "base_materiality_US_vw_cap10_k5": base_materiality_US_vw_cap10_k5,
+    "base_materiality_EU_vw_cap10_k5": base_materiality_EU_vw_cap10_k5,
 
     # Size screen made comparable across regions -- see the block above these builders.
     "base_materiality_EU_floor2bn": base_materiality_EU_floor2bn,
@@ -1290,11 +1336,10 @@ EXPERIMENTS = {
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
 
     "base_materiality_people_only": base_materiality_people_only,
-    "base_materiality_people_only_alpha05_mcap99_k3": base_materiality_people_only_alpha05_mcap99_k3,
-    "base_materiality_people_only_alpha05_mcap99_k5": base_materiality_people_only_alpha05_mcap99_k5,
+   
     "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
-    "base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3": base_materiality_people_plus_prosperity_only_alpha05_mcap99_k3,
-    "base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5": base_materiality_people_plus_prosperity_only_alpha05_mcap99_k5,
+    "base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3": base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3,
+    "base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5": base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5,
     "Materiality_People_Plus_Prosperity_VS_Planet_SDG": base_materiality_people_plus_prosperity_vs_planet,
     "Materiality_People_Plus_Prosperity_VS_Planet_SDG_alpha05_mcap99": base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99,
 
