@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import wrds
@@ -798,7 +799,7 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                 elif region == "United_States":
                     ff_file = "./data/FAMA/United_States_3_Factors.csv"
                 else:
-                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada")
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             elif factors_number == 5:
                 if region == "Developed":
                     ff_file = "./data/FAMA/Developed_5_Factors.csv"
@@ -811,11 +812,26 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
                 elif region == "United_States":
                     ff_file = "./data/FAMA/United_States_5_Factors.csv"
                 else:
-                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             else:
                 raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
 
-
+            # Fail here rather than inside pd.read_csv: the message has to say what to do,
+            # because a raw Ken French download is NOT a drop-in. The parser below is
+            # strict ("%Y%m") and dies on the annual-data block those files carry after
+            # the monthly one, so the file must be trimmed to a single monthly section
+            # with one clean header row first. data/FAMA/Original/ holds a
+            # Developed_5_Factors.csv, but with pre-lowercased headers, so the rename
+            # below would miss every column -- it is not a substitute either.
+            if not os.path.exists(ff_file):
+                raise FileNotFoundError(
+                    f"Fama-French {factors_number}-factor file not found for region "
+                    f"{region!r}: {ff_file}\n"
+                    "Download the monthly series from Ken French's data library and trim "
+                    "it to a single monthly block with one clean header row -- the loader "
+                    'parses strictly with format="%Y%m" and will die on an annual trailer '
+                    "section."
+                )
 
             ff = pd.read_csv(ff_file)
             

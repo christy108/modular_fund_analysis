@@ -43,20 +43,26 @@ SECTIONS = [
      "4. Cumulative returns - long portfolios"),
     ("spreads", "build_analyse_portfolios", "lines:cumulative_spreads",
      "5. Cumulative returns - High-Low spreads"),
-    ("rolling40", "build_analyse_portfolios", "lines:rolling_alpha_40",
-     "6. Rolling alpha - 40-month window"),
+    ("rolling24", "build_analyse_portfolios", "lines:rolling_alpha_24",
+     "6. Rolling FF3 alpha - 24-month window"),
+    ("ff5", "build_analyse_portfolios", "table:ff5_parts_df",
+     "7. Fama-French 5-factor loadings"),
+    ("rolling24_ff5", "build_analyse_portfolios", "lines:rolling_ff5_alpha_24",
+     "8. Rolling FF5 alpha - 24-month window"),
     ("coverage", "build_analyse_portfolios", "table:portfolio_coverage",
-     "7. Portfolio size coverage - % of months at or above the minimum"),
+     "9. Portfolio size coverage - % of months at or above the minimum"),
 ]
 
 # Panels drawn as line charts rather than tables.
-_LINE_SLUGS = {"cumulative", "spreads", "rolling40"}
+_LINE_SLUGS = {"cumulative", "spreads", "rolling24", "rolling24_ff5"}
 
 # Risk-table rows whose FF3 alpha has p < this are shaded green on the page. 0.10 is the
 # 10% significance level -- deliberately the loosest conventional threshold, because the
 # point here is to make candidates jump out of a 222-page sweep, not to assert a result.
 _ALPHA_SIGNIF_P = 0.10
 _GREEN, _GREEN_ALT = "#cdeccd", "#c2e6c2"      # two shades so zebra striping survives
+_RED, _RED_ALT = "#f2cccc", "#ecc0c0"          # matched lightness, for negative alphas
+_SHADES = {"green": (_GREEN, _GREEN_ALT), "red": (_RED, _RED_ALT)}
 
 
 # --------------------------------------------------------------------------- #
@@ -270,19 +276,44 @@ def _panel_note(ax, text: str, title: str) -> None:
             style="italic", color="#888888", transform=ax.transAxes)
 
 
-def _significant_alpha(row: dict) -> bool:
-    """True when this portfolio's FF3 alpha is significant at the 10% level.
+_ALPHA_SPECS = ("FF3", "FF5")
 
-    The risk-table payload carries `p-value(alpha)` as a PRE-FORMATTED string ("0.04",
-    and "" for the Market row, which has no alpha), so it goes through _num rather than
-    being compared directly. A missing / unparseable p-value is not significant.
+
+def _alpha_shade(row: dict) -> str | None:
+    """Row colour for the risk panel: "green", "red", or None for unshaded.
+
+    Green when EITHER specification's alpha is significant at the 10% level; red instead
+    of green when every alpha present is negative. Red is a substitution inside the
+    shaded set, not a third trigger -- an insignificant negative alpha stays unshaded.
+
+    "Every alpha present" rather than "both": if FF5 was skipped for a leg (a short
+    window where the regression could not run) a negative FF3 alpha should still read
+    red, not fall through to green on a technicality. Mixed signs read green.
+
+    The risk-table payload carries these cells as PRE-FORMATTED strings ("-0.36", and ""
+    for the Market row, which has no alpha), so they go through _num rather than being
+    compared directly. The bare "p-value(alpha)" / "Alpha" fallbacks keep ledger records
+    written before FF5 existed rendering unchanged.
+
+    Note the mirror-pair consequence: complementary designs put High-Low Material and
+    High-Low Immaterial at identical p-values with opposite-signed alphas, so exactly one
+    of the pair goes green and the other red. That is the intent -- the colour now carries
+    the sign of the spread, not just its significance.
     """
-    p = _num(row.get("p-value(alpha)"))
-    return p is not None and p < _ALPHA_SIGNIF_P
+    ps = [_num(row.get(f"p-value(alpha) {spec}")) for spec in _ALPHA_SPECS]
+    if all(p is None for p in ps):
+        ps = [_num(row.get("p-value(alpha)"))]
+    if not any(p is not None and p < _ALPHA_SIGNIF_P for p in ps):
+        return None
+
+    alphas = [a for a in (_num(row.get(f"Alpha {spec}")) for spec in _ALPHA_SPECS) if a is not None]
+    if not alphas:
+        alphas = [a for a in (_num(row.get("Alpha")),) if a is not None]
+    return "red" if alphas and all(a < 0 for a in alphas) else "green"
 
 
 def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
-                 cell_chars=38, highlight=None) -> None:
+                 cell_chars=38, shade=None) -> None:
     ax.axis("off")
     rows = (payload or {}).get("rows") or []
     if not rows:
@@ -331,10 +362,15 @@ def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
     # Cell borders and padding have to come down with the font or they dominate the text
     # and the rows visually merge into a grey block.
     lw = 0.30 if font >= 4.0 else 0.12
-    # Rows the caller wants flagged. Computed once here, then looked up per cell: the
-    # celld loop visits every cell, and re-running the predicate for each column of a
-    # 91-row table would be wasteful.
-    flagged = {i for i, row in enumerate(shown) if highlight and highlight(row)}
+    # Rows the caller wants shaded, and in which colour. Computed once here, then looked
+    # up per cell: the celld loop visits every cell, and re-running the callback for each
+    # column of a 91-row table would be wasteful.
+    shaded: dict[int, tuple[str, str]] = {}
+    if shade is not None:
+        for i, row in enumerate(shown):
+            tag = shade(row)
+            if tag:
+                shaded[i] = _SHADES[tag]
     for (r, _c), cell in tbl.get_celld().items():
         cell.set_linewidth(lw)
         cell.PAD = 0.04 if font >= 4.0 else 0.015
@@ -342,9 +378,10 @@ def _table_panel(ax, payload, title, *, max_rows=_MAX_TABLE_ROWS, drop_cols=(),
         if r == 0:
             cell.set_facecolor("#e8eaf0")
             cell.set_text_props(fontweight="bold")
-        elif (r - 1) in flagged:                 # data row r maps to shown[r-1]
-            # Two greens so the zebra striping still reads underneath the highlight.
-            cell.set_facecolor(_GREEN_ALT if r % 2 == 0 else _GREEN)
+        elif (r - 1) in shaded:                  # data row r maps to shown[r-1]
+            # Two shades per colour so the zebra striping still reads underneath.
+            base, alt = shaded[r - 1]
+            cell.set_facecolor(alt if r % 2 == 0 else base)
         elif r % 2 == 0:
             cell.set_facecolor("#f7f7f9")
 
@@ -460,14 +497,15 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
         plt.close(fig)
         return
 
-    gs = GridSpec(4, 2, figure=fig, hspace=0.30, wspace=0.10,
+    gs = GridSpec(5, 2, figure=fig, hspace=0.30, wspace=0.10,
                   left=0.025, right=0.985, top=0.935, bottom=0.025,
-                  height_ratios=[1.15, 1.0, 1.0, 0.75])
+                  height_ratios=[1.15, 1.0, 1.0, 1.0, 0.70])
     slots = {
         "signal_breakdown": gs[0, 0], "parameters": gs[0, 1],
         "risk": gs[1, 0], "cumulative": gs[1, 1],
-        "spreads": gs[2, 0], "rolling40": gs[2, 1],
-        "coverage": gs[3, :],
+        "spreads": gs[2, 0], "rolling24": gs[2, 1],
+        "ff5": gs[3, 0], "rolling24_ff5": gs[3, 1],
+        "coverage": gs[4, :],
     }
 
     payloads = record.get("payloads") or {}
@@ -511,11 +549,13 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
         if slug in _LINE_SLUGS:
             _lines_panel(ax, payload, panel_title)
         elif slug == "risk":
-            # Green rows = alpha significant at the 10% level, so a page worth a second
-            # look is identifiable while flicking through the sweep.
-            _table_panel(ax, payload, f"{panel_title}   (green: p-value(alpha) < "
-                                      f"{_ALPHA_SIGNIF_P:g})",
-                         highlight=_significant_alpha)
+            # Shaded rows = alpha significant at the 10% level in FF3 or FF5, so a page
+            # worth a second look is identifiable while flicking through the sweep. Red
+            # rather than green when the alphas are negative.
+            _table_panel(ax, payload,
+                         f"{panel_title}   (green: alpha significant at "
+                         f"{_ALPHA_SIGNIF_P:g} in FF3 or FF5; red: significant and negative)",
+                         shade=_alpha_shade)
         else:
             _table_panel(ax, payload, panel_title)
 
@@ -580,8 +620,12 @@ def _row_for(record: dict, page_num: int) -> dict:
         label = r.get("index") or r.get("portfolio")
         if not label:
             continue
-        row[f"alpha__{label}"] = _num(r.get("Alpha"))
-        row[f"pval__{label}"] = _num(r.get("p-value(alpha)"))
+        # Four columns per portfolio: both specifications. The bare "Alpha" /
+        # "p-value(alpha)" fallbacks keep ledger records written before FF5 exporting.
+        row[f"alpha__{label}"] = _num(r.get("Alpha FF3", r.get("Alpha")))
+        row[f"pval__{label}"] = _num(r.get("p-value(alpha) FF3", r.get("p-value(alpha)")))
+        row[f"alpha_ff5__{label}"] = _num(r.get("Alpha FF5"))
+        row[f"pval_ff5__{label}"] = _num(r.get("p-value(alpha) FF5"))
 
     for r in (payloads.get("coverage") or {}).get("rows") or []:
         label = r.get("label")
@@ -618,7 +662,9 @@ def _rows_and_cols(ledger_path: str | Path) -> tuple[list[dict], list[str]]:
         for k in r:
             if k in _LEAD_COLS or k in ("cfg_json", "error"):
                 continue
-            bucket = risk_cols if k.startswith(("alpha__", "pval__", "coverage_pct__")) else param_cols
+            bucket = risk_cols if k.startswith(
+                ("alpha__", "pval__", "alpha_ff5__", "pval_ff5__", "coverage_pct__")
+            ) else param_cols
             if k not in bucket:
                 bucket.append(k)
 

@@ -18,7 +18,9 @@ import pandas as pd
 from parity.compare import _compare_frame
 
 ROOT = Path(__file__).resolve().parent / "artifacts"
-HEADLINE = ["risk_table", "cumulative_table", "ff3_parts_df"]
+# risk_table / cumulative_table are no longer exported as parquet (see run.py
+# _MERGED_EXPORTS) -- they are formatted display tables, reachable on the dashboard.
+HEADLINE = ["ff3_parts_df", "ff5_parts_df"]
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", 40)

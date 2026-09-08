@@ -25,6 +25,8 @@ _ESG_TAG = {
 }
 
 
+
+
 # --------------------------------------------------------------------------- #
 # Config derivation (mirrors Main.ipynb cells 2, 8, 11)
 # --------------------------------------------------------------------------- #
@@ -52,7 +54,7 @@ def build_cfg(**overrides) -> dict:
         # returns still bias the surviving names' tails. See
         # functions/data_functions/get_data.py::_apply_security_status.
         security_status="all_firms_even_delisted", #all_firms_even_delisted
-        no_simple_quantiles=7,
+        no_simple_quantiles=5,
         # How a firm sitting exactly ON a quantile cutpoint is bucketed.
         #   "half_open" (frozen behaviour): buckets are (q_{i-1}, q_i] -- a tie block on a
         #       cutpoint goes wholly to the bucket BELOW it. Because bucket 1 has no lower
@@ -77,7 +79,7 @@ def build_cfg(**overrides) -> dict:
         #       on it. See functions/portfolio_strategy_design/cap_weights.py.
         # Note this re-caps EVERY month, which is stricter than MSCI/S&P, who cap at
         # rebalance dates and let weights drift with prices in between.
-        portfolio_weighting="equal",
+        portfolio_weighting="mktcap",
         # Single-name ceiling for portfolio_weighting="mktcap"; ignored under "equal".
         # 1.0 means no effective cap (plain value weighting). Where `n * cap <= 1` no weight
         # vector can satisfy both the budget and the ceiling -- 10 names or fewer at 10% --
@@ -87,7 +89,6 @@ def build_cfg(**overrides) -> dict:
         # fabricated 0% month rather than being skipped. Equal weighting is not gated -- it
         # has no ceiling to violate.
         max_portfolio_weight_if_portfolio_weighting_equal = 0.10,
-        ff_factors_number=3,
         esg_choice="none",
         esg_full_universe=False,
         show_esg_corr_matricies=False,
@@ -124,7 +125,7 @@ def build_cfg(**overrides) -> dict:
         # Only signal_type="per_revenue" consumes it; otherwise it just rides along.
         add_sales=False,
         sales_path="data/sales_all_regions.csv",
-        alpha_bound=0.1,
+        alpha_bound=0.05,
         # Winsorise each signal_i within its rfyear: values above the (1 - p) quantile are
         # CAPPED at it and values below p are FLOORED at it. 0.0 = off (the default, so
         # every existing config is bit-identical).

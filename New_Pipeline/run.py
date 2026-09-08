@@ -29,36 +29,60 @@ from New_Pipeline._common import store
 from New_Pipeline.experiments import EXPERIMENTS
 from New_Pipeline.registry import register_processes
 
-# The merged build_analyse_portfolios node is the SINGLE source of every parity artifact
-# (ff3_parts_df / cumulative_table / risk_table / constituents_* / holdings_over_time).
+# The merged build_analyse_portfolios node is the SINGLE source of every exported artifact.
 # We split them out of its pickle bundle to preserve the on-disk artifact layout used by
 # parity.compare / parity.show — no numbers change, only where they come from.
+#
+# Deliberately kept small: this used to also export cumulative_table / risk_table /
+# constituents_* / holdings_over_time / the thin-portfolio-gate and weight-diagnostic
+# frames, but nobody read those off disk -- dashboard.md and manifest.json already carry
+# everything they summarise, straight from the nodes that produce them, independent of
+# what gets exported here. Trimming this list only stops writing loose parquet files; it
+# does not stop any node from running.
 _MERGED_NODE = "build_analyse_portfolios"
 # {bundle key: index-column name for pd_to_pl, or None for a plain .to_parquet()}
 _MERGED_EXPORTS = {
     "ff3_parts_df": "metric",
-    "cumulative_table": "portfolio",
-    "risk_table": "portfolio",
-    "constituents_Industry": None,
-    "constituents_loc": None,
-    "holdings_over_time": None,
-    # Thin-portfolio gate audit. New filenames, so parity.compare lists them under
-    # "(only in new: ...)" -- informational, it cannot fail on them.
-    "portfolio_coverage": None,
-    "portfolio_gate_summary": None,
-    # Per bucket-month concentration under portfolio_weighting="mktcap"; the frame is empty
-    # on the equal-weight path, and .get() below skips a frame a config does not produce.
-    "portfolio_weight_diagnostics": None,
-    "portfolio_weight_summary": None,
-    "portfolio_top_holding": None,
+    "ff5_parts_df": "metric",
+    # Raw monthly returns behind cumulative_table (this frame IS what
+    # StrategyPerformance.cumulative_performance_table compounds, via (1+r).cumprod()), and
+    # its rf-adjusted twin -- the exact input to the FF3 alpha regressions for every
+    # High/Low/High-Low/Market/Sample column (see functions/portfolio_metrics/fama_french.py
+    # and 07_build_analyse_portfolios.py's rf-subtraction into `signal_quantiles`). The two
+    # agree exactly on every "High - Low <signal>" column, since rf cancels in the spread;
+    # they differ by the risk-free rate on the individual "High <signal>"/"Low <signal>"
+    # legs. Both date-indexed, not portfolio-indexed like ff3_parts_df above -- pd_to_pl's
+    # index_name is documented to handle a DatetimeIndex the same way (boundary.py), so
+    # "date" is correct here.
+    "table_returns": "date",
+    "table_excess": "date",
 }
 
 
 def _export(outputs: dict, target: Path) -> list[str]:
-    """Write every output artifact under ``target``; return the artifact names."""
-    from New_Pipeline.boundary import PICKLE_COL, SENTINEL_COL, pd_to_pl, unpack_obj
+    """Write every output artifact under ``target``; return the artifact names.
+
+    Only the ``_MERGED_EXPORTS`` frames are written -- the per-audit-node dumps
+    (esg_signal_corr / esg_coverage / mktcap_filter_audit / sample_funnel_audit /
+    sort_cutpoint_audit / geography_audit) used to each spill every key of their own
+    bundle as a loose parquet file here. Those nodes still run as part of the pipeline
+    and still feed dashboard.md / manifest.json's audit_stats directly -- this only
+    stopped writing their bundles to disk a second time as files nobody was opening.
+    """
+    from New_Pipeline.boundary import pd_to_pl, unpack_obj
 
     target.mkdir(parents=True, exist_ok=True)
+    # This function only ever ADDS files for keys it currently produces -- it never removes
+    # a stale one left behind by an EARLIER _MERGED_EXPORTS (or an earlier version of this
+    # code, before a key was dropped). Harmless for runs/<ts>_<name>/, a fresh directory
+    # every call, but `target` is also the "latest" snapshot dir (parity/artifacts/new/<name>/,
+    # any sweep's artifacts/<name>/) that gets REUSED across repeated runs of the same named
+    # config -- the module docstring already promises that one is "overwritten each run", so
+    # make that literal: wipe old parquet output before writing this run's. parity/compare.py
+    # and parity/show.py both glob *.parquet fresh on every call rather than trusting a fixed
+    # list, so this cannot orphan anything either of them reads.
+    for stale in target.glob("*.parquet"):
+        stale.unlink()
     written: list[str] = []
 
     merged = outputs.get(_MERGED_NODE)
@@ -74,20 +98,6 @@ def _export(outputs: dict, target: Path) -> list[str]:
                 pd_to_pl(frame, index_name=index_name).write_parquet(target / f"{fname}.parquet")
             written.append(fname)
 
-    # Diagnostic nodes: every key of their bundle is written as <key>.parquet. These are
-    # not notebook artifacts, so parity.compare lists them under "(only in new: ...)" —
-    # informational, it diffs only the set-intersection and cannot fail on them.
-    for node in ("esg_signal_corr", "esg_coverage", "mktcap_filter_audit",
-                 "sample_funnel_audit", "sort_cutpoint_audit", "geography_audit"):
-        df = outputs.get(node)
-        if df is None or SENTINEL_COL in df.columns or PICKLE_COL not in df.columns:
-            continue
-        for k, frame in unpack_obj(df).items():
-            if frame is not None:
-                f = frame.reset_index()
-                f.columns = [str(c) for c in f.columns]
-                f.to_parquet(target / f"{k}.parquet")
-                written.append(k)
     return written
 
 

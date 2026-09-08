@@ -37,8 +37,13 @@ class StrategyPerformance:
 
     HORIZON_COLUMNS = ["1m", "3m", "YTD", "1yr", "3yr", "5yr", "10yr", "Since launch"]
 
+    # Alpha specifications reported in the risk table, in column order. Both stat frames
+    # use the same row labels ("alpha", "p-value(alpha)"), so one loop serves both.
+    ALPHA_SPECS = ("FF3", "FF5")
+
     def __init__(self, portfolio_returns: pd.DataFrame, ff3_parts_df: pd.DataFrame | None = None,
-                 excess_returns: pd.DataFrame | None = None):
+                 excess_returns: pd.DataFrame | None = None,
+                 ff5_parts_df: pd.DataFrame | None = None):
         df = portfolio_returns.copy()
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
@@ -48,6 +53,7 @@ class StrategyPerformance:
         # Excess returns (r - rf); used ONLY for the Sharpe ratio. Other metrics use total returns.
         self.excess_returns = excess_returns.reindex(df.index) if isinstance(excess_returns, pd.DataFrame) else None
         self.ff3_parts_df = ff3_parts_df.copy() if isinstance(ff3_parts_df, pd.DataFrame) else None
+        self.ff5_parts_df = ff5_parts_df.copy() if isinstance(ff5_parts_df, pd.DataFrame) else None
 
     def cumulative_performance_table(
         self,
@@ -184,25 +190,32 @@ class StrategyPerformance:
             drawdown = wealth / wealth.cummax() - 1.0
             metrics.loc[col, "Max Drawdown"] = float(drawdown.min())
 
-        # Optional: add FF3 alpha + p-value(alpha) for matching strategy columns
-        if self.ff3_parts_df is not None:
-            ff3 = self.ff3_parts_df
-            if "alpha" in ff3.index and "p-value(alpha)" in ff3.index:
-                common = metrics.index.intersection(ff3.columns)
+        # Optional: add each specification's alpha + p-value(alpha) for matching strategy
+        # columns. Rows with no column in a stat frame (Market, and Sample when it was not
+        # regressed) fall outside the intersection and stay NaN -> rendered blank.
+        _parts = {"FF3": self.ff3_parts_df, "FF5": self.ff5_parts_df}
+        for suffix in self.ALPHA_SPECS:
+            parts = _parts[suffix]
+            if parts is None:
+                continue
+            if "alpha" in parts.index and "p-value(alpha)" in parts.index:
+                common = metrics.index.intersection(parts.columns)
                 if len(common) > 0:
-                    metrics["Alpha"] = np.nan
-                    metrics["p-value(alpha)"] = np.nan
-                    metrics.loc[common, "Alpha"] = ff3.loc["alpha", common].astype(float)
-                    metrics.loc[common, "p-value(alpha)"] = ff3.loc["p-value(alpha)", common].astype(float)
+                    metrics[f"Alpha {suffix}"] = np.nan
+                    metrics[f"p-value(alpha) {suffix}"] = np.nan
+                    metrics.loc[common, f"Alpha {suffix}"] = parts.loc["alpha", common].astype(float)
+                    metrics.loc[common, f"p-value(alpha) {suffix}"] = (
+                        parts.loc["p-value(alpha)", common].astype(float)
+                    )
 
         formatted = pd.DataFrame(index=metrics.index)
         formatted["Sharpe"] = metrics["Sharpe"].map(lambda x: _format_num(x, dp=2))
         formatted["VaR 1%"] = metrics["VaR 1%"].map(_format_pct)
         formatted["Max Drawdown"] = metrics["Max Drawdown"].map(_format_pct)
-        if "Alpha" in metrics.columns:
-            formatted["Alpha"] = metrics["Alpha"].map(lambda x: _format_num(x, dp=2))
-        if "p-value(alpha)" in metrics.columns:
-            formatted["p-value(alpha)"] = metrics["p-value(alpha)"].map(lambda x: _format_num(x, dp=2))
+        for suffix in self.ALPHA_SPECS:
+            for stem in (f"Alpha {suffix}", f"p-value(alpha) {suffix}"):
+                if stem in metrics.columns:
+                    formatted[stem] = metrics[stem].map(lambda x: _format_num(x, dp=2))
 
         path = Path(csv_path)
         path.parent.mkdir(parents=True, exist_ok=True)

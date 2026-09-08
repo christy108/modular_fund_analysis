@@ -175,7 +175,6 @@ RUN_PARAM_NAMES = [
     "start_year",
     "end_year",
     "no_simple_quantiles",
-    "ff_factors_number",
     "signal_denominator",
     # --- Thresholds & filters ---
     "alpha_bound",

@@ -264,7 +264,8 @@ Every `python -m New_Pipeline.run <config>` writes to **two** places
 
 ```
 runs/<UTC-timestamp>_<config>/      NEW folder per run, never overwritten
-    risk_table.parquet, cumulative_table.parquet, ff3_parts_df.parquet,
+    ff3_parts_df.parquet, ff5_parts_df.parquet,   both alpha specifications, side by side
+    table_returns.parquet, table_excess.parquet,  the regression inputs
     constituents_Industry.parquet, constituents_loc.parquet, holdings_over_time.parquet
     manifest.json                   structured, for machines
     manifest.md                     narrative, for humans

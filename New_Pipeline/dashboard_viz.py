@@ -843,7 +843,6 @@ _PARAM_DOCS: dict[str, str] = {
     "quantile_interval_bounds": "How a firm sitting exactly ON a cutpoint is bucketed. 'half_open' (frozen) sends a tie block to the bucket below; 'closed' gives it to both adjacent buckets, making complementary-signal mirrors exact at the cost of the buckets no longer partitioning the universe.",
     "portfolio_weighting": "How each bucket's return is weighted across holdings. 'equal' (frozen) gives every name 1/n; 'mktcap' weights by last_mktcap at the formation month, capped per name at max_portfolio_weight_if_portfolio_weighting_equal.",
     "max_portfolio_weight_if_portfolio_weighting_equal": "Single-name ceiling under portfolio_weighting='mktcap' (0.10 = 10%); ignored under 'equal'. Excess is redistributed pro-rata by market cap and re-checked, iteratively. Where n x cap <= 1 no capped vector exists and the bucket falls back to equal weight.",
-    "ff_factors_number": "Factors in the alpha regression (3 = Mkt-RF, SMB, HML).",
     # ---- cell 2: ESG provider ----------------------------------------------
     "esg_choice": "ESG provider merged into the universe: none / refinitiv / msci / s&p. Also picks which Process runs at merge_esg_provider.",
     "esg_full_universe": "Sort the whole ESG universe on the provider score alone, with no LC signals. Requires a provider.",
@@ -892,7 +891,7 @@ _PARAM_DOCS: dict[str, str] = {
     "area_material_initatives_plots_per_signal_to_PDF": "Gate for the material-initiative decomposition in build_analyse_portfolios: the computation, these widgets AND the run's initiative_decomposition.pdf. Bands split the SIGNAL'S NUMERATOR (what signal_0 counted), not all 17 SDGs. Off by default -- it is the most expensive audit here.",
     "include_all_signals_in_cum_risk_table": "Include every signal in the cumulative / risk tables. Provenance only -- not read by any node.",
     # ---- derived: region block (cell 2 if/elif) ----------------------------
-    "fama_factor_region": "Derived from region_analysis: which FF factor file to load.",
+    "fama_factor_region": "Derived from region_analysis: which FF factor files to load. BOTH are loaded per run -- *_3_Factors.csv for FF3 and *_5_Factors.csv for FF5 -- so every run reports both alpha specifications.",
     "currency_filter": "Derived from region_analysis: currencies kept in the universe.",
     "convert_to_USD": "Derived from region_analysis: whether returns and caps are converted to USD.",
     "region_filter": "Derived from region_analysis: Compustat region names kept.",

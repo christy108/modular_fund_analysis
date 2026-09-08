@@ -122,17 +122,22 @@ EXPLICIT: list[dict] = [
 # An entry in GRID/EXPLICIT wins over FIXED for the same key.
 # --------------------------------------------------------------------------- #
 FIXED: dict = {
-    # ---- the one requested knob that is NOT at its baseline ---------------- #
-    # Percentile trim on sum_activities (the firm-year's total initiative count), applied
-    # per tail. The baseline is 0.1; 0.05 halves the trim, so LESS of the sample is
-    # dropped. Requested at 0.05 for all six runs, so it is FIXED rather than swept, and
-    # it reaches the cfg diff -- it appears in every run name and page title.
-    "alpha_bound": 0.05,
-
-    # ---- everything below already EQUALS the build_cfg baseline ------------ #
+    # ---- everything here EQUALS the build_cfg baseline -------------------- #
     # None of it reaches the cfg diff, so none of it pollutes a run name. Pinned anyway:
     # this file is the record of what the sweep was, and "it inherited whatever
     # experiments.py said that week" is not a record.
+    #
+    # That cuts both ways: a pin OVERRIDES the baseline, so when experiments.py moves,
+    # a pin left behind silently freezes the sweep at the old value. That happened here
+    # -- portfolio_weighting was pinned "equal" while the baseline moved to "mktcap",
+    # which would have run all six cells equal-weighted. Re-check this block against
+    # build_cfg() before launching, not after.
+
+    # Percentile trim on sum_activities (the firm-year's total initiative count), applied
+    # per tail, requested at 0.05 for all six runs. This USED to be a non-baseline value
+    # that showed up in every run name; the baseline is now 0.05 too, so it no longer
+    # reaches the cfg diff and no longer appears in any name.
+    "alpha_bound": 0.05,
 
     # THE REGION. Drives currency_filter=["USD"], region_filter=["United States and
     # Canada"], convert_to_USD=False and fama_factor_region="United_States" via the region
@@ -157,12 +162,19 @@ FIXED: dict = {
     # knob therefore has NO EFFECT in this sweep at any value.
     "execute_3_filters": "suspicious_only",
 
-    # Equal weighting: every holding gets 1/n. Pinned explicitly because the cap-weighted
-    # path (portfolio_weighting="mktcap" +
-    # max_portfolio_weight_if_portfolio_weighting_equal) now exists and is a live choice --
-    # "base parameters" means equal weight, and that should be on the record rather than
-    # inferred from the baseline dict.
-    "portfolio_weighting": "equal",
+    # CAP weighting: each holding gets its share of bucket market cap, with a single-name
+    # ceiling of max_portfolio_weight_if_portfolio_weighting_equal (baseline 0.10 = 10%),
+    # excess redistributed pro-rata and re-checked iteratively. This is the baseline as of
+    # 2026-09-08 and is deliberate, so "base parameters" now means cap-weighted, not
+    # equal-weighted. Pinned explicitly to keep it on the record.
+    # CONSEQUENCE for the short window: under cap weighting a bucket where n * cap <= 1
+    # (10 names or fewer at a 10% cap) has NO feasible weight vector, so the bucket-month
+    # is DISCARDED as NaN -- and a NaN return is booked by (1+r).cumprod() as a fabricated
+    # 0% month, which feeds the thin-portfolio gate. On 2016-2019 that is a second way for
+    # a leg to vanish from a page, on top of the full-sample-calibrated gate itself. Check
+    # n_months_discarded_infeasible in the coverage panel before reading an absence.
+    # Set to "equal" to go back to 1/n; the ceiling knob is then ignored.
+    "portfolio_weighting": "mktcap",
 
     # The market-cap screen and the thin-portfolio gate, both at baseline. See the window
     # note in the header block: the gate is calibrated on the full sample, so it is the

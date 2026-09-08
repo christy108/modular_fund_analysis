@@ -37,6 +37,11 @@ def _ff3_rows(df) -> int:
     return int(len(unpack_obj(df)["ff3_parts_df"]))
 
 
+def _ff5_rows(df) -> int:
+    """Statistic: FF5 statistic rows carried in the bundle."""
+    return int(len(unpack_obj(df)["ff5_parts_df"]))
+
+
 def _rolling_rows(df) -> int:
     """Statistic: rolling-alpha observations carried in the bundle."""
     return int(len(unpack_obj(df)["rolling_alphas"]))
@@ -175,14 +180,28 @@ def _ff3_table(bundle):
     return df.drop(columns=[c for c in df.columns if c in d]) if d else df
 
 
-def _rolling_plot(window: int):
-    """Build a multi-line rolling-alpha PLOT extractor: one line per portfolio label."""
+def _ff5_table(bundle):
+    """FF5 regression table (metric x portfolio)."""
+    df = bundle["ff5_parts_df"]
+    d = _dropped(bundle)
+    return df.drop(columns=[c for c in df.columns if c in d]) if d else df
+
+
+def _rolling_plot(window: int, spec: str = "FF3"):
+    """Build a multi-line rolling-alpha PLOT extractor: one line per portfolio label.
+
+    `spec` selects the factor model ("FF3" / "FF5"). Bundles written before FF5 existed
+    have no `spec` column at all; those rows are FF3 by construction, so a missing column
+    is filled with "FF3" rather than filtered to nothing.
+    """
 
     def extract(bundle) -> list[dict]:
         import pandas as pd
 
         df = bundle["rolling_alphas"]
-        sub = df[(df["window"] == window) & (~df["label"].isin(_dropped(bundle)))]
+        _spec = df["spec"] if "spec" in df.columns else pd.Series("FF3", index=df.index)
+        sub = df[(df["window"] == window) & (_spec == spec)
+                 & (~df["label"].isin(_dropped(bundle)))]
         series: list[dict] = []
         for label, group in sub.groupby("label", sort=False):
             group = group.sort_values("date")
@@ -509,18 +528,28 @@ Which signals/legs are analysed (and any ESG leg) comes from cfg; how the tables
 to the Process. cumulative_table and risk_table are formatted exactly as the notebook's tables.
 
 Mandatory measures (enforced by schema / audits):
-- output bundles every downstream artifact: ff3_parts_df, rolling_alphas, cumulative_table,
-  risk_table, constituents_Industry (and constituents_loc outside esg_full_universe),
-  holdings_over_time
+- output bundles every downstream artifact: ff3_parts_df, ff5_parts_df, rolling_alphas,
+  cumulative_table, risk_table, constituents_Industry (and constituents_loc outside
+  esg_full_universe), holdings_over_time
 - cumulative_table and risk_table share the same portfolio row keys (the Process raises otherwise)
-- Alpha/p-value(alpha) appear only for portfolios present in ff3_parts_df
+- ff3_parts_df and ff5_parts_df carry the same portfolio columns in the same order (the
+  Process raises otherwise), since the risk table joins both by column label
+- Alpha FF3/FF5 and their p-values appear only for portfolios present in the matching
+  level table -- Market has no column in either, so its alpha cells stay blank
 - constituent counts are non-negative integers per (date, portfolio, category_value)
 
-Surfaces: FF3 statistic rows and rolling-alpha row counts (``BarComparisonViz``); the
-Fama-French 3-factor table (``BundleTableViz``); rolling-alpha plots per window
-(``BundleMultiSeriesViz``); cumulative-return plots for long portfolios and High-Low spreads
-(``BundleMultiSeriesViz``); the cumulative-returns and risk-metrics tables (``BundleTableViz``);
-number of stocks in the portfolio over time (``BundleSeriesViz``).
+Both specifications are reported side by side and each is estimated from its OWN factor
+file: FF3 from *_3_Factors.csv, FF5 from *_5_Factors.csv. FF5's mktrf/smb/hml are NOT
+FF3's -- Ken French's FF5 SMB comes from the size x profitability and size x investment
+sorts too, so the two size series genuinely differ. rolling_alphas holds both, keyed by a
+``spec`` column, for windows 40 and 24.
+
+Surfaces: FF3 and FF5 statistic rows and rolling-alpha row counts (``BarComparisonViz``);
+the Fama-French 3-factor and 5-factor tables (``BundleTableViz``); rolling FF3 and FF5
+alpha plots, 24-month window (``BundleMultiSeriesViz`` -- the 40-month alphas are computed
+and bundled but not rendered); cumulative-return plots for long portfolios and High-Low
+spreads (``BundleMultiSeriesViz``); the cumulative-returns and risk-metrics tables
+(``BundleTableViz``); number of stocks in the portfolio over time (``BundleSeriesViz``).
 
 Also applies a thin-portfolio gate, reported just above that stock-count chart: for each High
 (``p_K``) and Low (``p_1``) leg, the share of formation months in which it holds at least
@@ -564,6 +593,8 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
     audits=[
         BarComparisonViz(statistic="ff3_rows", title="FF3 statistic rows",
                          custom={"ff3_rows": _ff3_rows}),
+        BarComparisonViz(statistic="ff5_rows", title="FF5 statistic rows",
+                         custom={"ff5_rows": _ff5_rows}),
         BarComparisonViz(statistic="rolling_rows", title="Rolling-alpha rows",
                          custom={"rolling_rows": _rolling_rows}),
         # Explicit keys: BundleTableViz's default key collapses to the literal "table:"
@@ -572,10 +603,14 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
         # dashboard's per-node audit_stats dict — only the last one computed survives
         # and gets shown under every colliding widget.
         BundleTableViz(_ff3_table, title="Fama-French 3-factor table", n=50, key="table:ff3_parts_df"),
-        BundleMultiSeriesViz(_rolling_plot(40), title="Rolling alpha — 40-month window",
-                             key="lines:rolling_alpha_40"),
-        BundleMultiSeriesViz(_rolling_plot(24), title="Rolling alpha — 24-month window",
+        BundleTableViz(_ff5_table, title="Fama-French 5-factor table", n=50, key="table:ff5_parts_df"),
+        # 24-month window only. The 40-month alphas are still computed and still in the
+        # bundle and the exported frame -- they are simply not rendered; re-adding a chart
+        # is one entry here with _rolling_plot(40, ...).
+        BundleMultiSeriesViz(_rolling_plot(24, "FF3"), title="Rolling FF3 alpha — 24-month window",
                              key="lines:rolling_alpha_24"),
+        BundleMultiSeriesViz(_rolling_plot(24, "FF5"), title="Rolling FF5 alpha — 24-month window",
+                             key="lines:rolling_ff5_alpha_24"),
         BundleMultiSeriesViz(_long_cumulative_series, title="Cumulative returns — long portfolios",
                              key="lines:cumulative_long"),
         BundleMultiSeriesViz(_spread_cumulative_series, title="Cumulative returns — High-Low spreads",
@@ -728,7 +763,11 @@ def build_analyse_portfolios_v1(prep, cfg):
     import pandas as pd
 
     from functions.functions import low_high, set_first_row_to_zero
-    from functions.portfolio_metrics.fama_french import ff3_regressions, rolling_ff_alphas
+    from functions.portfolio_metrics.fama_french import (
+        ff3_regressions,
+        ff5_regressions,
+        rolling_ff_alphas,
+    )
     from functions.portfolio_metrics.Portfolio_Constituents import PortfolioConstituents
     from functions.portfolio_metrics.Strategy_Perfomance import StrategyPerformance
     from functions.portfolio_strategy_design.Univariate_Portfolio import (
@@ -743,6 +782,7 @@ def build_analyse_portfolios_v1(prep, cfg):
     signals = P["signals"]
     signal_names = P["signal_names"]
     fama_french = P["fama_french"]
+    fama_french_5 = P["fama_french_5"]
 
     K = C["no_simple_quantiles"]
 
@@ -1064,22 +1104,42 @@ def build_analyse_portfolios_v1(prep, cfg):
     _bucket_to_col = {"high": f"p_{K}", "low": "p_1"}
     _bucket_to_prefix = {"high": "High", "low": "Low"}
 
-    # ---- cell 48: level FF3 statistics (ff3_parts_df) -------------------- #
-    ff3_parts = [
-        low_high(
-            ff3_regressions(signal_quantiles[col], fama_french.reset_index(drop=True)),
-            signal_names[col],
-        )
-        for col in signal_quantiles
-    ]
-    take_high_minus_low = True
-    if take_high_minus_low:
+    # ---- cell 48: level factor statistics (FF3 and FF5) ------------------ #
+    # One builder, two specifications. Each is estimated from its OWN factor frame:
+    # FF5's mktrf/smb/hml come from the 5-factor file, not the 3-factor one, because
+    # Ken French's FF5 SMB is a different series (built from the size x profitability
+    # and size x investment sorts as well). reset_index(drop=True) is what makes the
+    # positional .values alignment inside the regressions line up.
+    def _level_parts(regress, ff):
+        parts = [
+            low_high(regress(signal_quantiles[col], ff.reset_index(drop=True)), signal_names[col])
+            for col in signal_quantiles
+        ]
         for _label, _df in spread_signals.items():
-            ff3_parts.append(ff3_regressions(_df, fama_french.reset_index(drop=True)))
-    if C["show_sample_portfolio"]:
-        ff3_parts.append(ff3_regressions(Excess_returns_sample, fama_french.reset_index(drop=True)))
-    ff3_parts_df = pd.concat(ff3_parts, axis=1).round(2)
+            parts.append(regress(_df, ff.reset_index(drop=True)))
+        if C["show_sample_portfolio"]:
+            parts.append(regress(Excess_returns_sample, ff.reset_index(drop=True)))
+        return pd.concat(parts, axis=1).round(2)
+
+    ff3_parts_df = _level_parts(ff3_regressions, fama_french)
+    ff5_parts_df = _level_parts(ff5_regressions, fama_french_5)
+
+    # The risk table joins BOTH stat frames to its rows by column label, so a divergence
+    # in columns or their order would silently mis-pair alphas with portfolios.
+    if list(ff5_parts_df.columns) != list(ff3_parts_df.columns):
+        raise ValueError(
+            "FF3 and FF5 level tables describe different portfolios: "
+            f"ff3={list(ff3_parts_df.columns)} ff5={list(ff5_parts_df.columns)}"
+        )
+    # An all-NaN RMW/CMA block means FF5 regressed on nothing -- e.g. the factor frame
+    # arrived without those columns and every fit silently degenerated.
+    if ff5_parts_df.loc[["beta_rmw", "beta_cma"]].isna().all().all():
+        raise ValueError(
+            "FF5 regressions produced no RMW/CMA loadings at all -- the FF5 factor frame "
+            "is empty or missing rmw/cma. Check node 05 loaded a *_5_Factors.csv."
+        )
     print(ff3_parts_df.head())
+    print(ff5_parts_df.head())
 
     # ---- cell 43: rolling alphas (windows 40 and 24) --------------------- #
     rolling_alpha_selection = base_analysis_selection
@@ -1102,25 +1162,31 @@ def build_analyse_portfolios_v1(prep, cfg):
         rolling_signals_arg.append({"label": "Sample", "returns": Excess_returns_sample, "alpha_column": "Sample"})
     for _label, _df in spread_signals.items():
         rolling_signals_arg.append({"label": _label, "returns": _df, "alpha_column": _label})
-    n_factors = C["ff_factors_number"]
-    w40 = None
-    try:
-        w40 = rolling_ff_alphas(signals=rolling_signals_arg, fama_french=fama_french, window_size=40, n_factors=n_factors)
-    except Exception as e:  # matches notebook's guarded call
-        print(f"Error in rolling_ff_alphas: {e}")
-    w24 = rolling_ff_alphas(signals=rolling_signals_arg, fama_french=fama_french, window_size=24, n_factors=n_factors)
+    # Both specifications across both windows, in ONE long frame distinguished by `spec`
+    # -- the extractors already filter on `window`, so a second column is the whole cost.
+    # Every call is guarded (the 24-month one was not, before): window_size > len(returns)
+    # raises, and a short-sample run is exactly where that bites. FF5 also fits 6
+    # parameters, so a 24-month window leaves only 18 residual degrees of freedom.
     _rolling_frames = []
-    for _window, _dic in [(40, w40), (24, w24)]:
-        if _dic is None:
-            continue
-        for _label, _s in _dic.items():
-            _d = _s.reset_index()
-            _d.columns = ["date", "alpha"]
-            _d["label"] = _label
-            _d["window"] = _window
-            _rolling_frames.append(_d)
+    for _spec, _ff, _nf in (("FF3", fama_french, 3), ("FF5", fama_french_5, 5)):
+        for _window in (40, 24):
+            try:
+                _dic = rolling_ff_alphas(
+                    signals=rolling_signals_arg, fama_french=_ff,
+                    window_size=_window, n_factors=_nf,
+                )
+            except Exception as e:  # matches notebook's guarded call
+                print(f"Error in rolling_ff_alphas(spec={_spec}, window={_window}): {e}")
+                continue
+            for _label, _s in _dic.items():
+                _d = _s.reset_index()
+                _d.columns = ["date", "alpha"]
+                _d["label"] = _label
+                _d["window"] = _window
+                _d["spec"] = _spec
+                _rolling_frames.append(_d)
     rolling_alphas_long = pd.concat(_rolling_frames, axis=0, ignore_index=True) if _rolling_frames else pd.DataFrame(
-        columns=["date", "alpha", "label", "window"]
+        columns=["date", "alpha", "label", "window", "spec"]
     )
 
     # ---- cell 51: include-all cumulative/risk table inputs --------------- #
@@ -1149,8 +1215,9 @@ def build_analyse_portfolios_v1(prep, cfg):
         _table_excess[_label] = _series
 
     # ---- cell 51 tables: cumulative + risk ------------------------------- #
-    # ff3_parts_df is the level FF3 table computed just above (cell 48).
-    sp = StrategyPerformance(_table_returns, ff3_parts_df=ff3_parts_df, excess_returns=_table_excess)
+    # Both level tables from cell 48; the risk table reports Alpha/p-value per spec.
+    sp = StrategyPerformance(_table_returns, ff3_parts_df=ff3_parts_df,
+                             excess_returns=_table_excess, ff5_parts_df=ff5_parts_df)
     out_dir = Path("./runs/tables")
     cumulative = sp.cumulative_performance_table(csv_path=out_dir / "strategy_cumulative_performance.csv")
     risk = sp.performance_risk_metrics_table(csv_path=out_dir / "strategy_performance_metrics.csv")
@@ -1620,8 +1687,9 @@ def build_analyse_portfolios_v1(prep, cfg):
         "table_returns": _table_returns,
         "table_excess": _table_excess,
         "global_universe": global_universe,
-        # FF3 outputs (formerly ff3_alphas node output)
+        # FF3 / FF5 outputs (formerly ff3_alphas node output)
         "ff3_parts_df": ff3_parts_df,
+        "ff5_parts_df": ff5_parts_df,
         "rolling_alphas": rolling_alphas_long,
         # reporting tables (formerly performance_tables node output)
         "cumulative_table": cumulative,

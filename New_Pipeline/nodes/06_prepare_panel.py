@@ -293,6 +293,7 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     import pandas as pd
 
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
+        align_ff5_to_aligned_ff3,
         prepare_univariate_sorting_inputs,
     )
     from New_Pipeline._common import (
@@ -310,7 +311,9 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     L = unpack_obj(lc)
     guniv = GU["global_universe"]
     lc_df = L["lc"]
-    ff = unpack_obj(fama_french_raw)["fama_french"]
+    _ff_raw = unpack_obj(fama_french_raw)
+    ff = _ff_raw["fama_french"]
+    ff5 = _ff_raw["fama_french_5"]
 
     # cell 26 tail: ensure gvkey is 6 digits for merging (idempotent).
     lc_df["gvkey"] = normalise_gvkeys(lc_df["gvkey"])
@@ -529,6 +532,11 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
         ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,
+        # FF5 aligned onto the SAME index as prep.fama_french, joined on calendar month
+        # rather than positionally -- the ESG path intersects FF months instead of
+        # raising, so a positional assign would be a silent off-by-N there. Its
+        # mktrf/smb/hml are FF5's own, not FF3's; see align_ff5_to_aligned_ff3.
+        "fama_french_5": align_ff5_to_aligned_ff3(ff5, prep.fama_french),
         "sample_descriptives": sample_descriptives,
         "firms_and_initiatives": firms_and_initiatives,
         # Audit-only: geography of the same final sample. Nothing downstream reads these;
@@ -553,6 +561,7 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
 
     from functions.data_functions.get_data import get_gics_by_gvkey
     from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
+        align_ff5_to_aligned_ff3,
         prepare_esg_universe_sorting_inputs,
     )
     from New_Pipeline._common import (
@@ -569,7 +578,9 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
     GU = unpack_obj(global_universe)
     L = unpack_obj(lc)
     guniv = GU["global_universe"]
-    ff = unpack_obj(fama_french_raw)["fama_french"]
+    _ff_raw = unpack_obj(fama_french_raw)
+    ff = _ff_raw["fama_french"]
+    ff5 = _ff_raw["fama_french_5"]
 
     gics_by_gvkey = get_gics_by_gvkey(
         guniv, C["region_analysis"], C["end_year"], download_gics_data=C["download_gics_data"]
@@ -680,6 +691,11 @@ def prepare_esg_universe_v1(global_universe, lc, fama_french_raw, cfg):
         ),
         "signal_df": getattr(prep, "global_long_df", None),
         "fama_french": prep.fama_french,
+        # FF5 aligned onto the SAME index as prep.fama_french, joined on calendar month
+        # rather than positionally -- the ESG path intersects FF months instead of
+        # raising, so a positional assign would be a silent off-by-N there. Its
+        # mktrf/smb/hml are FF5's own, not FF3's; see align_ff5_to_aligned_ff3.
+        "fama_french_5": align_ff5_to_aligned_ff3(ff5, prep.fama_french),
         "sample_descriptives": None,
         "firms_and_initiatives": None,
         # Audit-only geography, populated on this path too (see above).
