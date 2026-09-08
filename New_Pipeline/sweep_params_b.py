@@ -1,282 +1,259 @@
-"""Sweep B -- US sample, MARKET-CAP WEIGHTED portfolios.
-
-Fed to the sweep runner with:
+"""Alternate sweep definition — pure data, no logic. Run with:
 
     python -m New_Pipeline.sweep --params New_Pipeline.sweep_params_b
 
-Same shape as ``New_Pipeline/sweep_parameters.py`` (which stays the default); this file
-exists so B and C can be queued back to back unattended without editing that one between
-runs. Sweep C is the Europe twin -- identical but for the region and the two market-cap
-screen levels.
+Same contract as ``sweep_parameters.py``: every key in ``GRID`` / ``EXPLICIT`` / ``FIXED``
+must be a real ``build_cfg`` knob (baseline dict at ``New_Pipeline/experiments.py:38``),
+and the sweep validates every combination through ``build_cfg(**overrides)`` BEFORE the
+first pipeline run, so a typo raises in the first second rather than forty minutes in.
 
-# --------------------------------------------------------------------------------- #
-# THE POINT OF THIS SWEEP
-# --------------------------------------------------------------------------------- #
-Every result in this project so far is EQUAL weighted: each holding gets 1/n, so a $200m
-firm carries the same money as a $2tn one and the legs are driven by the small end of the
-surviving universe. This sweep re-runs the design space with
-
-    portfolio_weighting = "mktcap"
-    max_portfolio_weight_if_portfolio_weighting_equal = 0.10
-
-i.e. weight by `last_mktcap` at the FORMATION month, with a 10% single-name ceiling
-enforced by the MSCI/S&P iterative rule (pin at the cap, redistribute the remainder
-pro-rata by market cap among the still-free names, repeat). It is pinned in FIXED, so it
-reaches the cfg diff and `portfolio_weighting-mktcap` appears in EVERY run name and page
-title -- which is what makes these pages unmistakable against the equal-weighted ones.
-
-THE ONE THING TO WATCH. Under cap weighting a bucket-month where `n * cap <= 1` -- 10
-names or fewer at a 10% cap -- admits no weight vector at all, and is DISCARDED: no
-return, hence no alpha and no contribution to cumulative performance. Because a NaN return
-is booked by `(1+r).cumprod()` as a fabricated 0% month rather than skipped, the
-thin-portfolio gate then hides that leg ENTIRELY. So a missing leg on a K=5 page is the
-first thing to check in `portfolio_coverage` / `portfolio_gate_summary`, not a result.
-Equal weighting has no ceiling to violate and is never gated this way, so an absence here
-that is present in the equal-weighted sweep is a concentration artefact, not a signal.
-
-Two knobs make that more likely at the same time, and both are swept below: K=5 cuts the
-universe into narrower buckets than K=3, and a TIGHTER market-cap screen
-(mktcap_covered=0.95 keeps fewer, larger listings than 0.99) leaves fewer names to fill
-them. The bottom-left cell of the grid -- K=5 with mcap 0.95 -- is where discards are most
-likely, and the pp_action designs are the thinnest denominators in the set.
-
-# --------------------------------------------------------------------------------- #
-# THE GRID:  (6 designs x 2 alpha x 2 mktcap x 2 K) + a floor axis on 4 of them
-#            = 2*8 + 4*16 = 80 runs
-# --------------------------------------------------------------------------------- #
-alpha_bound          0.1, 0.05    percentile trim per tail on sum_activities; 0.1 is the
-                                  baseline, 0.05 halves the trim so LESS is dropped
-mktcap_covered       0.95, 0.99   share of aggregate market-cap VALUE the screen keeps.
-                                  NOT a count: 0.95 discards ~65% of LISTINGS. 0.99 keeps
-                                  more, smaller ones. 0.95 is the baseline
-no_simple_quantiles  3, 5         buckets per sort. No K=7 cell, as requested
-
-Six signals, all of the form material / (material + immaterial) -- one-group MIRROR pairs,
-so signal_1 = 1 - signal_0 and High on one leg is Low on the other (mirror_pair_summary
-reports it). Read a pair as one test, not two.
-
-  1. All SDGs together       Material_Immaterial_only          all 17 SDGs, all actions
-  2. All People & Prosperity Materiality_People_Plus_Prosperity everything but the Planet
-                                                               SDGs (6,7,12,13,14,15)
-  3-5. Matteo's three actions on that same People+Prosperity cut, one run each. These read
-     `material__<action>__SDG_n` columns instead of `material__total__SDG_n`, so the
-     denominator is strictly thinner than design 2 -- check each run's signal_sparsity
-     audit before trusting its sort. The action names are the workbook's, and
-     `advocacy_old_def` is Matteo's original advocacy (NOT `advocacy_new_def`, which is the
-     behavioural-4 one).
-  6. "Narrow Health"         Materiality_Narrow_Health_SDGS    SDGs 3, 6, 11, all actions
-
-Designs 3-5 are a partition-ish cut of design 2's numerator and 6 overlaps 1 and 2, so
-these six are NOT six independent tests.
-
---------------------------------------------------------------------------------- 
-THE SPLIT FLOOR -- a PER-DESIGN axis, not a global one
---------------------------------------------------------------------------------- 
-`minimum_initatives_needed_to_split_by_materiality` is the minimum number of initiatives
-a firm-year needs inside the group before it is allowed to be split into material and
-immaterial at all. At 0 (the baseline) a firm with a single initiative gets a ratio of
-exactly 1.0 or 0.0, and those degenerate firm-years pile up in the extreme buckets --
-which is precisely what the sort is reading.
-
-It is swept at {0, 3} on designs 3-6 ONLY. That is measured, not assumed: paired
-comparisons on the two earlier sweeps that varied this knob (europe_materiality_12_designs,
-64 pairs; sdg_min_initiatives_x_quantiles, 28 pairs), everything else held fixed, gave a
-median |alpha| move of
-
-    Material_Immaterial_only (design 1)        0.000   <- exactly zero, 8 pairs
-    People + Prosperity      (design 2)        0.015
-    one action within P+P    (designs 3-5)     0.045 - 0.090
-    Narrow / One Health      (design 6)        0.070 - 0.100
-
-i.e. the floor bites exactly where the DENOMINATOR IS THIN and does nothing where it is
-wide -- with all 17 SDGs in play essentially every firm-year already clears 3 initiatives.
-Sweeping it on designs 1-2 would spend a third of the queue re-deriving that.
-
-Floor 5 was NOT included: the only evidence for it is 4 pairs on a single SDG, and every
-step up costs sample on the designs that are already the thinnest here.
-
-WHAT THE EARLIER SWEEPS CANNOT TELL US, and do not: whether the floor changes a
-CONCLUSION. It never flipped significance across 360 pairs -- but not one spread in either
-sweep was significant at 5% (min p = 0.070 Europe, 0.110 US), so there was nothing to flip.
-Treat "the floor moves alpha a lot" as established and "it does/does not matter" as open.
-
-TWO INTERACTIONS WITH CAP WEIGHTING, pulling opposite ways, which is the reason this axis
-is worth its cells now and was not before:
-  * the floor and value weighting do OVERLAPPING work. The floor exists to stop degenerate
-    1/1 firm-years dominating the top bucket, and those are typically small firms that cap
-    weighting already pushes towards zero weight. The floor may therefore matter LESS here
-    than it did equal-weighted.
-  * but the floor DROPS firm-years, so buckets get thinner, so the `n * cap <= 1` discard
-    fires more often. Read the floor-3 narrow cells' portfolio_coverage before comparing
-    them to their floor-0 twins -- a leg that vanished did not "get worse", it went away.
+THIS FILE IS THE **EUROPE** HALF. Its mirror is ``sweep_parameters.py``, which is the
+same eight cells on the US. The two are deliberately identical apart from
+``region_analysis`` — keep any edit here in step with that file, or the regions stop
+being comparable.
 """
 
 from __future__ import annotations
 
-import itertools
-
 # --------------------------------------------------------------------------- #
-# Names `sweep_output/<UTC stamp>_<name>/`. Re-running with the same name RESUMES that
-# folder, which is what makes an interrupted overnight queue restartable.
+# SWEEP_NAME: names this sweep's output folder, `sweep_output/<UTC stamp>_<name>/`.
+# Change it to start a NEW sweep; re-running with the same name RESUMES the existing
+# folder (that is what makes --resume work). `--new-run` forces a fresh folder anyway,
+# and `--out DIR` overrides the whole thing.
+#
+# Previous sweeps in this file, for reference:
+#   "us_mktcap_weighted_6designs"  (completed -- output in
+#                                   sweep_output/20260908T010352Z_*). Note that despite
+#                                   living in the "_b" file it was a US sweep; this file
+#                                   is now the EUROPE half of the US/EU pair.
+# To add cells to that one, restore this file from git rather than editing the name back:
+# --resume can only recognise what already ran if the worklist still matches.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "us_mktcap_weighted_6designs"
-
-
-# The six signal designs. `materiality_pp_action` is only meaningful for
-# Materiality_PP_Action_SDG and is left unset elsewhere, so it falls back to the baseline
-# None -- which is also why this is an EXPLICIT product rather than a GRID: a GRID over
-# action_characterization x materiality_pp_action would generate nonsense combinations
-# (a pp_action on Material_Immaterial_only) and a None action on the design that requires
-# one, which build_cfg rejects.
-# Each entry is (design keys, floors to sweep for THAT design) -- see the "THE SPLIT
-# FLOOR" block in the docstring for why the floor is per-design rather than a global axis.
-_DESIGNS: list[tuple[dict, list[int]]] = [
-    # 1. All 17 SDGs, every action. The widest denominator in the set -- and the one the
-    #    floor provably does nothing to (0.000 median alpha move over 8 matched pairs).
-    ({"action_characterization": "Material_Immaterial_only"}, [0]),
-    # 2. People + Prosperity pooled (all SDGs except 6, 7, 12, 13, 14, 15). Still wide;
-    #    median move 0.015, and its own alpha is about that size. Not worth doubling.
-    ({"action_characterization": "Materiality_People_Plus_Prosperity_SDG"}, [0]),
-    # 3-5. The same People+Prosperity cut restricted to ONE of Matteo's three actions.
-    #    Thin single-action denominators: the floor moved these by 0.045-0.090, against
-    #    alphas of 0.025-0.065. Swept.
-    ({"action_characterization": "Materiality_PP_Action_SDG",
-      "materiality_pp_action": "advocacy_old_def"}, [0, 3]),
-    ({"action_characterization": "Materiality_PP_Action_SDG",
-      "materiality_pp_action": "preparation"}, [0, 3]),
-    ({"action_characterization": "Materiality_PP_Action_SDG",
-      "materiality_pp_action": "transformation"}, [0, 3]),
-    # 6. Narrow Health: SDGs 3, 6, 11, every action. The largest observed floor effect in
-    #    the set (0.100 median). Swept.
-    ({"action_characterization": "Materiality_Narrow_Health_SDGS"}, [0, 3]),
-]
-
-_ALPHAS: list[float] = [0.1, 0.05]
-_MKTCAPS: list[float] = [0.95, 0.99]      # US levels; sweep C uses 0.85 / 0.95
-_QUANTILES: list[int] = [3, 5]
+SWEEP_NAME: str = "eu_ff5_allsdg_pp_mcap_quantiles"
 
 
 # --------------------------------------------------------------------------- #
-# GRID is empty and the whole cross is built in EXPLICIT, because a design is a PAIR of
-# keys (action_characterization, materiality_pp_action) that must move together.
+# WHAT THIS SWEEP IS
+#
+# Kevin's FF5 request, EUROPE half: two materiality designs crossed with the sort
+# granularity and the market-cap screen, on the FULL 2016-2024 sample.
+#
+#   2 designs  x  2 quantile counts  x  2 mcap screens  =  8 runs
+#
+# Identical to sweep_parameters.py except for region_analysis. Everything else is the
+# build_cfg baseline, pinned in FIXED below.
+#
+# WHY 8 AND NOT 4. The request asked whether both quantile counts would be too many runs,
+# and offered to drop to K=5 only. It is not too many: 8 cells here plus 8 on the US side
+# is 16 runs at roughly five minutes each, and prior sweeps in this repo ran 36 and 128
+# cells. So K=3 AND K=5 are both kept. Drop `3` from the GRID axis below to fall back to
+# the 4-cell version.
+#
+# THE DESIGNS. Both are one-group MIRROR PAIRS: signal_0 is a material SHARE and
+# signal_1 = 1 - signal_0, so High on one leg is Low on the other and the two High-Low
+# spreads are exact negatives. On the risk panel that shows up as one green row and one
+# red row per pair, which is expected, not a bug -- the colour is carrying the sign.
+#
+#   Material_Immaterial_only                "All SDGs Material" -- all 17 SDGs, every
+#                                           action. The widest denominator in the set.
+#   Materiality_People_Plus_Prosperity_SDG  "PP Material" -- People + Prosperity pooled,
+#                                           i.e. every SDG except 6, 7, 12, 13, 14, 15.
+#
+# PP is a SUBSET of All-SDGs, so these are NOT two independent tests. Read a difference
+# between them as "does narrowing the denominator to People+Prosperity concentrate or
+# dilute the signal", not as two separate findings.
+#
+# WHAT "EUROPE" CHANGES, beyond the sample itself. region_analysis="Europe" derives
+# currency_filter=["EUR","GBP","CHF","NOK","SEK","DKK"], region_filter=["Europe"],
+# convert_to_USD=True and fama_factor_region="Europe" (experiments.py:385). Three things
+# follow, none of which apply to the US half:
+#   * CONVERSION IS LOAD-BEARING HERE. The sample spans six currencies, and market caps
+#     are in the listing currency until converted. Cap weighting sums caps ACROSS
+#     holdings, so summing an unconverted GBP cap with a SEK one would be wrong by the
+#     exchange rate. convert_to_USD=True is what makes portfolio_weighting="mktcap" valid
+#     on this region at all -- build_cfg raises on the multi-currency + unconverted +
+#     cap-weighted combination precisely to catch this.
+#   * THE FF FACTORS ARE THE EUROPE FILES: Europe_3_Factors.csv and Europe_5_Factors.csv,
+#     not the US ones. Both exist and both cover 2016-2024 in full.
+#   * THE MCAP LEVELS ARE THE US ONES, AND 0.99 IS NEW TERRITORY HERE. 0.95 / 0.99 were
+#     requested for both regions, but no Europe sweep has ever run above 0.95 -- the three
+#     in sweep_output/ used 0.85/0.95 (europe_mktcap_weighted_6designs, 40 cells each),
+#     0.85/0.90/0.95 (europe_plain_action_signals) and 0.90/0.95
+#     (europe_materiality_12_designs, 64 cells each). Europe has a longer small-cap tail
+#     than the US, so 0.99 admits proportionally more of it. Expect a markedly wider
+#     universe on those four cells, and read the mktcap_filter_audit panel rather than
+#     assuming the screen behaves as it does on the US.
+#
+# THE MARKET-CAP AXIS. mktcap_covered_if_filter_by_cum_market_cap keeps the largest firms
+# per region-year until this share of total market cap is covered. 0.95 is the baseline;
+# 0.99 is LOOSER -- it admits a longer tail of small caps. Because cap weighting gives
+# those extra small names very little weight, expect 0.99 to move a cap-weighted spread
+# LESS than it would have moved an equal-weighted one. If 0.95 and 0.99 agree, that is the
+# useful result: the spread is not an artefact of where the tail was cut.
+#
+# INTERACTION WORTH KNOWING. Cap weighting discards a bucket-month outright when
+# `n * cap <= 1` -- ten names or fewer at the 10% ceiling -- because no weight vector can
+# satisfy both the budget and the cap. The NaN is then booked by (1+r).cumprod() as a
+# fabricated 0% month and feeds the thin-portfolio gate. This bites HARDER on Europe than
+# on the US: the region is smaller, so a K=5 sort at the tighter 0.95 screen is the
+# thinnest configuration in the whole 16-cell pair. Check
+# `n_months_discarded_infeasible` in the coverage panel before reading a missing leg as a
+# result.
+#
+# NAMES: experiment_name() builds each run name from the cfg DIFF against build_cfg().
+# The baseline region is the US, so EVERY cell here carries region_analysis-Europe plus
+# the two derived keys (convert_to_USD, fama_factor_region) in its diff. That makes these
+# names long enough to be blake2b-truncated past 150 chars on the longer design -- the
+# ledger and CSV keep the full cfg regardless, and the page TITLE stays readable, so this
+# costs nothing but do not expect the folder names to be self-describing.
 # --------------------------------------------------------------------------- #
-GRID: dict[str, list] = {}
 
-EXPLICIT: list[dict] = [
-    {
-        **design,
-        "minimum_initatives_needed_to_split_by_materiality": floor,
-        "alpha_bound": alpha,
-        "mktcap_covered_if_filter_by_cum_market_cap": mcap,
-        "no_simple_quantiles": k,
-    }
-    # The floor is nested INSIDE the design rather than crossed with it: designs 1-2 sweep
-    # [0] and designs 3-6 sweep [0, 3], so this is 2*8 + 4*16 = 80 cells, not the 96 a
-    # uniform two-value axis would give.
-    for design, floors in _DESIGNS
-    for floor, alpha, mcap, k in itertools.product(
-        floors, _ALPHAS, _MKTCAPS, _QUANTILES
-    )
-]
 
 # --------------------------------------------------------------------------- #
-# FIXED: merged into every combination. An EXPLICIT entry wins for the same key.
+# GRID: expanded to its full cartesian product.
+#
+# All three axes are genuinely INDEPENDENT, so the whole cross belongs here and EXPLICIT
+# stays empty. (Contrast the pre/post-2020 sweep, where a window was a PAIR of keys
+# (start_year, end_year) that had to move together and so had to be built in EXPLICIT.)
+#
+#   2 designs x 2 quantile counts x 2 mcap screens = 8 cells
+# --------------------------------------------------------------------------- #
+GRID: dict[str, list] = {
+    # "All SDGs Material" first, then its "PP Material" subset.
+    "action_characterization": [
+        "Material_Immaterial_only",
+        "Materiality_People_Plus_Prosperity_SDG",
+    ],
+    # Sort granularity: coarse 3-way and finer 5-way.
+    "no_simple_quantiles": [3, 5],
+    # Market-cap coverage of the screen. See the Europe note above: 0.99 is looser than
+    # anything previously run on this region.
+    "mktcap_covered_if_filter_by_cum_market_cap": [0.95, 0.99],
+}
+
+# --------------------------------------------------------------------------- #
+# EXPLICIT: hand-picked combinations, appended after the grid, used verbatim.
+# EMPTY -- the whole cross is a clean cartesian product, so it belongs in GRID.
+# --------------------------------------------------------------------------- #
+EXPLICIT: list[dict] = []
+
+# --------------------------------------------------------------------------- #
+# FIXED: merged into EVERY combination, grid and explicit alike. Use for knobs you want
+# held constant across the whole sweep without repeating them in each entry.
+# An entry in GRID/EXPLICIT wins over FIXED for the same key.
 # --------------------------------------------------------------------------- #
 FIXED: dict = {
-    # ---- THE POINT OF THE SWEEP ------------------------------------------- #
-    # Not at baseline, so both reach the cfg diff and appear in every run name.
-    "portfolio_weighting": "mktcap",
-    "max_portfolio_weight_if_portfolio_weighting_equal": 0.10,
+    # THE REGION -- the ONLY line that differs from sweep_parameters.py. Drives
+    # currency_filter=["EUR","GBP","CHF","NOK","SEK","DKK"], region_filter=["Europe"],
+    # convert_to_USD=True and fama_factor_region="Europe" (experiments.py:385).
+    # This is the one pin here that is NOT at the build_cfg baseline, so it (and its two
+    # derived keys) appear in every run name.
+    "region_analysis": "Europe",
 
-    # ---- the region ------------------------------------------------------- #
-    # Drives currency_filter=["USD"], region_filter=["United States and Canada"],
-    # convert_to_USD=False and fama_factor_region="United_States" (experiments.py, region
-    # if/elif). US is single-currency, so cap weighting's cross-currency guard is satisfied
-    # WITHOUT conversion -- summing a USD cap with a USD cap is fine. Sweep C's Europe is
-    # multi-currency and passes that guard only because the region block converts to USD.
-    # This EQUALS the baseline, so it does not reach any run name; pinned as the record.
-    "region_analysis": "United_States",
+    # ---- everything below EQUALS the build_cfg baseline ------------------- #
+    # None of it reaches the cfg diff, so none of it pollutes a run name. Pinned anyway:
+    # this file is the record of what the sweep was, and "it inherited whatever
+    # experiments.py said that week" is not a record.
+    #
+    # That cuts both ways: a pin OVERRIDES the baseline, so when experiments.py moves,
+    # a pin left behind silently freezes the sweep at the old value. That has already
+    # happened once in the US file -- portfolio_weighting was pinned "equal" while the
+    # baseline moved to "mktcap", which would have run every cell equal-weighted.
+    # Re-check this block against build_cfg() before launching, not after.
 
-    # ---- everything below already EQUALS the build_cfg baseline ------------ #
-    # None of it pollutes a run name. Pinned anyway: this file is the record of what the
-    # sweep was, not "whatever experiments.py said that week".
+    # Percentile trim on sum_activities (the firm-year's total initiative count), applied
+    # per tail. Requested at 0.05, which is also the current baseline, so it does not
+    # reach the cfg diff and appears in no run name.
+    "alpha_bound": 0.05,
+
+    # The materiality inner join is what makes a materiality design possible at all --
+    # signal_0 is a MATERIAL share, read off the SASB workbook. Not optional here.
     "add_materiality": True,
     "materiality_version": 2,
 
-    # Filter 2 only (drop suspicious gvkeys), NOT "all", which would add a >= 3-fiscal-year
-    # survivorship screen. CONSEQUENCE: filter 3's
-    # min_initatives_annual_reports_if_execute_3_filters_true floor is SKIPPED under this
-    # mode, so that knob has no effect anywhere in this sweep.
+    # NO materiality-split floor ("min initiatives 0"): a firm-year is split into
+    # material/immaterial however few initiatives it has. Requested, and also baseline.
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+
+    # Filter 2 ONLY (drop suspicious gvkeys). Chosen over "all", which would additionally
+    # switch on "keep firms with >= 3 fiscal years of data" -- a survivorship screen.
+    # CONSEQUENCE: filter 3, the min_initatives_annual_reports_if_execute_3_filters_true
+    # floor, is SKIPPED under this mode (01_process_lc.py:398 gates it on `_all3`). That
+    # knob therefore has NO EFFECT in this sweep at any value.
     "execute_3_filters": "suspicious_only",
 
-    # The screen this sweep varies; the mode is fixed, only its level is swept.
-    "market_cap_filter": "percent_total_mcap",
+    # CAP weighting ("Mkt Cap weights"): each holding gets its share of bucket market cap,
+    # with a single-name ceiling of max_portfolio_weight_if_portfolio_weighting_equal
+    # (baseline 0.10 = 10%), excess redistributed pro-rata by cap and re-checked
+    # iteratively. Requested, and also the baseline as of 2026-09-08. Valid on this region
+    # only because convert_to_USD=True -- see the Europe note in the header.
+    "portfolio_weighting": "mktcap",
 
-    # The thin-portfolio gate, at baseline. Calibrated at 25 names FOR EQUAL WEIGHTING --
-    # under cap weighting the number that matters is the EFFECTIVE N (1/sum w^2), which the
-    # run's portfolio_weight_summary reports and which is materially lower than the nominal
-    # count. Read that table before concluding a leg was thick enough.
+    # The thin-portfolio gate, at baseline. A High/Low leg is HIDDEN unless it holds at
+    # least min_stocks_per_portfolio names in at least min_portfolio_coverage of formation
+    # months. This is the knob most likely to hide a leg on Europe, which is the smaller
+    # of the two regions.
     "min_stocks_per_portfolio": 25,
     "min_portfolio_coverage": 0.8,
 
-    # Full sample. This sweep varies weighting and the design space, not the window.
-    "start_year": 2016,
-    "end_year": 2024,
-
-    # alpha_bound, mktcap_covered_..., no_simple_quantiles, action_characterization,
-    # materiality_pp_action and minimum_initatives_needed_to_split_by_materiality are NOT
-    # pinned here -- every EXPLICIT cell sets them, so a FIXED value would be overridden
-    # on all 80 and would only mislead a reader of this file.
+    # no_simple_quantiles and mktcap_covered_if_filter_by_cum_market_cap are NOT pinned
+    # here -- they are GRID axes, so a FIXED value would be overridden on all 8 cells and
+    # would only mislead a reader of this file. start_year / end_year are likewise absent:
+    # this sweep is the FULL baseline 2016-2024 sample, not the pre/post-2020 split.
 }
 
 
 # --------------------------------------------------------------------------- #
 # Output settings
 # --------------------------------------------------------------------------- #
-# Rebuild results.pdf/.csv/.xlsx every N completed runs. The ledger is appended after
-# EVERY run regardless, and all three are rebuilt once more when the sweep ends or is
-# interrupted -- so this only trades freshness against a few seconds each time. 80 cells,
-# so every 4 gives 20 checkpoints.
-PDF_EVERY: int = 4
 
+# Rebuild results.pdf / results.csv from the ledger every N completed experiments.
+# The ledger itself is appended after EVERY experiment regardless, so this only trades
+# how fresh the two derived files are against the seconds each rebuild costs.
+# Both are ALWAYS rebuilt once more when the sweep finishes (or is interrupted).
+PDF_EVERY: int = 2
+
+# Everything the sweep writes lives under here, relative to the repo root.
 OUTPUT_DIR: str = "sweep_output"
 
-# Separate processes, each loading its own copy of the Golden panel and the Compustat
-# universe -- bounded by RAM as much as by cores. 2 is demonstrated on this machine
-# (10 cores / 64 GB). Requires write_debug_csv=False (the default): those dumps go to
-# fixed paths under ./data/debug/ and parallel workers would clobber each other.
+
+# --------------------------------------------------------------------------- #
+# How many experiments run at once (`--jobs N` overrides).
+#
+# Each worker is a separate PROCESS running one full pipeline, so this scales with cores
+# AND with RAM -- every worker independently loads the Golden LC panel and the Compustat
+# universe. On this machine (10 cores / 64 GB) 2 is demonstrated.
+#
+# NOTE this requires cfg.write_debug_csv=False (the default). Those dumps go to FIXED
+# paths under ./data/debug/, so parallel workers would clobber each other's files.
+# Do NOT run this file and sweep_parameters.py concurrently at JOBS=2 each: that is four
+# pipelines, each holding its own copy of the Golden panel and the Compustat universe.
+# --------------------------------------------------------------------------- #
 JOBS: int = 2
 
 
 # --------------------------------------------------------------------------- #
-# Presentation order for results.pdf / results.csv. The ledger stays in completion order
-# (non-deterministic under JOBS > 1); the PDF and CSV are sorted by these keys, by the same
-# function, so "CSV row N describes PDF page N" holds.
+# Presentation order for results.pdf / results.csv.
+#
+# The ledger stays in completion order (it is append-only, and under --jobs N that order
+# is not even deterministic), but the PDF and CSV are SORTED by these cfg keys before
+# being written -- and by the same function, so "CSV row N describes PDF page N" holds.
+# Identical to the US file, so page N here is the same cell as page N there.
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
-    # Outermost: the design, so the six blocks read in the order they were requested.
+    # Outermost: the design, so the two denominators read as two blocks of four.
     "action_characterization",
-    "materiality_pp_action",
-    # Then the sort granularity, then the two screen knobs -- innermost is alpha, so each
-    # design/K/mcap cell shows its 0.1 and 0.05 pages side by side.
+    # Then the sort granularity.
     "no_simple_quantiles",
+    # Innermost: the market-cap screen, so each design/K pair puts its 0.95 page directly
+    # next to its 0.99 page -- the robustness comparison this axis exists to make.
     "mktcap_covered_if_filter_by_cum_market_cap",
-    "alpha_bound",
-    # Innermost, so a design's floor-0 and floor-3 pages are ADJACENT: the whole point of
-    # the axis is reading one against the other, and on designs 1-2 there is only one page
-    # to read, so nothing is left dangling.
-    "minimum_initatives_needed_to_split_by_materiality",
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Widest denominator first, narrowing down: all SDGs -> People+Prosperity -> one action
-    # within it -> the Narrow Health subset last.
+    # Wide denominator first, then the People+Prosperity subset of it.
     "action_characterization": [
-        "Material_Immaterial_only",                 # all 17 SDGs
-        "Materiality_People_Plus_Prosperity_SDG",   # all but the Planet SDGs
-        "Materiality_PP_Action_SDG",                # ditto, one action
-        "Materiality_Narrow_Health_SDGS",           # SDGs 3, 6, 11
+        "Material_Immaterial_only",                # all 17 SDGs, every action
+        "Materiality_People_Plus_Prosperity_SDG",  # all SDGs except 6, 7, 12, 13, 14, 15
     ],
-    # Matteo's own order, not alphabetical.
-    "materiality_pp_action": ["advocacy_old_def", "preparation", "transformation"],
 }
