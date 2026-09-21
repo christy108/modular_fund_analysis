@@ -53,6 +53,27 @@ SECTIONS = [
      "9. Portfolio size coverage - % of months at or above the minimum"),
 ]
 
+# Titles for the factor-model panels on a run with Add_Momentum_Factor set. Keyed by
+# slug, so the numbering and the untouched panels stay defined in exactly one place above.
+_MOMENTUM_TITLES = {
+    "rolling24": "6. Rolling FF3 + Mom alpha - 24-month window",
+    "ff5": "7. Fama-French 5-factor + Momentum loadings",
+    "rolling24_ff5": "8. Rolling FF5 + Mom alpha - 24-month window",
+}
+
+
+def _sections_for(record: dict) -> list:
+    """SECTIONS, with the factor panels relabelled when THIS run added momentum.
+
+    Per-record rather than a module-level switch because one sweep PDF can interleave
+    momentum and plain runs, and each page has to be labelled from its own cfg.
+    """
+    if not (record.get("cfg") or {}).get("Add_Momentum_Factor"):
+        return SECTIONS
+    return [(slug, node, key, _MOMENTUM_TITLES.get(slug, title))
+            for slug, node, key, title in SECTIONS]
+
+
 # Panels drawn as line charts rather than tables.
 _LINE_SLUGS = {"cumulative", "spreads", "rolling24", "rolling24_ff5"}
 
@@ -276,7 +297,9 @@ def _panel_note(ax, text: str, title: str) -> None:
             style="italic", color="#888888", transform=ax.transAxes)
 
 
-_ALPHA_SPECS = ("FF3", "FF5")
+# Both the plain and the momentum-augmented column names. A run writes only one pair, so
+# the other simply misses on row.get() and drops out -- one tuple covers either kind.
+_ALPHA_SPECS = ("FF3", "FF5", "FF3 + Mom", "FF5 + Mom")
 
 
 def _alpha_shade(row: dict) -> str | None:
@@ -509,7 +532,8 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
     }
 
     payloads = record.get("payloads") or {}
-    for slug, _node, _key, panel_title in SECTIONS:
+    _momentum = bool((record.get("cfg") or {}).get("Add_Momentum_Factor"))
+    for slug, _node, _key, panel_title in _sections_for(record):
         payload = payloads.get(slug)
 
         if slug == "signal_breakdown":
@@ -552,9 +576,10 @@ def render_page(record: dict, pdf, page_num: int | None = None, total: int | Non
             # Shaded rows = alpha significant at the 10% level in FF3 or FF5, so a page
             # worth a second look is identifiable while flicking through the sweep. Red
             # rather than green when the alphas are negative.
+            _specs = "FF3 + Mom or FF5 + Mom" if _momentum else "FF3 or FF5"
             _table_panel(ax, payload,
                          f"{panel_title}   (green: alpha significant at "
-                         f"{_ALPHA_SIGNIF_P:g} in FF3 or FF5; red: significant and negative)",
+                         f"{_ALPHA_SIGNIF_P:g} in {_specs}; red: significant and negative)",
                          shade=_alpha_shade)
         else:
             _table_panel(ax, payload, panel_title)
@@ -594,6 +619,15 @@ def build_pdf(ledger_path: str | Path, pdf_path: str | Path) -> int:
 # --------------------------------------------------------------------------- #
 # CSV export
 # --------------------------------------------------------------------------- #
+def _first_num(row: dict, *keys: str) -> float | None:
+    """First of `keys` present in `row` with a parseable number, else None."""
+    for key in keys:
+        value = _num(row.get(key))
+        if value is not None:
+            return value
+    return None
+
+
 def _row_for(record: dict, page_num: int) -> dict:
     """Flatten one ledger record into one CSV row.
 
@@ -620,12 +654,18 @@ def _row_for(record: dict, page_num: int) -> dict:
         label = r.get("index") or r.get("portfolio")
         if not label:
             continue
-        # Four columns per portfolio: both specifications. The bare "Alpha" /
-        # "p-value(alpha)" fallbacks keep ledger records written before FF5 exporting.
-        row[f"alpha__{label}"] = _num(r.get("Alpha FF3", r.get("Alpha")))
-        row[f"pval__{label}"] = _num(r.get("p-value(alpha) FF3", r.get("p-value(alpha)")))
-        row[f"alpha_ff5__{label}"] = _num(r.get("Alpha FF5"))
-        row[f"pval_ff5__{label}"] = _num(r.get("p-value(alpha) FF5"))
+        # Four columns per portfolio: both specifications. The ledger column NAMES stay
+        # fixed whether or not the run added momentum, so a sweep mixing the two is still
+        # comparable in one spreadsheet -- Add_Momentum_Factor rides along as its own
+        # column and says which model each row's alpha came from. The "+ Mom" lookups
+        # read a momentum run; the bare "Alpha" / "p-value(alpha)" ones keep ledger
+        # records written before FF5 exporting.
+        row[f"alpha__{label}"] = _first_num(r, "Alpha FF3", "Alpha FF3 + Mom", "Alpha")
+        row[f"pval__{label}"] = _first_num(
+            r, "p-value(alpha) FF3", "p-value(alpha) FF3 + Mom", "p-value(alpha)")
+        row[f"alpha_ff5__{label}"] = _first_num(r, "Alpha FF5", "Alpha FF5 + Mom")
+        row[f"pval_ff5__{label}"] = _first_num(
+            r, "p-value(alpha) FF5", "p-value(alpha) FF5 + Mom")
 
     for r in (payloads.get("coverage") or {}).get("rows") or []:
         label = r.get("label")

@@ -177,6 +177,13 @@ def align_ff5_to_aligned_ff3(
             f"got {list(ff5.columns)}. Expected a *_5_Factors.csv load."
         )
 
+    # `mom` is optional and rides along when node 05 joined it (Add_Momentum_Factor).
+    # It is NOT in FF5_COLUMNS because that tuple is the required set -- but it must be
+    # carried through both the coverage check and the final selection below, or the
+    # momentum column would be silently dropped here and FF5 + Mom would quietly
+    # regress on five factors under a six-factor header.
+    cols = list(FF5_COLUMNS) + (["mom"] if "mom" in ff5.columns else [])
+
     months = pd.PeriodIndex(pd.to_datetime(ff3_aligned.index), freq="M")
     src = ff5.copy()
     src_months = pd.PeriodIndex(_fama_french_dates_as_timestamps(src["date"]), freq="M")
@@ -187,7 +194,7 @@ def align_ff5_to_aligned_ff3(
     src = src.drop(columns=["date"]).set_index(src_months)
     out = src.reindex(months)
 
-    missing = months[out[list(FF5_COLUMNS)].isna().any(axis=1)]
+    missing = months[out[cols].isna().any(axis=1)]
     if len(missing):
         raise ValueError(
             f"FF5 factors do not cover {len(missing)} month(s) present in the returns "
@@ -207,7 +214,7 @@ def align_ff5_to_aligned_ff3(
             f"vs FF5 rf={out['rf'].iloc[worst]!r} (diff {dev[worst]:.3g}, tol {rf_tol:g})."
         )
 
-    out = out.loc[:, list(FF5_COLUMNS)]
+    out = out.loc[:, cols]
     out.index = ff3_aligned.index
     return out
 

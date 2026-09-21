@@ -836,6 +836,7 @@ _PARAM_DOCS: dict[str, str] = {
     "fama_factors_currency_if_Japan": "Currency of the FF factor set. Consulted only when region_analysis='Japan' (05_load_fama_french).",
     "RF_JAPAN_PATH": "Workbook holding the Japanese monthly risk-free rate; read only on the Japan JPY path.",
     "action_characterization": "Which signal design to build -- selects the categories_dict + signal-name pair from signal_definitions(_materiality).py. Consumed by build_cfg only; nodes see the derived dicts.",
+    "Add_Momentum_Factor": "Append Ken French's momentum factor to both factor specifications (FF3 + Mom = Carhart 4-factor, FF5 + Mom = 6-factor). Europe and United_States only; any other region raises in 05_load_fama_french.",
     "start_year": "First calendar year of the return / universe window.",
     "end_year": "Last calendar year. Overridden by esg_choice (refinitiv or msci -> 2024, s&p -> 2022).",
     "security_status": "'active_only' keeps Compustat secstat=='A' (the frozen behaviour); 'all_firms_even_delisted' keeps inactive securities, so a delisted name retains its full price history.",

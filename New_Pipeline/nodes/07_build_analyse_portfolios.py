@@ -757,6 +757,7 @@ nothing downstream reads it, no parquet is written, and it is empty for every ot
 @process(tag="build_analyse_portfolios@v1", contract="build_analyse_portfolios", author="refactor")
 def build_analyse_portfolios_v1(prep, cfg):
     import json
+    from functools import partial
     from pathlib import Path
 
     import numpy as np
@@ -783,6 +784,9 @@ def build_analyse_portfolios_v1(prep, cfg):
     signal_names = P["signal_names"]
     fama_french = P["fama_french"]
     fama_french_5 = P["fama_french_5"]
+    # Momentum augments BOTH specifications when set, so one flag drives the level
+    # tables, the rolling alphas and the risk table's column headers together.
+    MOM = C["Add_Momentum_Factor"]
 
     K = C["no_simple_quantiles"]
 
@@ -1121,8 +1125,10 @@ def build_analyse_portfolios_v1(prep, cfg):
             parts.append(regress(Excess_returns_sample, ff.reset_index(drop=True)))
         return pd.concat(parts, axis=1).round(2)
 
-    ff3_parts_df = _level_parts(ff3_regressions, fama_french)
-    ff5_parts_df = _level_parts(ff5_regressions, fama_french_5)
+    # partial() rather than a _level_parts parameter: the builder just forwards whatever
+    # callable it is handed, so the momentum choice stays at the two places it is made.
+    ff3_parts_df = _level_parts(partial(ff3_regressions, with_momentum=MOM), fama_french)
+    ff5_parts_df = _level_parts(partial(ff5_regressions, with_momentum=MOM), fama_french_5)
 
     # The risk table joins BOTH stat frames to its rows by column label, so a divergence
     # in columns or their order would silently mis-pair alphas with portfolios.
@@ -1140,6 +1146,25 @@ def build_analyse_portfolios_v1(prep, cfg):
         )
     print(ff3_parts_df.head())
     print(ff5_parts_df.head())
+    if MOM:
+        # Printed BEFORE the guard below, so a failure shows what each specification was
+        # actually handed rather than only asserting that something was missing.
+        print(f"[build_analyse_portfolios] FF3 factors: {list(fama_french.columns)}")
+        print(f"[build_analyse_portfolios] FF5 factors: {list(fama_french_5.columns)}")
+
+        # The momentum counterpart of the RMW/CMA guard above. Without it a `mom` column
+        # lost anywhere between node 05 and here would leave plain 3-/5-factor fits
+        # reported under "+ Mom" headers -- plausible numbers, wrong model, and nothing
+        # on screen to say so.
+        for _name, _df in (("FF3", ff3_parts_df), ("FF5", ff5_parts_df)):
+            if "beta_mom" not in _df.index or _df.loc["beta_mom"].isna().all():
+                raise ValueError(
+                    f"Add_Momentum_Factor is on but the {_name} table carries no momentum "
+                    "loadings -- the `mom` column did not reach the regression. Check the "
+                    "node 05 join and align_ff5_to_aligned_ff3."
+                )
+            print(f"[build_analyse_portfolios] {_name} + Mom momentum loadings:")
+            print(_df.loc[["beta_mom", "p-value(beta_mom)"]].to_string())
 
     # ---- cell 43: rolling alphas (windows 40 and 24) --------------------- #
     rolling_alpha_selection = base_analysis_selection
@@ -1173,7 +1198,7 @@ def build_analyse_portfolios_v1(prep, cfg):
             try:
                 _dic = rolling_ff_alphas(
                     signals=rolling_signals_arg, fama_french=_ff,
-                    window_size=_window, n_factors=_nf,
+                    window_size=_window, n_factors=_nf, with_momentum=MOM,
                 )
             except Exception as e:  # matches notebook's guarded call
                 print(f"Error in rolling_ff_alphas(spec={_spec}, window={_window}): {e}")
@@ -1217,7 +1242,8 @@ def build_analyse_portfolios_v1(prep, cfg):
     # ---- cell 51 tables: cumulative + risk ------------------------------- #
     # Both level tables from cell 48; the risk table reports Alpha/p-value per spec.
     sp = StrategyPerformance(_table_returns, ff3_parts_df=ff3_parts_df,
-                             excess_returns=_table_excess, ff5_parts_df=ff5_parts_df)
+                             excess_returns=_table_excess, ff5_parts_df=ff5_parts_df,
+                             with_momentum=MOM)
     out_dir = Path("./runs/tables")
     cumulative = sp.cumulative_performance_table(csv_path=out_dir / "strategy_cumulative_performance.csv")
     risk = sp.performance_risk_metrics_table(csv_path=out_dir / "strategy_performance_metrics.csv")

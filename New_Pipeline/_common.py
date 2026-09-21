@@ -517,3 +517,49 @@ def firm_counts(frame, by: str, *, gvkey_col: str = "gvkey", name: str = "firms"
     # firms desc, then label asc: without the tiebreak the row order of equal-sized groups
     # is groupby's hash order, which would churn the exported parquet between runs.
     return out.sort_values([name, by], ascending=[False, True]).reset_index(drop=True)
+
+
+def aligned_ff5(ff5, ff3_aligned, add_momentum):
+    """`align_ff5_to_aligned_ff3`, plus the momentum cross-check both paths need.
+
+    This is the hop where a momentum mismatch would actually appear: FF3's index is
+    assigned POSITIONALLY by `align_fama_french_to_returns` while FF5 is joined on
+    Period[M] here, so the two could in principle end up carrying different months'
+    momentum under the same index. Comparing the resulting `mom` columns is the only
+    check that catches that, and it must raise rather than warn -- two specifications
+    silently regressing on different momentum series is not something a reader would
+    spot in the output tables.
+    """
+    from functions.portfolio_strategy_design.univariate_sorting_preprocess import (
+        align_ff5_to_aligned_ff3,
+    )
+
+    out = align_ff5_to_aligned_ff3(ff5, ff3_aligned)
+    if not add_momentum:
+        return out
+
+    if "mom" not in ff3_aligned.columns or "mom" not in out.columns:
+        raise ValueError(
+            "Add_Momentum_Factor is on but `mom` is missing after alignment "
+            f"(FF3 has {list(ff3_aligned.columns)}, FF5 has {list(out.columns)}). "
+            "Node 05 joined it onto both frames, so it was dropped in between."
+        )
+    identical = out["mom"].to_numpy().tolist() == ff3_aligned["mom"].to_numpy().tolist()
+    n_nan = int(out["mom"].isna().sum())
+    print(f"[prepare_panel] FF3/FF5 aligned mom identical: {identical}   "
+          f"({len(out)} months, {n_nan} NaN)")
+    if not identical or n_nan:
+        raise ValueError(
+            "Aligned momentum series disagree between FF3 and FF5 (or carry NaN) -- the "
+            "two specifications would be fitted on different months' momentum. "
+            f"identical={identical}, NaN={n_nan}."
+        )
+
+    # Head/tail with the index SHOWN: it is the returns index now, not `date`, so this is
+    # what makes an off-by-N visible month by month in debug_prints.log.
+    for _name, _ff in (("FF3", ff3_aligned), ("FF5", out)):
+        print(f"[prepare_panel] {_name} + Mom aligned ({len(_ff)} months), head/tail:")
+        print(_ff.head(6).to_string())
+        print("    ...")
+        print(_ff.tail(3).to_string())
+    return out

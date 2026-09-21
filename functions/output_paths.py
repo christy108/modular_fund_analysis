@@ -172,6 +172,7 @@ RUN_PARAM_NAMES = [
     "fama_factors_currency_if_Japan",
     "RF_JAPAN_PATH",
     "action_characterization",
+    "Add_Momentum_Factor",
     "start_year",
     "end_year",
     "no_simple_quantiles",

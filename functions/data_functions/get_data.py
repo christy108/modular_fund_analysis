@@ -858,6 +858,67 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
         return fama_french
 
 
+# Momentum lives in its own file, so it gets its own loader rather than a
+# `factors_number=4/6` branch above: those branches pick ONE file, and a momentum spec is
+# always some base model PLUS this series. Node 05 joins the two on `date`.
+MOMENTUM_REGIONS = ("Europe", "United_States")
+
+
+def get_momentum_factor(start_year, end_year, region):
+    """Monthly momentum factor for `region` as a `date` + `mom` frame, in decimals.
+
+    Only Europe and United_States have a file. Every other region raises rather than
+    returning nothing, so a run can never print "+ Mom" column headers over a plain 3- or
+    5-factor fit.
+
+    The two files are NOT the same shape. Europe ships trimmed (`Date,WML`); the US one is
+    a raw Ken French download with a 13-line text preamble, a `,Mom` header, an
+    "Annual Factors:" block and a copyright footer. Keeping only the lines whose first
+    field is a 6-digit YYYYMM handles both without anyone hand-editing the data -- and
+    note that dropping blank lines would NOT be enough, because the annual rows
+    ("  1927,  24.52") parse as perfectly valid numbers and would then blow up the strict
+    "%Y%m" parse below. The header is discarded with everything else and the columns are
+    named positionally, which also absorbs the WML/Mom disagreement.
+    """
+    import io
+    import re
+
+    if region not in MOMENTUM_REGIONS:
+        raise ValueError(
+            f"No momentum factor file for region {region!r}. Add_Momentum_Factor is "
+            f"supported for {list(MOMENTUM_REGIONS)} only -- Ken French publishes no "
+            "momentum series for the other regions this pipeline loads."
+        )
+
+    mom_file = f"./data/FAMA/{region}_Momentum_Factor.csv"
+    if not os.path.exists(mom_file):
+        raise FileNotFoundError(
+            f"Momentum factor file not found for region {region!r}: {mom_file}\n"
+            "Download the monthly momentum series from Ken French's data library and "
+            "save it there. It does NOT need trimming -- this loader keeps only the "
+            "YYYYMM rows -- but it must be the monthly file, not the daily one."
+        )
+
+    with open(mom_file) as fh:
+        rows = [ln for ln in fh if re.match(r"^\s*\d{6}\s*,", ln)]
+    if not rows:
+        raise ValueError(
+            f"{mom_file} contains no monthly (YYYYMM,value) rows. Expected Ken French's "
+            "monthly momentum file; a daily file or an annual-only excerpt would look "
+            "like this."
+        )
+
+    mom = pd.read_csv(io.StringIO("".join(rows)), header=None, names=["date", "mom"])
+
+    # Same tail as get_famafrench_factors, so units (decimals) and the Period[M] `date`
+    # dtype match the FF3/FF5 frames this gets merged onto.
+    mom["date"] = pd.to_datetime(mom["date"].astype("int64").astype(str), format="%Y%m")
+    year = mom["date"].dt.year
+    mom = mom[(year <= end_year) & (year > start_year - 1)].copy()
+    mom["date"] = mom["date"].dt.to_period("M")
+    return mom.set_index("date").div(100).reset_index()
+
+
     
 #Always download accounting data, each subdata has unique gvkeys to download.
 def get_accounting_data(global_universe, region_analysis, start_year, end_year, dowload_acc_data = True):

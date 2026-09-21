@@ -43,7 +43,8 @@ class StrategyPerformance:
 
     def __init__(self, portfolio_returns: pd.DataFrame, ff3_parts_df: pd.DataFrame | None = None,
                  excess_returns: pd.DataFrame | None = None,
-                 ff5_parts_df: pd.DataFrame | None = None):
+                 ff5_parts_df: pd.DataFrame | None = None,
+                 with_momentum: bool = False):
         df = portfolio_returns.copy()
         if not isinstance(df.index, pd.DatetimeIndex):
             df.index = pd.to_datetime(df.index)
@@ -54,6 +55,13 @@ class StrategyPerformance:
         self.excess_returns = excess_returns.reindex(df.index) if isinstance(excess_returns, pd.DataFrame) else None
         self.ff3_parts_df = ff3_parts_df.copy() if isinstance(ff3_parts_df, pd.DataFrame) else None
         self.ff5_parts_df = ff5_parts_df.copy() if isinstance(ff5_parts_df, pd.DataFrame) else None
+        # The column suffixes are per-instance, not per-class: a momentum run reports the
+        # SAME two specifications with a sixth/fourth factor added, so the headers are
+        # relabelled rather than doubled. Callers pass the flag the frames were built with.
+        self.alpha_specs = (
+            tuple(f"{spec} + Mom" for spec in self.ALPHA_SPECS) if with_momentum
+            else self.ALPHA_SPECS
+        )
 
     def cumulative_performance_table(
         self,
@@ -193,8 +201,8 @@ class StrategyPerformance:
         # Optional: add each specification's alpha + p-value(alpha) for matching strategy
         # columns. Rows with no column in a stat frame (Market, and Sample when it was not
         # regressed) fall outside the intersection and stay NaN -> rendered blank.
-        _parts = {"FF3": self.ff3_parts_df, "FF5": self.ff5_parts_df}
-        for suffix in self.ALPHA_SPECS:
+        _parts = dict(zip(self.alpha_specs, (self.ff3_parts_df, self.ff5_parts_df)))
+        for suffix in self.alpha_specs:
             parts = _parts[suffix]
             if parts is None:
                 continue
@@ -212,7 +220,7 @@ class StrategyPerformance:
         formatted["Sharpe"] = metrics["Sharpe"].map(lambda x: _format_num(x, dp=2))
         formatted["VaR 1%"] = metrics["VaR 1%"].map(_format_pct)
         formatted["Max Drawdown"] = metrics["Max Drawdown"].map(_format_pct)
-        for suffix in self.ALPHA_SPECS:
+        for suffix in self.alpha_specs:
             for stem in (f"Alpha {suffix}", f"p-value(alpha) {suffix}"):
                 if stem in metrics.columns:
                     formatted[stem] = metrics[stem].map(lambda x: _format_num(x, dp=2))

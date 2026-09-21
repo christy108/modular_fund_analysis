@@ -42,6 +42,11 @@ def build_cfg(**overrides) -> dict:
         region_analysis="United_States",
         
         RF_JAPAN_PATH="./data/FAMA/Rf_Japan_Monthly.xlsx",
+        # Append Ken French's momentum factor to BOTH factor specifications, turning them
+        # into Carhart's 4-factor and the 6-factor model. The region's momentum file is
+        # picked off fama_factor_region (cell 3 below), so only Europe and United_States
+        # are supported -- any other region raises rather than quietly dropping the factor.
+        Add_Momentum_Factor=True,
         action_characterization="Material_Immaterial_only",
         start_year=2016,
         end_year=2024,
