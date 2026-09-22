@@ -27,47 +27,70 @@ from __future__ import annotations
 # and `--out DIR` overrides the whole thing.
 #
 # Previous sweeps in this file, for reference:
-#   "us_ff5_allsdg_pp_mcap_quantiles"  (8 cells, completed -- output in
-#                                       sweep_output/20260908T115744Z_*)
-#   "us_health_sdg_pre_post_2020"      (6 cells, completed -- committed at c5584ec)
+#   "us_ff5_allsdg_pp_mcap_quantiles"      (8 cells, completed -- output in
+#                                           sweep_output/20260908T115744Z_*)
+#   "us_health_sdg_pre_post_2020"          (6 cells, completed -- committed at c5584ec)
+#   "us_health_sdgs_weighting_mcap_quantiles"
+#                                          (24 cells: the three health designs only,
+#                                           completed -- output in
+#                                           sweep_output/20260908T150454Z_*). THIS sweep
+#                                           is that worklist plus All-SDGs and
+#                                           People+Prosperity, under a new name, so the
+#                                           24 finished cells are NOT resumed -- all 40
+#                                           run fresh. The old folder stays readable.
 # To add cells to one of those, restore this file from git rather than editing the name
 # back: --resume can only recognise what already ran if the worklist still matches.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "us_health_sdgs_weighting_mcap_quantiles"
+SWEEP_NAME: str = "us_momentum_people_prosperity"
 
 
 # --------------------------------------------------------------------------- #
 # WHAT THIS SWEEP IS
 #
-# Kevin's health-alphas request, US half: three health-SDG materiality designs crossed
-# with the weighting scheme, the sort granularity and the market-cap screen, on the FULL
-# 2016-2024 sample.
+# US half: five SDG-materiality designs crossed with the weighting scheme, the sort
+# granularity and the market-cap screen, on the FULL 2016-2024 sample.
 #
-#   3 designs  x  2 weighting schemes  x  2 quantile counts  x  2 mcap screens
-#   = 24 runs
+#   5 designs  x  2 weighting schemes  x  2 quantile counts  x  2 mcap screens
+#   = 40 runs
 #
 # Everything else is the build_cfg baseline, pinned in FIXED below.
 #
-# THE DESIGNS. All three are one-group MIRROR PAIRS, same shape as the earlier
-# All-SDGs/PP-Material sweep: signal_0 is a material SHARE of the group's SDGs and
-# signal_1 = 1 - signal_0, so High on one leg is Low on the other and the two High-Low
-# spreads are exact negatives. On the risk panel that shows up as one green row and one
-# red row per pair, which is expected, not a bug -- the colour is carrying the sign.
+# THE DESIGNS. All five are one-group MIRROR PAIRS: signal_0 is a material SHARE of the
+# group's SDGs and signal_1 = 1 - signal_0, so High on one leg is Low on the other and the
+# two High-Low spreads are exact negatives. On the risk panel that shows up as one green
+# row and one red row per pair, which is expected, not a bug -- the colour is carrying
+# the sign. Listed widest denominator first, narrowing down:
 #
+#   Material_Immaterial_only                "All SDGs" -- material__total vs
+#                                           immaterial__total, no SDG scoping at all.
+#                                           This is the build_cfg BASELINE design; see
+#                                           the NAMES note below for what that does to
+#                                           the run names.
+#   Materiality_People_Plus_Prosperity_SDG  "People+Prosperity" -- SDGs 1-5, 8-11, 16, 17
+#                                           (everything but the six Planet SDGs).
 #   Materiality_One_Health_SDGS             "One Health" -- Health_SDGS_Groups'
 #                                           One_Health cut: SDGs 3, 6, 8, 11, 14, 15.
 #   Materiality_One_Health_Ex_SDG_8_SDGS    "One Health ex SDG8" -- the same group with
 #                                           SDG 8 (decent work) dropped: SDGs 3, 6, 11,
-#                                           14, 15. Added at commit 6121b23, same day as
-#                                           this sweep.
+#                                           14, 15. Added at commit 6121b23.
 #   Materiality_Narrow_Health_SDGS          "Narrow Health" -- the tightest cut: SDGs
 #                                           3, 6, 11 only.
 #
-# "One Health ex SDG8" is a SUBSET of "One Health" (drops one SDG), and "Narrow Health" is
-# a further subset of that (drops 8 and 14, 15 as well: {3,6,11} vs {3,6,8,11,14,15} vs
-# {3,6,11,14,15}). These are NOT three independent tests -- read a difference between them
-# as "does narrowing the denominator concentrate or dilute the signal", same reasoning as
-# the All-SDGs/PP-Material pair in the previous sweep.
+# THESE ARE NOT FIVE INDEPENDENT TESTS. The three health cuts are nested subsets of one
+# another ({3,6,11} < {3,6,11,14,15} < {3,6,8,11,14,15}), so read a difference between
+# them as "does narrowing the denominator concentrate or dilute the signal". All-SDGs and
+# People+Prosperity are NOT nested inside the health cuts, but they share the same
+# material/immaterial numerator construction, and All-SDGs is a strict superset of every
+# other design's SDG set -- it is the reference line the four narrower cuts are read
+# against, which is exactly why it is in this sweep.
+#
+# ONE DENOMINATOR CAVEAT. Every design here is a SINGLE group, so with
+# signal_denominator="Sum_All_Signals" each one's denominator is its OWN group's material
+# + immaterial count -- "material share WITHIN this SDG set", not "share of all
+# initiatives". That is what keeps the five comparable as alphas. Do not read a
+# People+Prosperity spread against an All-SDGs spread as if they shared a denominator;
+# they do not. (The 4-signal Materiality_People_Plus_Prosperity_VS_Planet_SDG design does
+# change the denominator to all-initiatives -- it is deliberately NOT in this sweep.)
 #
 # THE WEIGHTING AXIS ("Mkt cap weighted" and "EQ weights"). portfolio_weighting="mktcap"
 # is the build_cfg baseline; "equal" is the classic unweighted High-minus-Low. Requested
@@ -91,19 +114,24 @@ SWEEP_NAME: str = "us_health_sdgs_weighting_mcap_quantiles"
 # `n_months_discarded_infeasible` in the coverage panel before reading a missing leg as a
 # result on any of its cap-weighted cells.
 #
-# WHY 24 AND NOT FEWER. Four independent axes, each genuinely worth seeing both sides of:
+# WHY 40 AND NOT FEWER. Four independent axes, each genuinely worth seeing both sides of:
 # dropping any one of them would leave a real question unanswered (which design, which
-# weighting, which K, which mcap screen). 24 cells at roughly five minutes each is on the
-# order of two hours serial (about one hour at JOBS=2) -- comparable to or smaller than
+# weighting, which K, which mcap screen). 40 cells at roughly five minutes each is on the
+# order of three and a half hours serial (under two hours at JOBS=2) -- still smaller than
 # prior sweeps in this repo, which ran 36 and 128 cells.
 #
 # NAMES: experiment_name() builds each run name from the cfg DIFF against build_cfg().
 # The baseline is action_characterization=Material_Immaterial_only, portfolio_weighting=
 # mktcap, no_simple_quantiles=5, mktcap_covered_if_filter_by_cum_market_cap=0.95 and
-# region_analysis="United_States" -- none of the three health designs equal that baseline,
-# so every cell here carries action_characterization in its name (there is no
-# base_parameters page in this sweep, unlike the previous one). The US region choice
-# appears in no name, because it is the baseline.
+# region_analysis="United_States". The US region choice therefore appears in no name.
+#
+# NOTE THE CHANGE FROM THE PREVIOUS VERSION OF THIS SWEEP: Material_Immaterial_only IS
+# the baseline design, so its eight cells do NOT carry action_characterization in their
+# names, and the one cell that matches the baseline on all four axes (All-SDGs, mktcap,
+# K=5, 0.95) diffs to nothing and lands on a **base_parameters** page. That is correct,
+# not a missing design -- the other seven All-SDGs cells are still named by whichever
+# axes they move. Every cell of the other four designs carries its design in the name as
+# before.
 # --------------------------------------------------------------------------- #
 
 
@@ -115,11 +143,14 @@ SWEEP_NAME: str = "us_health_sdgs_weighting_mcap_quantiles"
 # move together and so had to be built in EXPLICIT. Nothing is paired now, so GRID is the
 # right tool and EXPLICIT stays empty.
 #
-#   3 designs x 2 weighting schemes x 2 quantile counts x 2 mcap screens = 24 cells
+#   5 designs x 2 weighting schemes x 2 quantile counts x 2 mcap screens = 40 cells
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {
-    # Widest health group first, then its ex-SDG-8 variant, then the narrowest cut.
+    # Widest denominator first, narrowing down: all 17 SDGs, then People+Prosperity, then
+    # the three nested health cuts.
     "action_characterization": [
+        "Material_Immaterial_only",
+        "Materiality_People_Plus_Prosperity_SDG",
         "Materiality_One_Health_SDGS",
         "Materiality_One_Health_Ex_SDG_8_SDGS",
         "Materiality_Narrow_Health_SDGS",
@@ -245,7 +276,7 @@ JOBS: int = 2
 # (numerically for numbers, alphabetically otherwise).
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
-    # Outermost: the design, so the three groups read as three blocks of eight.
+    # Outermost: the design, so the five groups read as five blocks of eight.
     "action_characterization",
     # Then the weighting scheme, so each design's cap-weighted block sits directly above
     # its equal-weighted block.
@@ -259,8 +290,11 @@ SORT_BY: list[str] = [
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Widest health group first, narrowing down.
+    # Widest denominator first, narrowing down -- so the PDF reads as a progressive
+    # tightening of the SDG set, with the All-SDGs reference block at the front.
     "action_characterization": [
+        "Material_Immaterial_only",                # all 17 SDGs
+        "Materiality_People_Plus_Prosperity_SDG",  # SDGs 1-5, 8-11, 16, 17
         "Materiality_One_Health_SDGS",             # SDGs 3, 6, 8, 11, 14, 15
         "Materiality_One_Health_Ex_SDG_8_SDGS",    # SDGs 3, 6, 11, 14, 15
         "Materiality_Narrow_Health_SDGS",          # SDGs 3, 6, 11

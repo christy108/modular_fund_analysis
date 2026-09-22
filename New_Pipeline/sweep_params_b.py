@@ -28,6 +28,14 @@ from __future__ import annotations
 #                                       below).
 #   "us_mktcap_weighted_6designs"      (completed despite living in this file's slot at
 #                                       the time -- see sweep_output/20260908T010352Z_*).
+#   "eu_health_sdgs_weighting_mcap_quantiles"
+#                                      (24 cells: the three health designs only,
+#                                       completed -- output in
+#                                       sweep_output/20260908T170910Z_*). THIS sweep is
+#                                       that worklist plus All-SDGs and
+#                                       People+Prosperity, under a new name, so the 24
+#                                       finished cells are NOT resumed -- all 40 run
+#                                       fresh. The old folder stays readable.
 # To add cells to one of those, restore this file from git rather than editing the name
 # back: --resume can only recognise what already ran if the worklist still matches.
 #
@@ -41,28 +49,35 @@ from __future__ import annotations
 # cells that had already finished computing -- ever reached the ledger; results.csv came
 # out as a bare header. This file now keeps 0.99 out of the EU grid entirely.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "eu_health_sdgs_weighting_mcap_quantiles"
+SWEEP_NAME: str = "eu_momentum_people_prosperity"
 
 
 # --------------------------------------------------------------------------- #
 # WHAT THIS SWEEP IS
 #
-# Kevin's health-alphas request, EUROPE half: three health-SDG materiality designs
-# crossed with the weighting scheme and the sort granularity, on the FULL 2016-2024
-# sample. The market-cap axis is narrower here than on the US -- see below.
+# EUROPE half: five SDG-materiality designs crossed with the weighting scheme and the
+# sort granularity, on the FULL 2016-2024 sample. The market-cap axis is narrower here
+# than on the US -- see below.
 #
-#   3 designs  x  2 weighting schemes  x  2 quantile counts  x  2 mcap screens
-#   = 24 runs
+#   5 designs  x  2 weighting schemes  x  2 quantile counts  x  2 mcap screens
+#   = 40 runs
 #
 # Identical to sweep_parameters.py except for region_analysis and the mcap axis.
 # Everything else is the build_cfg baseline, pinned in FIXED below.
 #
-# THE DESIGNS. All three are one-group MIRROR PAIRS: signal_0 is a material SHARE of the
+# THE DESIGNS. All five are one-group MIRROR PAIRS: signal_0 is a material SHARE of the
 # group's SDGs and signal_1 = 1 - signal_0, so High on one leg is Low on the other and the
 # two High-Low spreads are exact negatives. On the risk panel that shows up as one green
 # row and one red row per pair, which is expected, not a bug -- the colour is carrying
-# the sign.
+# the sign. Listed widest denominator first, narrowing down:
 #
+#   Material_Immaterial_only                "All SDGs" -- material__total vs
+#                                           immaterial__total, no SDG scoping at all.
+#                                           This is the build_cfg BASELINE design; see
+#                                           the NAMES note below for what that does to
+#                                           the run names on this region.
+#   Materiality_People_Plus_Prosperity_SDG  "People+Prosperity" -- SDGs 1-5, 8-11, 16, 17
+#                                           (everything but the six Planet SDGs).
 #   Materiality_One_Health_SDGS             "One Health" -- Health_SDGS_Groups'
 #                                           One_Health cut: SDGs 3, 6, 8, 11, 14, 15.
 #   Materiality_One_Health_Ex_SDG_8_SDGS    "One Health ex SDG8" -- the same group with
@@ -71,9 +86,16 @@ SWEEP_NAME: str = "eu_health_sdgs_weighting_mcap_quantiles"
 #   Materiality_Narrow_Health_SDGS          "Narrow Health" -- the tightest cut: SDGs
 #                                           3, 6, 11 only.
 #
-# "One Health ex SDG8" is a SUBSET of "One Health", and "Narrow Health" is a further
-# subset of that. These are NOT three independent tests -- read a difference between them
-# as "does narrowing the denominator concentrate or dilute the signal".
+# THESE ARE NOT FIVE INDEPENDENT TESTS. The three health cuts are nested subsets of one
+# another, so read a difference between them as "does narrowing the denominator
+# concentrate or dilute the signal". All-SDGs is a strict superset of every other design's
+# SDG set -- the reference line the four narrower cuts are read against.
+#
+# ONE DENOMINATOR CAVEAT. Every design here is a SINGLE group, so each one's denominator
+# is its OWN group's material + immaterial count -- "material share WITHIN this SDG set",
+# not "share of all initiatives". That is what keeps the five comparable as alphas. Do not
+# read a People+Prosperity spread against an All-SDGs spread as if they shared a
+# denominator; they do not.
 #
 # THE WEIGHTING AXIS ("Mkt cap weighted" and "EQ weights"). portfolio_weighting="mktcap"
 # is the build_cfg baseline; "equal" is the classic unweighted High-minus-Low. Cap
@@ -117,9 +139,12 @@ SWEEP_NAME: str = "eu_health_sdgs_weighting_mcap_quantiles"
 #
 # NAMES: experiment_name() builds each run name from the cfg DIFF against build_cfg().
 # The baseline region is the US, so EVERY cell here carries region_analysis-Europe plus
-# the two derived keys (convert_to_USD, fama_factor_region) in its diff, on top of the
-# action_characterization diff every cell also carries (none of the three health designs
-# equal the Material_Immaterial_only baseline). That makes these names long enough to be
+# the two derived keys (convert_to_USD, fama_factor_region) in its diff. The eight
+# Material_Immaterial_only cells added to this sweep do NOT carry action_characterization
+# (it is the baseline design), but unlike on the US half no cell here diffs to nothing --
+# the region alone guarantees a non-empty diff -- so this sweep has NO base_parameters
+# page and the US one does. Every other design still carries its name. That makes these
+# names long enough to be
 # blake2b-truncated past 150 chars on some cells -- the ledger and CSV keep the full cfg
 # regardless, and the page TITLE stays readable, so this costs nothing but do not expect
 # the folder names to be self-describing.
@@ -132,11 +157,14 @@ SWEEP_NAME: str = "eu_health_sdgs_weighting_mcap_quantiles"
 # All four axes are genuinely INDEPENDENT, so the whole cross belongs here and EXPLICIT
 # stays empty.
 #
-#   3 designs x 2 weighting schemes x 2 quantile counts x 2 mcap screens = 24 cells
+#   5 designs x 2 weighting schemes x 2 quantile counts x 2 mcap screens = 40 cells
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {
-    # Widest health group first, then its ex-SDG-8 variant, then the narrowest cut.
+    # Widest denominator first, narrowing down: all 17 SDGs, then People+Prosperity, then
+    # the three nested health cuts. Same order as the US file.
     "action_characterization": [
+        "Material_Immaterial_only",
+        "Materiality_People_Plus_Prosperity_SDG",
         "Materiality_One_Health_SDGS",
         "Materiality_One_Health_Ex_SDG_8_SDGS",
         "Materiality_Narrow_Health_SDGS",
@@ -256,7 +284,7 @@ JOBS: int = 2
 # different mcap values on the innermost axis).
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
-    # Outermost: the design, so the three groups read as three blocks of eight.
+    # Outermost: the design, so the five groups read as five blocks of eight.
     "action_characterization",
     # Then the weighting scheme, so each design's cap-weighted block sits directly above
     # its equal-weighted block.
@@ -269,8 +297,11 @@ SORT_BY: list[str] = [
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Widest health group first, narrowing down.
+    # Widest denominator first, narrowing down -- identical to the US file, so page N
+    # here is the same design/weighting/K cell as page N there.
     "action_characterization": [
+        "Material_Immaterial_only",                # all 17 SDGs
+        "Materiality_People_Plus_Prosperity_SDG",  # SDGs 1-5, 8-11, 16, 17
         "Materiality_One_Health_SDGS",             # SDGs 3, 6, 8, 11, 14, 15
         "Materiality_One_Health_Ex_SDG_8_SDGS",    # SDGs 3, 6, 11, 14, 15
         "Materiality_Narrow_Health_SDGS",          # SDGs 3, 6, 11
