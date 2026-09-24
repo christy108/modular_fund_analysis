@@ -49,126 +49,105 @@ from __future__ import annotations
 # cells that had already finished computing -- ever reached the ledger; results.csv came
 # out as a bare header. This file now keeps 0.99 out of the EU grid entirely.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "eu_momentum_people_prosperity"
+SWEEP_NAME: str = "eu_material_planet_behaviours"
 
 
 # --------------------------------------------------------------------------- #
 # WHAT THIS SWEEP IS
 #
-# EUROPE half: five SDG-materiality designs crossed with the weighting scheme and the
-# sort granularity, on the FULL 2016-2024 sample. The market-cap axis is narrower here
-# than on the US -- see below.
+# EUROPE half: the PLANET materiality designs at two SDG widths, each at four
+# behavioural cuts, crossed with the weighting scheme, the sort granularity and the
+# market-cap screen, on the FULL 2016-2024 sample.
 #
-#   5 designs  x  2 weighting schemes  x  2 quantile counts  x  2 mcap screens
-#   = 40 runs
+#   2 widths x (1 whole-group + 3 behavioural cuts) x 2 weighting schemes
+#     x 2 quantile counts x 2 mcap screens
+#   = 64 runs  (48 from GRID, 16 from EXPLICIT)
 #
-# Identical to sweep_parameters.py except for region_analysis and the mcap axis.
-# Everything else is the build_cfg baseline, pinned in FIXED below.
+# This REPLACES the five-design People+Prosperity / health worklist this file used to
+# hold (SWEEP_NAME "eu_momentum_people_prosperity", 40 cells). That sweep's output stays readable in its own
+# sweep_output/ folder; nothing here resumes it.
 #
-# THE DESIGNS. All five are one-group MIRROR PAIRS: signal_0 is a material SHARE of the
-# group's SDGs and signal_1 = 1 - signal_0, so High on one leg is Low on the other and the
-# two High-Low spreads are exact negatives. On the risk panel that shows up as one green
-# row and one red row per pair, which is expected, not a bug -- the colour is carrying
-# the sign. Listed widest denominator first, narrowing down:
+# Everything else is the build_cfg baseline, pinned in FIXED below -- EXCEPT the sector
+# screen, which is the one deliberate departure. See FIXED.
 #
-#   Material_Immaterial_only                "All SDGs" -- material__total vs
-#                                           immaterial__total, no SDG scoping at all.
-#                                           This is the build_cfg BASELINE design; see
-#                                           the NAMES note below for what that does to
-#                                           the run names on this region.
-#   Materiality_People_Plus_Prosperity_SDG  "People+Prosperity" -- SDGs 1-5, 8-11, 16, 17
-#                                           (everything but the six Planet SDGs).
-#   Materiality_One_Health_SDGS             "One Health" -- Health_SDGS_Groups'
-#                                           One_Health cut: SDGs 3, 6, 8, 11, 14, 15.
-#   Materiality_One_Health_Ex_SDG_8_SDGS    "One Health ex SDG8" -- the same group with
-#                                           SDG 8 (decent work) dropped: SDGs 3, 6, 11,
-#                                           14, 15.
-#   Materiality_Narrow_Health_SDGS          "Narrow Health" -- the tightest cut: SDGs
-#                                           3, 6, 11 only.
+# THE DESIGNS. All eight (2 widths x 4 actions) are one-group MIRROR PAIRS: signal_0 is a
+# material SHARE of the group's SDGs and signal_1 = 1 - signal_0, so High on one leg is Low
+# on the other and the two High-Low spreads are exact negatives. On the risk panel that
+# shows up as one green row and one red row per pair, which is expected, not a bug -- the
+# colour is carrying the sign.
 #
-# THESE ARE NOT FIVE INDEPENDENT TESTS. The three health cuts are nested subsets of one
-# another, so read a difference between them as "does narrowing the denominator
-# concentrate or dilute the signal". All-SDGs is a strict superset of every other design's
-# SDG set -- the reference line the four narrower cuts are read against.
+#   Materiality_Planet_Action_SDG         wide Planet  -- SDGs 6, 7, 12, 13, 14, 15
+#   Materiality_Narrow_Planet_Action_SDG  narrow Planet -- SDGs 13, 14, 15
 #
-# ONE DENOMINATOR CAVEAT. Every design here is a SINGLE group, so each one's denominator
-# is its OWN group's material + immaterial count -- "material share WITHIN this SDG set",
-# not "share of all initiatives". That is what keeps the five comparable as alphas. Do not
-# read a People+Prosperity spread against an All-SDGs spread as if they shared a
-# denominator; they do not.
+# crossed with materiality_planet_action:
 #
-# THE WEIGHTING AXIS ("Mkt cap weighted" and "EQ weights"). portfolio_weighting="mktcap"
-# is the build_cfg baseline; "equal" is the classic unweighted High-minus-Low. Cap
-# weighting is valid on this region ONLY because convert_to_USD=True below -- build_cfg
-# raises on the multi-currency + unconverted + cap-weighted combination precisely to
-# catch a mis-pinned region. Expect cap weighting to damp the spread relative to equal
-# weighting whenever the material/immaterial split correlates with size, and to
-# occasionally DISCARD a bucket-month outright (see the INTERACTION note below), which
-# equal weighting never does -- this bites harder on Europe than the US (smaller region,
-# thinner buckets).
+#   total             the whole group -- identical to Materiality_Planet_SDG /
+#                     Materiality_Narrow_Planet_SDG (same columns, same untagged signal
+#                     names, verified), which is why those two designs are not listed
+#                     separately.
+#   advocacy_old_def  \
+#   preparation        >  the ORIGINAL "Matteo" 3-way split, covering 87.7% of Planet
+#   transformation    /   initiatives -- one taxonomy, not three unrelated picks.
 #
-# WHAT "EUROPE" CHANGES, beyond the sample itself. region_analysis="Europe" derives
-# currency_filter=["EUR","GBP","CHF","NOK","SEK","DKK"], region_filter=["Europe"],
-# convert_to_USD=True and fama_factor_region="Europe" (experiments.py:385). Two things
-# follow that do not apply to the US half:
-#   * CONVERSION IS LOAD-BEARING HERE. The sample spans six currencies, and market caps
-#     are in the listing currency until converted. Cap weighting sums caps ACROSS
-#     holdings, so summing an unconverted GBP cap with a SEK one would be wrong by the
-#     exchange rate.
-#   * THE FF FACTORS ARE THE EUROPE FILES: Europe_3_Factors.csv and Europe_5_Factors.csv,
-#     not the US ones. Both exist and both cover 2016-2024 in full.
+# THESE ARE NOT EIGHT INDEPENDENT TESTS. Narrow Planet is a strict SUBSET of wide Planet
+# (13,14,15 of 6,7,12,13,14,15), so read a difference between the two widths as "is this
+# carried by climate and natural capital, or by the resource SDGs 6/7/12". Measured on the
+# v_2A1 workbook, narrow Planet is 91.9% SDG 15 by initiative count -- SDG 13 is only 5.4%
+# of it -- so do NOT read the narrow cut as "the climate cut".
 #
-# THE MARKET-CAP AXIS IS NARROWER THAN THE US FILE'S, AND DELIBERATELY SO. Kevin's
-# request asked for 0.95/0.99 on both regions, but 0.99 is unusable on Europe -- see the
-# SWEEP_NAME comment above for the mechanism (a hard ~4.29 GB pickling ceiling, not a RAM
-# question, and one that has never once been crossed successfully here). This file runs
-# 0.85/0.95 instead: both have completed repeatedly on Europe (europe_mktcap_weighted_
-# 6designs, europe_plain_action_signals, europe_materiality_12_designs all used one or
-# both), so this axis is safe. If 0.85 and 0.95 give the same answer, that is still the
-# useful result: the spread is not an artefact of where the tail was cut. A widened cap
-# axis on Europe would need `pack_obj`/`boundary.py` changed to chunk large payloads
-# instead of one binary blob -- out of scope here.
+# ONE DENOMINATOR CAVEAT. Every design here is a SINGLE group, so each one's denominator is
+# its OWN group's material + immaterial count -- "material share WITHIN this SDG set and
+# this action", not "share of all initiatives". The four actions therefore do NOT share a
+# denominator with each other: "total" is the whole group, the other three are strictly
+# thinner slices of it.
 #
-# INTERACTION WORTH KNOWING. Cap weighting discards a bucket-month outright when
-# `n * cap <= 1` -- ten names or fewer at the 10% ceiling -- because no weight vector can
-# satisfy both the budget and the cap. The NaN is then booked by (1+r).cumprod() as a
-# fabricated 0% month and feeds the thin-portfolio gate. "Narrow Health" at K=5, 0.95 mcap
-# is the thinnest configuration in this file (narrowest group, most buckets, tightest
-# screen); check `n_months_discarded_infeasible` in the coverage panel before reading a
-# missing leg as a result on that cell.
+# DENSITY WARNING -- measured, not estimated. See the table at
+# experiments.py::_register_planet_action_experiments.
+#   WIDE Planet is usable at every action: total 89.5% of firm-years usable,
+#   transformation 79.1%, advocacy_old_def 57.4%, preparation 51.2%.
+#   NARROW Planet is thin EVERYWHERE: total is already only 46.3% usable with a MEDIAN
+#   denominator of 0, and the actions run 36.8% (advocacy_old_def), 12.9%
+#   (transformation), 12.6% (preparation). Treat the narrow action cells as CONTROLS.
+#   A sibling config (narrow x innovation, thinner still) emptied the panel outright and
+#   died in node 02 with "cannot convert float NaN to integer". These three carry 3-8x that
+#   support, so they will probably survive, but that is not tested -- expect some narrow
+#   cells to FAIL rather than return, and read every cell's signal_sparsity before its
+#   alpha.
 #
-# NAMES: experiment_name() builds each run name from the cfg DIFF against build_cfg().
-# The baseline region is the US, so EVERY cell here carries region_analysis-Europe plus
-# the two derived keys (convert_to_USD, fama_factor_region) in its diff. The eight
-# Material_Immaterial_only cells added to this sweep do NOT carry action_characterization
-# (it is the baseline design), but unlike on the US half no cell here diffs to nothing --
-# the region alone guarantees a non-empty diff -- so this sweep has NO base_parameters
-# page and the US one does. Every other design still carries its name. That makes these
-# names long enough to be
-# blake2b-truncated past 150 chars on some cells -- the ledger and CSV keep the full cfg
-# regardless, and the page TITLE stays readable, so this costs nothing but do not expect
-# the folder names to be self-describing.
-# --------------------------------------------------------------------------- #
+# THE SECTOR SCREEN IS THE OTHER HALF OF THIS SWEEP. Real Estate and Utilities are kept
+# here and dropped in the People+Prosperity sweeps. Both are Planet-relevant by
+# construction -- utilities are the energy SDG (7) and real estate the built-environment
+# side of SDGs 11/12 -- so excluding them from a Planet sort removes much of the exposure
+# the sort exists to measure. That also means these results are NOT directly comparable
+# with the People+Prosperity ones cell for cell: they differ in the universe as well as
+# the signal.
 
 
 # --------------------------------------------------------------------------- #
 # GRID: expanded to its full cartesian product.
 #
-# All four axes are genuinely INDEPENDENT, so the whole cross belongs here and EXPLICIT
-# stays empty.
+# The five axes here are genuinely INDEPENDENT and every one of the 2 x 3 design
+# combinations is valid, so they cross cleanly. The two WHOLE-GROUP signals are the one
+# thing that cannot go in a cross -- see EXPLICIT below for why.
 #
-#   5 designs x 2 weighting schemes x 2 quantile counts x 2 mcap screens = 40 cells
+#   2 widths x 3 behaviours x 2 weighting x 2 quantiles x 2 mcap = 48 cells
+#   (+ the 16 whole-group cells in EXPLICIT below = 64 in total)
 # --------------------------------------------------------------------------- #
 GRID: dict[str, list] = {
-    # Widest denominator first, narrowing down: all 17 SDGs, then People+Prosperity, then
-    # the three nested health cuts. Same order as the US file.
+    # THE SIGNALS (six of the eight): each Planet width crossed with each behaviour.
+    # The other two -- each width on its own -- are in EXPLICIT below.
     "action_characterization": [
-        "Material_Immaterial_only",
-        "Materiality_People_Plus_Prosperity_SDG",
-        "Materiality_One_Health_SDGS",
-        "Materiality_One_Health_Ex_SDG_8_SDGS",
-        "Materiality_Narrow_Health_SDGS",
+        "Materiality_Planet_Action_SDG",         # SDGs 6, 7, 12, 13, 14, 15
+        "Materiality_Narrow_Planet_Action_SDG",  # SDGs 13, 14, 15
     ],
+    # NO "total" here. A width on its own is its OWN design -- Materiality_Planet_SDG /
+    # Materiality_Narrow_Planet_SDG -- and those two live in EXPLICIT below, because they do
+    # not read this key and so cannot be crossed with it. These three are the ORIGINAL
+    # "Matteo" 3-way split, so they partition one taxonomy (87.7% of Planet initiatives)
+    # rather than being three unrelated picks.
+    # TRAP: advocacy_old_def is the Matteo advocacy leg; advocacy_new_def belongs to the
+    # newer 4-way split and is deliberately NOT here.
+    "materiality_planet_action": ["advocacy_old_def", "preparation", "transformation"],
     # Cap-weighted first (also the build_cfg baseline), then equal-weighted.
     "portfolio_weighting": ["mktcap", "equal"],
     # Sort granularity: coarse 3-way and finer 5-way.
@@ -180,9 +159,36 @@ GRID: dict[str, list] = {
 
 # --------------------------------------------------------------------------- #
 # EXPLICIT: hand-picked combinations, appended after the grid, used verbatim.
-# EMPTY -- the whole cross is a clean cartesian product, so it belongs in GRID.
+# THE OTHER TWO SIGNALS: each width ON ITS OWN, no action split.
+#
+# WHY NOT IN GRID. These two are their own action_characterization and never read
+# materiality_planet_action. GRID is a strict cartesian product -- the runner has no skip
+# rule, and it dedupes on the override dict rather than on the resulting signal -- so
+# listing them there would cross each with all three actions and build THREE IDENTICAL runs
+# each: 96 cells instead of 64, 32 of them duplicate reruns under different names. Listed
+# here they cost nothing and stay one clean 8-cell block each.
+#
+# So the full worklist is eight signals, 8 cells each:
+#
+#   GRID      Material_Advocacy_Old_Def_Planet         Material_Advocacy_Old_Def_Narrow_Planet
+#             Material_Preparation_Planet              Material_Preparation_Narrow_Planet
+#             Material_Transformation_Planet           Material_Transformation_Narrow_Planet
+#   EXPLICIT  Material_Planet                          Material_Narrow_Planet
+#
+# The three axes below are exactly GRID's, so every signal is measured the same eight ways.
+# FIXED supplies the region and the sector screen to these as well, so the universe is
+# identical across all 64 cells and the two whole-group signals are a clean reference line.
 # --------------------------------------------------------------------------- #
-EXPLICIT: list[dict] = []
+EXPLICIT: list[dict] = [
+    {"action_characterization": ac,
+     "portfolio_weighting": w, "no_simple_quantiles": k,
+     "mktcap_covered_if_filter_by_cum_market_cap": m}
+    for ac in ("Materiality_Planet_SDG",           # SDGs 6, 7, 12, 13, 14, 15
+               "Materiality_Narrow_Planet_SDG")    # SDGs 13, 14, 15
+    for w in ("mktcap", "equal")
+    for k in (3, 5)
+    for m in (0.85, 0.95)
+]
 
 # --------------------------------------------------------------------------- #
 # FIXED: merged into EVERY combination, grid and explicit alike. Use for knobs you want
@@ -196,6 +202,14 @@ FIXED: dict = {
     # fama_factor_region="Europe" (experiments.py:385). This is NOT at the build_cfg
     # baseline, so it (and its two derived keys) appear in every run name.
     "region_analysis": "Europe",
+
+    # ---- THE SECTOR SCREEN: the one place this file departs from the baseline -------- #
+    # ADD BACK Real Estate and Utilities, which the build_cfg baseline drops (both default
+    # True). Neither is at baseline, so both appear in EVERY run name here -- which is what
+    # keeps these results visibly distinct from the People+Prosperity sweeps, where Real
+    # Estate stays dropped.
+    "drop_real_estate": False,
+    "drop_utilities": False,
 
     # ---- everything below EQUALS the build_cfg baseline ------------------- #
     # None of it reaches the cfg diff, so none of it pollutes a run name. Pinned anyway:
@@ -284,8 +298,11 @@ JOBS: int = 2
 # different mcap values on the innermost axis).
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
-    # Outermost: the design, so the five groups read as five blocks of eight.
+    # Outermost: the SDG width, so the wide block precedes the narrow one.
     "action_characterization",
+    # Then the behavioural action -- the second half of the design, so each width reads as
+    # four blocks of eight in taxonomy order.
+    "materiality_planet_action",
     # Then the weighting scheme, so each design's cap-weighted block sits directly above
     # its equal-weighted block.
     "portfolio_weighting",
@@ -297,15 +314,18 @@ SORT_BY: list[str] = [
 ]
 
 VALUE_ORDER: dict[str, list] = {
-    # Widest denominator first, narrowing down -- identical to the US file, so page N
-    # here is the same design/weighting/K cell as page N there.
+    # Each width's WHOLE-GROUP signal first, then its three behavioural cuts -- so the PDF
+    # reads "here is Planet, and here is what each behaviour does to it", twice.
     "action_characterization": [
-        "Material_Immaterial_only",                # all 17 SDGs
-        "Materiality_People_Plus_Prosperity_SDG",  # SDGs 1-5, 8-11, 16, 17
-        "Materiality_One_Health_SDGS",             # SDGs 3, 6, 8, 11, 14, 15
-        "Materiality_One_Health_Ex_SDG_8_SDGS",    # SDGs 3, 6, 11, 14, 15
-        "Materiality_Narrow_Health_SDGS",          # SDGs 3, 6, 11
+        "Materiality_Planet_SDG",                  # Material_Planet
+        "Materiality_Planet_Action_SDG",           # the same SDGs, one action at a time
+        "Materiality_Narrow_Planet_SDG",           # Material_Narrow_Planet
+        "Materiality_Narrow_Planet_Action_SDG",    # the same SDGs, one action at a time
     ],
+    # The Matteo 3-way split in the taxonomy's own order -- not a density order, so the
+    # three read as one split. None on the two whole-group signals, which _sort_key ranks
+    # after these rather than raising.
+    "materiality_planet_action": ["advocacy_old_def", "preparation", "transformation"],
     # Cap-weighted first, matching Kevin's own ordering ("Mkt cap weighted" then
     # "And EQ weights").
     "portfolio_weighting": ["mktcap", "equal"],

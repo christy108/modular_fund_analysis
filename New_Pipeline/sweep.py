@@ -48,7 +48,13 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from New_Pipeline import sweep_parameters as SP
+# The DEFAULT worklist. `--params <dotted.module>` (or $SWEEP_PARAMS) swaps it at
+# startup -- see _load_params below -- which is how run_sweeps.sh queues US then EU.
+# This import is module-level and runs BEFORE any flag is read, so it has to name a
+# module that actually exists: it was `sweep_parameters`, which the rename to
+# sweep_parameters_{US,EU}.py removed, and every invocation died on the import with
+# `cannot import name 'sweep_parameters'` regardless of --params.
+from New_Pipeline import sweep_parameters_US as SP
 
 
 def _load_params(argv: list[str]) -> None:

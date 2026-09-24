@@ -239,7 +239,12 @@ def sorted_records(records: list, sort_by=None, value_order=None) -> list:
     """
     if sort_by is None or value_order is None:
         try:
-            from New_Pipeline import sweep_parameters as SP
+            # Whatever sweep.py is currently pointed at (--params swaps it), falling
+            # back to the US worklist. NOT `from New_Pipeline import sweep_parameters`:
+            # that module was renamed to sweep_parameters_{US,EU}.py, and the bare name
+            # now raises -- which this except swallows, silently dropping the sort and
+            # emitting the PDF in ledger order instead.
+            from New_Pipeline.sweep import SP
             sort_by = SP.SORT_BY if sort_by is None else sort_by
             value_order = getattr(SP, "VALUE_ORDER", None) if value_order is None else value_order
         except Exception:
