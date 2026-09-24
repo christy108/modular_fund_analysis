@@ -1,0 +1,20 @@
+{
+  "base_none_EU": {
+    "ff3_parts_df.parquet": "c10c66be7e1cc3d48875f06afce69e076e76f4365570c25c17f7b5ce7d3c51a3",
+    "ff5_parts_df.parquet": "938e637410a44db55b1e23ec2749524f9851a6bbbdf0199801107fd8bcf53551",
+    "table_excess.parquet": "a82e62c1852b7695ebfd3a430724f4cfa5713b261e8e55caf106d566afb444d3",
+    "table_returns.parquet": "e0f989677c9bb78e24cf4c936fc55c37c173efe115a1d6d92d946a6280717152"
+  },
+  "base_none_JP": {
+    "ff3_parts_df.parquet": "b6a1009396409af569c464d929a4b39271973488af22a1a7703e0b687dc902a4",
+    "ff5_parts_df.parquet": "82226cfd567a0a1482476bc083be64c795296ab025ba8f3459178fb1e30e3d42",
+    "table_excess.parquet": "3bc4c6212df8d57c5512478f568ba282e95bad18896b85e3085406ccb2bab628",
+    "table_returns.parquet": "5064c2125110d3a14bf4208bfb8d1d58df212f6bd23602e7d928f33dfb737c75"
+  },
+  "base_none_US": {
+    "ff3_parts_df.parquet": "3445f59f592298d0b2f146ae5b0da04ddfd8d71ac27f10d73622f180d3ad66ee",
+    "ff5_parts_df.parquet": "d19ae36f35417a3b9dc0043627e5295320de0b69d69ba883d17b8b8350eb2d9e",
+    "table_excess.parquet": "35903439c2d1f706d52d49ff1b7c630c99d9c028b02345f511b06cfdeb5bbd17",
+    "table_returns.parquet": "fc90948b597a377e8105aec5e30a80514ef9f4481cc18bca104698d66f02b0b5"
+  }
+}

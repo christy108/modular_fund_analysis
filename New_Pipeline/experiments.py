@@ -393,7 +393,7 @@ def build_cfg(**overrides) -> dict:
     elif region == "Japan":
         c.update(currency_filter=["JPY"], region_filter=["Asia-Pacific"],
                  execute_region_filters=True,
-                 convert_to_USD=(c["fama_factors_currency"] == "USD"),
+                 convert_to_USD=(c["fama_factors_currency_if_Japan"] == "USD"),
                  fama_factor_region="Japan")
 
     # Cap weighting sums market caps across the portfolio's holdings, which is only
@@ -789,6 +789,46 @@ def make_experiment(name: str, cfg: dict, *, prepare_tag: str | None = None):
 # The required config matrix (built lazily to avoid importing the store at import time).
 def base_none():
     return make_experiment("base_none", build_cfg())
+
+
+# ---- base_none regional parity baselines --------------------------------- #
+# Three frozen reference points for `parity/artifacts/robustness/` -- the artifacts a
+# later refactor is diffed against to prove it changed nothing. They are base_none and
+# NOTHING else except region_analysis (and, for Japan, the momentum factor), so a
+# difference between a baseline and a re-run is attributable to the code change under
+# test rather than to any config drift between the three.
+#
+# Momentum: build_cfg's baseline is Add_Momentum_Factor=True, which appends Ken French's
+# momentum series to BOTH specifications (FF3 -> Carhart 4-factor, FF5 -> 6-factor). That
+# file ships for Europe and United_States only, so those two keep it. Japan has no
+# momentum file and 05_load_fama_french raises rather than silently dropping the factor,
+# hence Add_Momentum_Factor=False there -- plain FF3 and FF5. Japan is otherwise UNTESTED:
+# it is the only one of the three whose universe (currency_filter=["JPY"],
+# region_filter=["Asia-Pacific"], convert_to_USD=False) has never been run end to end.
+
+
+def base_none_US():
+    # Region spelled out even though United_States IS the build_cfg baseline, so this
+    # baseline's identity is readable without knowing the default -- same convention as
+    # base_materiality_US. Add_Momentum_Factor is likewise already True by default.
+    return make_experiment("base_none_US",
+                           build_cfg(region_analysis="United_States",
+                                     Add_Momentum_Factor=True))
+
+
+def base_none_EU():
+    return make_experiment("base_none_EU",
+                           build_cfg(region_analysis="Europe",
+                                     Add_Momentum_Factor=True))
+
+
+def base_none_JP():
+    # No momentum: see the note above. FF5 still runs -- data/FAMA/Japan_5_Factors.csv
+    # exists -- so ff5_parts_df is emitted here too; it is the plain 5-factor model, not
+    # the 6-factor one the other two baselines carry.
+    return make_experiment("base_none_JP",
+                           build_cfg(region_analysis="Japan",
+                                     Add_Momentum_Factor=False))
 
 
 def base_none_half_open():
@@ -1312,6 +1352,11 @@ def sdg_climate_vs_each_sdg():
 EXPERIMENTS = {
     "base_none": base_none,
     "base_none_half_open": base_none_half_open,
+
+    # Regional parity baselines -- see parity/artifacts/robustness/.
+    "base_none_US": base_none_US,
+    "base_none_EU": base_none_EU,
+    "base_none_JP": base_none_JP,
 
 
     "base_materiality": base_materiality,

@@ -223,7 +223,7 @@ class StrategyPerformance:
         for suffix in self.alpha_specs:
             for stem in (f"Alpha {suffix}", f"p-value(alpha) {suffix}"):
                 if stem in metrics.columns:
-                    formatted[stem] = metrics[stem].map(lambda x: _format_num(x, dp=2))
+                    formatted[stem] = metrics[stem].map(lambda x: _format_num(x, dp=3))
 
         path = Path(csv_path)
         path.parent.mkdir(parents=True, exist_ok=True)

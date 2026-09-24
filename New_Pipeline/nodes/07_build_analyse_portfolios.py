@@ -1123,7 +1123,7 @@ def build_analyse_portfolios_v1(prep, cfg):
             parts.append(regress(_df, ff.reset_index(drop=True)))
         if C["show_sample_portfolio"]:
             parts.append(regress(Excess_returns_sample, ff.reset_index(drop=True)))
-        return pd.concat(parts, axis=1).round(2)
+        return pd.concat(parts, axis=1).round(3)
 
     # partial() rather than a _level_parts parameter: the builder just forwards whatever
     # callable it is handed, so the momentum choice stays at the two places it is made.
