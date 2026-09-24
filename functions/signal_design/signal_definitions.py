@@ -34,6 +34,26 @@ PEOPLE_PLANET_PROSPERITY = {
 }
 
 
+# The Planet cut at two widths. SEPARATE from PEOPLE_PLANET_PROSPERITY on purpose:
+# that dict is a PARTITION of all 17 SDGs and gets passed WHOLE to
+# _check_groups_disjoint -- by dict_SDG_3_groups_people_planet_prosperity, by
+# Materiality_Signals_3_groups_people_planet_prosperity_SDG, and (at IMPORT time) by
+# New_Pipeline/initiative_brackets.py's "sdg3" scheme. Adding an overlapping band to it
+# raises before any config is built and takes down every experiment in the repo,
+# base_none included.
+#
+# This dict is a MENU of alternative cuts instead, the same shape as Health_SDGS_Groups:
+# the groups deliberately nest, and no caller ever passes it whole -- each function picks
+# ONE key and wraps it in a one-entry dict.
+#
+# Narrow_Planet is exactly SDG_5_BRACKETS["Climate & Natural Capital"]; kept spelled out
+# here so the two Planet widths sit together and read as one choice.
+PLANET_SDGS_Groups = {
+    "Planet":        [6, 7, 12, 13, 14, 15],
+    "Narrow_Planet": [13, 14, 15],
+}
+
+
 PEOPLE_Plus_PROSPERITY_VS_PLANET= {
     "People_Plus_Prosperity":     [1, 2, 3, 4, 5, 8, 10, 9, 11, 16, 17],
     "Planet":     [6, 7, 12, 13, 14, 15],

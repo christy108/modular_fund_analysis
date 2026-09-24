@@ -432,6 +432,8 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals,
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
         Materiality_People_SDG,
+        Materiality_Planet_SDG,
+        Materiality_Narrow_Planet_SDG,
         Materiality_People_Plus_Prosperity_SDG,
         Materiality_People_Plus_Prosperity_Action_SDG,
         Materiality_People_Plus_Prosperity_VS_Planet_SDG,
@@ -550,6 +552,23 @@ def build_cfg(**overrides) -> dict:
     # the People SDGs (1,2,3,4,5,8,10) instead of all 17.
     elif ac == "Materiality_People_SDG":
         categories_dict, *names = Materiality_People_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # The Planet complement of Materiality_People_SDG: same one-group mirror-pair shape,
+    # on the Planet SDGs (6, 7, 12, 13, 14, 15). Sourced from PLANET_SDGS_Groups, not from
+    # PEOPLE_PLANET_PROSPERITY -- see that dict's comment for why the two Planet widths
+    # cannot live in the partition.
+    elif ac == "Materiality_Planet_SDG":
+        categories_dict, *names = Materiality_Planet_SDG()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # The narrow Planet cut: SDGs 13, 14, 15 only -- climate, oceans, land, dropping the
+    # resource/consumption SDGs (6, 7, 12) that the wide cut carries. Exactly the SDG set
+    # of SDG_5_BRACKETS["Climate & Natural Capital"], but as a 2-signal mirror pair rather
+    # than one band among five, so it is directly comparable with Materiality_Planet_SDG:
+    # same denominator construction, strictly narrower numerator.
+    elif ac == "Materiality_Narrow_Planet_SDG":
+        categories_dict, *names = Materiality_Narrow_Planet_SDG()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     # Same one-group mirror pair, but People and Prosperity pooled -- i.e. everything
@@ -1147,6 +1166,32 @@ def base_materiality_people_only():
                             "Materiality_People_SDG")
 
 
+def base_materiality_planet_only():
+    # 2 signals: Material_Planet vs Immaterial_Planet -- the Planet complement of
+    # base_materiality_people_only. A mirror pair, so High signal_1 is the same portfolio
+    # as Low signal_0 (mirror_pair_summary reports it).
+    #
+    # NOT comparable one-for-one with base_materiality_3_groups_ppp's Planet legs: there
+    # the denominator under signal_denominator="Sum_All_Signals" spans all six signals
+    # (all 17 SDGs), here it is material_Planet + immaterial_Planet alone. Same SDG
+    # membership, different share.
+    return _sdg_materiality("base_materiality_planet_only",
+                            "Materiality_Planet_SDG")
+
+
+def base_materiality_narrow_planet_only():
+    # 2 signals: Material_Narrow_Planet vs Immaterial_Narrow_Planet -- SDGs 13, 14, 15
+    # only. Same shape as base_materiality_planet_only on a strictly narrower numerator,
+    # so run the pair together to see whether the Planet result is carried by climate and
+    # natural capital or by the resource SDGs (6, 7, 12) the narrow cut drops.
+    #
+    # A thinner denominator means a sparser signal: read the run's signal_sparsity and
+    # materiality_split_floor audits before trusting the sort, the same caveat the
+    # base_materiality_pp_<action> configs carry.
+    return _sdg_materiality("base_materiality_narrow_planet_only",
+                            "Materiality_Narrow_Planet_SDG")
+
+
 def base_materiality_people_only_alpha05_mcap99_k3():
     # base_materiality_people_only + alpha_bound=0.05 (halves the per-tail trim, so LESS
     # of sum_activities gets dropped than the 0.1 default), mktcap_covered=0.99 (covers
@@ -1255,15 +1300,6 @@ def base_materiality_people_plus_prosperity_vs_planet():
     return _sdg_materiality("base_materiality_people_plus_prosperity_vs_planet",
                             "Materiality_People_Plus_Prosperity_VS_Planet_SDG")
 
-
-def base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99():
-    # base_materiality_people_plus_prosperity_vs_planet + alpha_bound=0.05,
-    # mktcap_covered=0.99 -- see base_materiality_people_only_alpha05_mcap99 for what each
-    # knob does. Still 4 signals / 2 mirror pairs, same denominator caveat as the base.
-    return _sdg_materiality("base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99",
-                            "Materiality_People_Plus_Prosperity_VS_Planet_SDG",
-                            alpha_bound=0.05,
-                            mktcap_covered_if_filter_by_cum_market_cap=0.99)
 
 
 def base_materiality_single_sdg(x: int, **overrides):
@@ -1392,13 +1428,15 @@ EXPERIMENTS = {
     "base_materiality_3_groups_ppp_counts": base_materiality_3_groups_ppp_counts,
 
     "base_materiality_people_only": base_materiality_people_only,
+
+    # Planet at two widths -- wide (6,7,12,13,14,15) and narrow (13,14,15). Mirror pairs
+    # like base_materiality_people_only; sort on signal_0.
+    "base_materiality_planet_only": base_materiality_planet_only,
+    "base_materiality_narrow_planet_only": base_materiality_narrow_planet_only,
    
     "base_materiality_people_plus_prosperity_only": base_materiality_people_plus_prosperity_only,
-    "base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3": base_materiality_people_plus_prosperity_only_alpha05_mcap95_k3,
-    "base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5": base_materiality_people_plus_prosperity_only_alpha05_mcap95_k5,
     "Materiality_People_Plus_Prosperity_VS_Planet_SDG": base_materiality_people_plus_prosperity_vs_planet,
-    "Materiality_People_Plus_Prosperity_VS_Planet_SDG_alpha05_mcap99": base_materiality_people_plus_prosperity_vs_planet_alpha05_mcap99,
-
+   
     "base_materiality_one_health": base_materiality_one_health,
     "base_materiality_narrow_health": base_materiality_narrow_health,
     "base_materiality_health_and_work": base_materiality_health_and_work,

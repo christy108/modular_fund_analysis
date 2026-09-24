@@ -8,6 +8,7 @@ from functions.signal_design.signal_definitions import (  # noqa: F401
     PEOPLE_PLANET_PROSPERITY,
     PEOPLE_Plus_PROSPERITY_VS_PLANET,
     Health_SDGS_Groups,
+    PLANET_SDGS_Groups,
     
     SDG_5_BRACKETS,
     _check_groups_disjoint,
@@ -94,6 +95,34 @@ def Materiality_People_SDG():
     re-wrapped in a one-entry dict -- passing the bare list raises.
     """
     return _signals_from_groups({"People": PEOPLE_PLANET_PROSPERITY["People"]})
+
+
+
+def Materiality_Planet_SDG():
+    """2 signals: Material_Planet, Immaterial_Planet.
+
+    A single group, so with signal_denominator="Sum_All_Signals" the denominator is
+    material_Planet + immaterial_Planet and signal_0 is the Planet material share
+    (signal_1 == 1 - signal_0, a mirror pair like Material_Immaterial_only).
+    _signals_from_groups takes {group_name: [sdg, ...]}, so the group has to be
+    re-wrapped in a one-entry dict -- passing the bare list raises.
+    """
+    return _signals_from_groups({"Planet": PLANET_SDGS_Groups["Planet"]})
+
+def Materiality_Narrow_Planet_SDG():
+    """2 signals: Material_Narrow_Planet, Immaterial_Narrow_Planet.
+
+    A single group, so with signal_denominator="Sum_All_Signals" the denominator is
+    material_Narrow_Planet + immaterial_Narrow_Planet and signal_0 is the Narrow_Planet
+    material share
+    (signal_1 == 1 - signal_0, a mirror pair like Material_Immaterial_only).
+    _signals_from_groups takes {group_name: [sdg, ...]}, so the group has to be
+    re-wrapped in a one-entry dict -- passing the bare list raises.
+    """
+    return _signals_from_groups({"Narrow_Planet": PLANET_SDGS_Groups["Narrow_Planet"]})
+
+
+
 
 
 
