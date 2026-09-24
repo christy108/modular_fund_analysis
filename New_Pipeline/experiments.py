@@ -164,6 +164,11 @@ def build_cfg(**overrides) -> dict:
         # typo raises in build_cfg rather than emptying the sort 20 minutes into a run.
         materiality_pp_action=None,
 
+        # Same idea for the Planet cuts. ONE key serves both widths -- which width comes
+        # from action_characterization (Materiality_Planet_Action_SDG vs
+        # Materiality_Narrow_Planet_Action_SDG), so adding a width needs no new key.
+        materiality_planet_action=None,
+
         # Which single SDG action_characterization="Materiality_single_SDG" sorts on
         # (1-17). Ignored by every other characterization; required by that one, which
         # raises if it is still None. A cfg key rather than 17 separate
@@ -436,6 +441,7 @@ def build_cfg(**overrides) -> dict:
         Materiality_Narrow_Planet_SDG,
         Materiality_People_Plus_Prosperity_SDG,
         Materiality_People_Plus_Prosperity_Action_SDG,
+        Materiality_Planet_Action_SDG,
         Materiality_People_Plus_Prosperity_VS_Planet_SDG,
         Materiality_One_Health_SDGS,
         Materiality_One_Health_Ex_SDG_8_SDGS,
@@ -595,6 +601,21 @@ def build_cfg(**overrides) -> dict:
                 "got None"
             )
         categories_dict, *names = Materiality_People_Plus_Prosperity_Action_SDG(_act)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # The Planet twin of the branch above, at both widths -- wide Planet (6,7,12,13,14,15)
+    # and Narrow_Planet (13,14,15). One branch, because only the group differs: the width
+    # is read off `ac` and the action off the cfg key, so both are visible in the manifest.
+    elif ac in ("Materiality_Planet_Action_SDG", "Materiality_Narrow_Planet_Action_SDG"):
+        _w = "Narrow_Planet" if "Narrow" in ac else "Planet"
+        _act = c["materiality_planet_action"]
+        if _act is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs materiality_planet_action=<one of "
+                "adaptation/advocacy_new_def/advocacy_old_def/innovation/preparation/"
+                "transformation/upskilling/total>; got None"
+            )
+        categories_dict, *names = Materiality_Planet_Action_SDG(_w, _act)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     # Two groups covering all 17 SDGs, so unlike the one-group designs above the
@@ -1293,6 +1314,20 @@ def base_materiality_pp_action(action: str, **overrides):
                             materiality_pp_action=action, **overrides)
 
 
+def base_materiality_planet_action(width: str, action: str, **overrides):
+    """Planet material vs immaterial, restricted to ONE behavioural action.
+
+    Registered below as base_materiality_planet_<action> and
+    base_materiality_narrow_planet_<action> for all seven non-total actions. No _total
+    sibling: action="total" is exactly base_materiality_planet_only /
+    base_materiality_narrow_planet_only, which already exist.
+    """
+    _slug = "narrow_planet" if width == "Narrow_Planet" else "planet"
+    _ac = f"Materiality_{'Narrow_' if width == 'Narrow_Planet' else ''}Planet_Action_SDG"
+    return _sdg_materiality(f"base_materiality_{_slug}_{action}", _ac,
+                            materiality_planet_action=action, **overrides)
+
+
 def base_materiality_people_plus_prosperity_vs_planet():
     # 4 signals: material/immaterial x (People+Prosperity, Planet). Covers all 17 SDGs,
     # so each signal is a share of ALL initiatives -- not comparable one-for-one with
@@ -1536,3 +1571,76 @@ def _register_pp_action_experiments():
 
 
 _register_pp_action_experiments()
+
+
+# ---- the same, per Planet width -------------------------------------------- #
+# base_materiality_{planet,narrow_planet}_<action>: 14 configs. Both loop variables are
+# bound as default args for the reason the pp loop binds one -- a bare closure would leave
+# all 14 pointing at the last (width, action) pair. "total" is excluded: it is
+# base_materiality_planet_only / base_materiality_narrow_planet_only under another name.
+#
+# DENSITY BY ACTION -- measured the same way as the pp table above, on the same v_2A1
+# workbook (72,412 firm-years). The method was validated by reproducing that table exactly
+# before these two were computed, so the three are directly comparable.
+#
+#   Planet (SDGs 6, 7, 12, 13, 14, 15)
+#   action              mean  median      usable      @1.0    @0.0   distinct
+#   total              11.01       6   64,780  89.5%   45.9%    8.9%     1,385
+#   adaptation          5.50       3   57,812  79.8%   60.3%   10.0%       571
+#   transformation      5.48       3   57,259  79.1%   61.3%   10.1%       609
+#   advocacy_new_def    3.64       1   48,224  66.6%   53.4%   15.1%       517
+#   advocacy_old_def    2.54       1   41,572  57.4%   47.2%   22.7%       355
+#   preparation         1.63       1   37,102  51.2%   71.3%   12.4%       170  <-- thin
+#   innovation          0.95       0   25,562  35.3%   72.8%   13.9%       132  <-- thin
+#   upskilling          0.91       0   26,541  36.7%   55.3%   26.3%       117  <-- thin
+#
+#   Narrow_Planet (SDGs 13, 14, 15)
+#   action              mean  median      usable      @1.0    @0.0   distinct
+#   total               1.91       0   33,538  46.3%   35.9%   58.0%       140
+#   advocacy_old_def    1.18       0   26,655  36.8%   34.0%   64.1%        56
+#   advocacy_new_def    1.06       0   24,878  34.4%   37.0%   58.8%        70
+#   upskilling          0.41       0   13,972  19.3%   30.8%   68.9%        11
+#   adaptation          0.37       0   13,082  18.1%   48.0%   48.4%        43
+#   preparation         0.23       0    9,151  12.6%   51.2%   45.9%        24
+#   transformation      0.23       0    9,315  12.9%   45.3%   52.6%        32
+#   innovation          0.07       0    3,192   4.4%   47.8%   50.8%        12
+#
+# THE ACTION RANKING INVERTS vs People+Prosperity. There advocacy was the dense leg and
+# adaptation/transformation were the thin controls; on Planet it is the other way round --
+# adaptation and transformation are the two densest actions, advocacy is middling. That is
+# the substantive finding these configs exist to test, not an artifact: Planet initiatives
+# are largely asset and procedure changes, People+Prosperity ones largely communication and
+# funding. The top FIVE wide-Planet actions are real sorts.
+#
+# NARROW_PLANET PER-ACTION IS NOT A SORT. Read the whole second table as controls. Its
+# __total__ row already has a MEDIAN DENOMINATOR OF 0 and only 46.3% of firm-years usable,
+# with 58% of those sitting at exactly 0.0 -- so before any action is applied the narrow cut
+# is mostly empty. Every action then makes it worse: upskilling has 11 distinct values in
+# the entire panel, innovation 12 across 4.4% of firm-years. A quantile sort on these is
+# cutting ties almost everywhere, and its High leg is a coin-flip subset of the tie block.
+# They are registered for completeness and for the wide-vs-narrow contrast, NOT because the
+# narrow legs are expected to carry an interpretable alpha.
+#
+# The narrow-width action configs also draw an EMPTY decomposition PDF: every SDG scheme
+# collapses to one band on {13,14,15} and an action scheme cannot split an already-single-
+# action numerator, so bands_for_numerator returns {}. Verified: wide Planet + any action
+# keeps ['climate', 'climate_vs_each', 'sdg5']; narrow Planet + any action returns []. The
+# narrow __total__ config is NOT a guide here -- it keeps ['behavioural4', 'matteo3'].
+#
+# Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
+# these sorts, and never report an alpha without its coverage_pct neighbour.
+def _register_planet_action_experiments():
+    from functions.signal_design.signal_definitions import PLANET_SDGS_Groups
+    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+
+    for w in PLANET_SDGS_Groups:
+        for a in _SDG_ACTIONS:
+            if a == "total":
+                continue
+            slug = "narrow_planet" if w == "Narrow_Planet" else "planet"
+            EXPERIMENTS[f"base_materiality_{slug}_{a}"] = (
+                lambda w=w, a=a: base_materiality_planet_action(w, a)
+            )
+
+
+_register_planet_action_experiments()

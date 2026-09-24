@@ -126,6 +126,21 @@ def Materiality_Narrow_Planet_SDG():
 
 
 
+def Materiality_Planet_Action_SDG(width, action):
+    """2 signals: material/immaterial Planet for ONE behavioural action.
+
+    `width` is a PLANET_SDGS_Groups key -- "Planet" (6, 7, 12, 13, 14, 15) or
+    "Narrow_Planet" (13, 14, 15); `action` one of _SDG_ACTIONS. Same mirror-pair shape and
+    the same advocacy_old_def / advocacy_new_def naming trap as
+    Materiality_People_Plus_Prosperity_Action_SDG -- read its docstring. action="total"
+    reproduces Materiality_Planet_SDG / Materiality_Narrow_Planet_SDG above, so no _total
+    config is registered.
+    """
+    if width not in PLANET_SDGS_Groups:
+        raise ValueError(f"width {width!r} is not one of {sorted(PLANET_SDGS_Groups)}")
+    return _signals_from_groups({width: PLANET_SDGS_Groups[width]}, action=action)
+
+
 def Materiality_People_Plus_Prosperity_SDG():
     """2 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity.
 
