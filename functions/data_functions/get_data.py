@@ -104,8 +104,26 @@ def _apply_security_status(df, security_status, region):
 
 # This can be aggregated to compute monthly figures.
 
+def _read_universe_csv(path, label, load_rows):
+    """Read a universe extract from disk -- or only its SCHEMA when it is not analysed.
+
+    ``load_rows=False`` reads 5 rows and slices to zero, so the caller gets a frame with
+    the exact columns AND dtypes a full read would give, for ~0 bytes instead of GBs.
+    The schema has to be real on both counts: process_global_universe uses
+    ``usa_universe.columns`` as the template every other region is reindexed onto, and
+    pd.concat resolves each column's dtype across all its parts -- a stub built by an
+    empty read (which types every column as object) would not concat identically.
+
+    Skipping is decided by the CALLER from currency_filter; see nodes/03_load_universes.py.
+    """
+    f = _require_universe_file(path, label)
+    if not load_rows:
+        return pd.read_csv(f, nrows=5).iloc[:, 1:].iloc[0:0]
+    return pd.read_csv(f).iloc[:, 1:]
+
+
 def get_usa_universe(start_year, end_year, download_wrds_data=False,
-                     security_status="active_only"):
+                     security_status="active_only", load_rows=True):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -156,7 +174,7 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False,
 
     # Load from file
     else:
-        usa_universe = pd.read_csv(_require_universe_file(USA_UNIVERSE_PATH, 'usa')).iloc[:, 1:]
+        usa_universe = _read_universe_csv(USA_UNIVERSE_PATH, 'usa', load_rows)
         usa_universe['year'] = pd.to_datetime(usa_universe['date']).dt.year
         usa_universe = usa_universe[usa_universe['year'] <= end_year]
 
@@ -168,7 +186,7 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False,
 
 
 def get_row_universe(start_year, end_year, download_wrds_data=False,
-                     security_status="active_only"):
+                     security_status="active_only", load_rows=True):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -221,14 +239,14 @@ def get_row_universe(start_year, end_year, download_wrds_data=False,
         return _apply_security_status(row_universe, security_status, 'row')
     # Load from file
     else:
-        row_universe = pd.read_csv(_require_universe_file(ROW_UNIVERSE_PATH, 'row')).iloc[:, 1:]
+        row_universe = _read_universe_csv(ROW_UNIVERSE_PATH, 'row', load_rows)
         row_universe['year'] = pd.to_datetime(row_universe['date']).dt.year
         row_universe = row_universe[row_universe['year'] <= end_year]
     return _apply_security_status(row_universe, security_status, 'row')
 
 
 def get_japan_universe(start_year, end_year, download_wrds_data=False,
-                       security_status="active_only"):
+                       security_status="active_only", load_rows=True):
     if download_wrds_data:
         conn = wrds.Connection(wrds_username="cbruce1")  # or pass username like RoW/US do
         print("Connecting to WRDS...")
@@ -279,7 +297,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False,
         return _apply_security_status(japan_universe, security_status, "japan")
 
     else:
-        japan_universe = pd.read_csv(_require_universe_file(JAPAN_UNIVERSE_PATH, "japan")).iloc[:, 1:]
+        japan_universe = _read_universe_csv(JAPAN_UNIVERSE_PATH, "japan", load_rows)
         japan_universe["year"] = pd.to_datetime(japan_universe["date"]).dt.year
         japan_universe = japan_universe[japan_universe["year"] <= end_year]
         return _apply_security_status(japan_universe, security_status, "japan")
