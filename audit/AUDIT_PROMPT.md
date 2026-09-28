@@ -65,6 +65,24 @@ Currently delivered file: `Matched_SASB_GOLDEN_long_matchings_v_2A1_FirmYear_17S
 6. `modular_fund_analysis/functions/portfolio_metrics/fama_french.py` — the alpha regressions
 7. `modular_fund_analysis/New_Pipeline/nodes/07_build_analyse_portfolios.py` — the node that assembles all of the above
 
+## ACCEPTED — reviewed and closed. Do NOT raise these again.
+
+These were found by a previous audit, examined by the researcher, and deliberately closed —
+either fixed, or judged not worth fixing. Re-raising a closed finding wastes the pass and
+erodes trust in the report. If you believe one was closed in error, say so in ONE sentence
+with the new evidence that changes the picture, and move on; do not re-litigate.
+
+The register at `audit/` is the live list — read its **Fixed** and **Accepted** tabs before
+you start, and treat every entry in them as out of scope.
+
+| Status | Finding | Why it is closed |
+|---|---|---|
+| Fixed | Matchings §5 "TOTAL CHECK" reconciliation was dead code | Replaced by a conservation guard that runs before the export. |
+| Fixed | `use_alpha_bound=False` applied a hardcoded 20%/5% trim instead of no trim | The `else` branch is gone; `False` now means no trim. |
+| Accepted | 2,423 firm-years disappear between GOLDEN (74,835) and the output grid (72,412) | The deliberate `"1004"` / `"001004"` gvkey alias merge. Conservation is exact across it. Working as designed. |
+
+---
+
 ## Already known — do not re-report these, but DO check whether they cause damage downstream
 
 These were found in a prior pass. Confirm or refute the *consequence*, don't re-find the
