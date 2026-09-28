@@ -421,15 +421,21 @@ def derive_signals_v1(lc, cfg):
     outlier_stages = [("before_alpha_bound", desc_before)]
 
     # ---- cell 18: winsor alpha-trim -------------------------------------- #
+    # use_alpha_bound=False means NO TRIM.
+    #
+    # It used to run a hardcoded, ASYMMETRIC lower=0.2 / upper=0.05 in an else branch
+    # instead. Measured on the study window that removes 26.1% of firm-years, against
+    # 7.2% for the "on" setting at alpha_bound=0.05 -- so turning the knob OFF filtered
+    # 3.6x HARDER than turning it on, and took a fifth of the sample off the
+    # small-disclosure tail specifically. dashboard_viz.py documents the knob as
+    # "whether the alpha_bound trim runs at all", which was the opposite of what it did;
+    # that description is now correct.
+    #
+    # No existing result moves: use_alpha_bound is True at experiments.py:229 and no
+    # config or sweep has ever overridden it, so the else branch never ran.
     if C["use_alpha_bound"]:
         lc_df = filter_sum_activities_by_fiscal_year_quantiles(
             lc_df, lower_exclude=(C["alpha_bound"] / 2), upper_exclude=(C["alpha_bound"] / 2)
-        )
-    else:
-        lower_exclude = 0.2 * 2
-        upper_exclude = 0.05 * 2
-        lc_df = filter_sum_activities_by_fiscal_year_quantiles(
-            lc_df, lower_exclude=(lower_exclude / 2), upper_exclude=(upper_exclude / 2)
         )
 
     print(lc_df["sum_activities"].describe())
@@ -507,11 +513,11 @@ def derive_signals_v1(lc, cfg):
 
     # ---- audit: sample filter funnel, this node's one stage -------------------------- #
     # Forwarded-plus-appended, the same way lc_raw_for_coverage is carried through below.
-    # Note there is no inactive case: use_alpha_bound=False does NOT mean "no trim", it
-    # means the hardcoded 0.2/0.05 bounds in the else branch above ran instead — so the
-    # row is labelled with whichever bounds actually applied and is never null.
+    # use_alpha_bound=False is now a genuine inactive case, so the row says "no trim"
+    # rather than naming bounds that did not apply. The row is still emitted either way
+    # (with an unchanged firm count) so the stage never silently vanishes from the table.
     _bounds = (f"alpha_bound={C['alpha_bound']}" if C["use_alpha_bound"]
-               else "use_alpha_bound=False -> hardcoded lower=0.2 upper=0.05")
+               else "use_alpha_bound=False -> no trim")
     # Two stages, in execution order. The floor's count is None (rendered as an em dash,
     # "did not run") whenever it is off or the design has no single material/immaterial
     # group -- never 0, which would read as "dropped every firm".
