@@ -496,6 +496,32 @@ def build_cfg(**overrides) -> dict:
         categories_dict, s0, s1 = Materiality_Signals()
         lc_signals = {"signal_0": s0, "signal_1": s1}
 
+    # The NET materiality count: signal_0 = material__total - immaterial__total, a signed
+    # LEVEL rather than a share. A firm doing 20 material and 2 immaterial initiatives
+    # scores +18; one doing 2 and 20 scores -18; a firm doing nothing at all scores 0, the
+    # same as a firm doing 10 of each. That last tie is the price of a difference and is
+    # why this is its own characterization rather than a flavour of Material_Immaterial_only
+    # -- the share signal separates those two firms (0/0 = NaN vs 10/20 = 0.5) and this one
+    # cannot.
+    #
+    # Same two columns and the same group indices as Material_Immaterial_only, so
+    # sum_activities (signal_denominator="Sum_All_Signals") and the alpha-bound trim it
+    # drives are bit-identical to that design -- only the arithmetic in node 02's cell-21
+    # loop differs. Defined inline rather than in functions/signal_design/ for the same
+    # reason total_initiatives is: two columns mapped to two groups, and functions/ is the
+    # frozen core.
+    #
+    # signal_1 is the exact negation of signal_0, the same redundant mirror
+    # Material_Immaterial_only carries as signal_1 = 1 - signal_0. Kept (rather than
+    # emitting one signal) so the per-group signal_i shape every audit and the
+    # max_category column list assume is preserved, and so node 07's empirical mirror
+    # check -- corr <= -0.99, re-derived on the standardised pivots -- still licenses the
+    # initiative decomposition. corr is exactly -1.0 here.
+    elif ac == "total_material_minus_immaterial":
+        categories_dict = {"material__total": 0, "immaterial__total": 1}
+        lc_signals = {"signal_0": "total_material_minus_immaterial",
+                      "signal_1": "total_immaterial_minus_material"}
+
     # ONE signal, the firm-year's whole initiative count -- no split by category,
     # materiality or SDG. Defined inline rather than in functions/signal_design/ because
     # it is a single column mapped to a single group, and functions/ is the frozen core.
@@ -690,6 +716,20 @@ def build_cfg(**overrides) -> dict:
         raise ValueError(
             "signal_type='per_revenue' needs add_sales=True -- the denominator is the "
             "`sale_usd` column that the sales merge in process_lc attaches."
+        )
+    # This characterization fixes its own NUMERATOR (material__total - immaterial__total),
+    # so signal_type is left choosing only the denominator: "weights" (the default) for none
+    # at all, "per_revenue" for sale_usd. "counts" would be a silent alias for "weights" --
+    # the numerator IS a count either way -- and two names for one signal would put two
+    # differently-labelled but numerically identical runs in the dashboard and the parity
+    # artifacts, so it is rejected rather than accepted as a synonym.
+    if ac == "total_material_minus_immaterial" and signal_type == "counts":
+        raise ValueError(
+            "action_characterization='total_material_minus_immaterial' already has a count "
+            "difference as its numerator, so signal_type='counts' would be an exact alias "
+            "for the default 'weights' (which applies no denominator here) and would only "
+            "relabel the same numbers. Use signal_type='weights' for the raw net count, or "
+            "'per_revenue' to divide it by sale_usd."
         )
     if signal_type == "counts":
         lc_signals = {k: f"{v}_counts" for k, v in lc_signals.items()}
@@ -1030,6 +1070,69 @@ def base_materiality_counts():
     # base_none + the optional SASB materiality inner-merge (adds the 15 count columns,
     # filters lc to firm-years present in the materiality workbook).
     return make_experiment("base_materiality_counts", build_cfg(add_materiality=True, action_characterization = "Material_Immaterial_only", signal_type="counts"))
+
+
+# ---- net materiality: material minus immaterial initiative count ---------------- #
+# Four runs: {US, EU} x {raw net count, net count per revenue}. The shared kwargs live here
+# so the four factories below differ ONLY in region_analysis and signal_type -- the two
+# dimensions the set exists to cross -- and no third difference can drift in unnoticed.
+#
+# The signal itself is action_characterization="total_material_minus_immaterial":
+# signal_0 = material__total - immaterial__total, the firm-year's net material initiative
+# count, signed (signal_1 is its exact negation). signal_type then picks the denominator --
+# "weights" for none at all, "per_revenue" for sale_usd -- so the with/without-revenue pair
+# shares a numerator exactly and isolates the size scaling.
+#
+# Everything else is left at the build_cfg baseline, which is ALREADY
+# portfolio_weighting="mktcap", max weight 0.10 and no_simple_quantiles=5 -- the settings
+# base_materiality_{US,EU}_vw_cap10_k5 spell out redundantly. So these four are directly
+# comparable to that pair, with the signal as the only difference.
+#
+# region_analysis is spelled out on the US runs even though United_States is the build_cfg
+# default, for the reason base_materiality_US gives: the run's name and page should be
+# unambiguous about region on sight. Europe is not the default, so build_cfg's region
+# if/elif also switches currency_filter to the 6 European currencies, convert_to_USD=True
+# (required by portfolio_weighting="mktcap") and fama_factor_region="Europe".
+#
+# NOTE on the per-revenue pair: revenue in the denominator partly inverts size, and here it
+# does so on a SIGNED numerator. Among net-positive firms the small ones sort high; among
+# net-negative firms the small ones sort LOW, because dividing a negative by a smaller
+# denominator makes it more negative. Small firms therefore pile up at BOTH ends and the
+# size tilt does not cancel in the High-Low spread the way it would for an all-positive
+# signal. Check the beta_smb row of the FF3 table before reading anything into it.
+_NET_MATERIALITY = dict(
+    add_materiality=True,
+    action_characterization="total_material_minus_immaterial",
+)
+
+
+def base_net_materiality_US():
+    # signal_0 = material__total - immaterial__total. No denominator: sum_activities is
+    # still computed and still drives the alpha-bound trim, it just never divides.
+    return make_experiment("base_net_materiality_US", build_cfg(
+        **_NET_MATERIALITY, region_analysis="United_States"))
+
+
+def base_net_materiality_US_per_revenue():
+    # signal_0 = (material__total - immaterial__total) / sale_usd. Identical numerator to
+    # base_net_materiality_US, so the pair isolates the revenue scaling and nothing else.
+    # add_sales=True attaches the denominator; build_cfg refuses per_revenue without it.
+    return make_experiment("base_net_materiality_US_per_revenue", build_cfg(
+        **_NET_MATERIALITY, region_analysis="United_States",
+        signal_type="per_revenue", add_sales=True))
+
+
+def base_net_materiality_EU():
+    # The Europe twin of base_net_materiality_US -- identical except region_analysis.
+    return make_experiment("base_net_materiality_EU", build_cfg(
+        **_NET_MATERIALITY, region_analysis="Europe"))
+
+
+def base_net_materiality_EU_per_revenue():
+    # The Europe twin of base_net_materiality_US_per_revenue.
+    return make_experiment("base_net_materiality_EU_per_revenue", build_cfg(
+        **_NET_MATERIALITY, region_analysis="Europe",
+        signal_type="per_revenue", add_sales=True))
 
 
 def base_total_initiatives_counts():
@@ -1442,6 +1545,11 @@ EXPERIMENTS = {
     "base_materiality_EU_mcap087": base_materiality_EU_mcap087,
 
     "base_materiality_counts":base_materiality_counts,
+    # Net materiality: {US, EU} x {raw net count, net count / revenue}.
+    "base_net_materiality_US": base_net_materiality_US,
+    "base_net_materiality_US_per_revenue": base_net_materiality_US_per_revenue,
+    "base_net_materiality_EU": base_net_materiality_EU,
+    "base_net_materiality_EU_per_revenue": base_net_materiality_EU_per_revenue,
     "base_materiality_per_revenue": base_materiality_per_revenue,
     "base_total_initiatives_counts": base_total_initiatives_counts,
     "base_total_initiatives_per_revenue": base_total_initiatives_per_revenue,

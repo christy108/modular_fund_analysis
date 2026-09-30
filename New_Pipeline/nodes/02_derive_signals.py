@@ -105,7 +105,18 @@ Sum_All_Initiatives), winsor-trim ``sum_activities`` per fiscal year, then set `
 each category group i: under ``signal_type="weights"`` (default) that is the share
 ``sum_with_i / sum_activities``; under ``signal_type="counts"`` it is the raw level
 ``sum_with_i`` — the group's total initiative count, with sum_activities still driving the trim
-but no longer dividing (and the signal's display name suffixed ``_counts``). Which categories map
+but no longer dividing (and the signal's display name suffixed ``_counts``).
+
+One design sets its NUMERATOR from the ``action_characterization`` instead of the
+``signal_type``: ``total_material_minus_immaterial`` makes ``signal_0 = sum_with_0 - sum_with_1``,
+the firm-year's material initiative count MINUS its immaterial one — signed, a level rather than a
+share. ``signal_type`` is then left picking only the denominator: ``"weights"`` (the default)
+applies none at all (``sum_activities`` is still computed and still drives the trim, it just never
+divides), and ``"per_revenue"`` divides by ``sale_usd``. ``"counts"`` is refused as a silent alias
+for ``"weights"``. ``signal_1`` is the exact negation under both, the mirror
+``Material_Immaterial_only`` carries as ``signal_1 = 1 - signal_0``.
+
+Which categories map
 to which group, the denominator, the trim bound, and the signal_type are read from cfg. Sample
 selection and industry mapping are NOT redone here — they belong to the upstream ``process_lc``
 node.
@@ -549,8 +560,49 @@ def derive_signals_v1(lc, cfg):
     # ---- cell 21: signal_i ----------------------------------------------- #
     max_category = max(int(v) for v in categories_dict.values())
     signal_cols = [f"signal_{i}" for i in range(max_category + 1)]
+
+    # The net-materiality design fixes its own NUMERATOR (a difference of two counts, which
+    # no grouping of columns can express, since the group machinery only ever sums). Its
+    # signal_type is therefore reduced to picking the DENOMINATOR -- "weights" (the default)
+    # for none at all, "per_revenue" for sale_usd -- exactly the choice signal_type makes
+    # between "counts" and "per_revenue" on every other design. build_cfg rejects
+    # signal_type="counts" here, which would be an alias for the "weights" branch.
+    #
+    # .get() for the same backwards-compat reason signal_type uses it: an archived Process
+    # replayed against an older cfg has no such key and must still run.
+    net_materiality = C.get("action_characterization") == "total_material_minus_immaterial"
+
     for i in range(max_category + 1):
-        if signal_type == "counts":
+        if net_materiality:
+            # signal_0 = material__total - immaterial__total, the firm-year's net material
+            # initiative count. Signed, and a LEVEL rather than a share.
+            net = lc_df["sum_with_0"] - lc_df["sum_with_1"]
+            if signal_type == "per_revenue":
+                # Scaled by annual revenue in USD millions to strip out firm size, the same
+                # denominator (and the same `sale_usd` column from process_lc's add_sales
+                # merge) the per_revenue branch below uses. build_cfg refuses this without
+                # add_sales=True.
+                #
+                # Division is safe on a SIGNED numerator here for the reason the unsigned
+                # branch below spells out: the download enforces sale > 0 in SQL, so the
+                # denominator is strictly positive and cannot flip the sign or produce inf.
+                # A firm-year with no revenue row becomes NaN and leaves the sort -- its
+                # cost is reported by node 01's "Annual revenue merge — coverage" audit.
+                net = net / lc_df["sale_usd"]
+            # No denominator otherwise: sum_activities is still computed above and still
+            # drives the cell-18 alpha-bound trim, exactly as it does for
+            # Material_Immaterial_only, it just never divides anything here.
+            #
+            # signal_1 is the exact negation under BOTH denominators -- sale_usd > 0 scales
+            # the pair without reordering it -- so this design keeps the mirror
+            # Material_Immaterial_only carries as signal_1 = 1 - signal_0, and node 07's
+            # empirical corr <= -0.99 gate still licenses the initiative decomposition.
+            # Written whole on every pass of the loop rather than per-i, since the two
+            # signals are defined together; the loop only runs twice here (categories_dict
+            # has groups 0 and 1).
+            lc_df["signal_0"] = net
+            lc_df["signal_1"] = -net
+        elif signal_type == "counts":
             # Level, not share: the signal IS the group's total initiative count.
             # sum_activities is still computed above — it drives the cell-18 alpha-bound
             # trim — it just doesn't divide anything here.

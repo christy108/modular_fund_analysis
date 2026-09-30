@@ -855,7 +855,7 @@ _PARAM_DOCS: dict[str, str] = {
     "download_gics_data": "Re-download GICS sector codes instead of using the cached file.",
     # ---- cell 2: signal construction ---------------------------------------
     "signal_denominator": "Denominator for signal_i: 'Sum_All_Signals' or 'Sum_All_Initiatives' (02_derive_signals).",
-    "signal_type": "'weights' = signal_i is the group's share of sum_activities; 'counts' = the raw initiative total, and signal names gain a _counts suffix.",
+    "signal_type": "'weights' = signal_i is the group's share of sum_activities; 'counts' = the raw initiative total, and signal names gain a _counts suffix. Under action_characterization='total_material_minus_immaterial' the numerator is fixed (a count difference) and signal_type picks only the denominator: 'weights' = none, 'per_revenue' = sale_usd, 'counts' refused.",
     "alpha_bound": "Trim fraction applied to the signal tails when use_alpha_bound is on.",
     "winsorise_signal_pct": "Per-tail fraction of each signal CLIPPED (not dropped) within its rfyear. 0 = off. Rank-preserving, so it moves results only via the standardisation, not the sort.",
     # ---- cell 2: market-cap screen -----------------------------------------
@@ -900,6 +900,7 @@ _PARAM_DOCS: dict[str, str] = {
     # ---- derived: signal design (cell 8) -----------------------------------
     "categories_dict": "Derived from action_characterization: LC category column -> signal index.",
     "lc_signals": "Derived from action_characterization: signal_i -> human-readable name (with the _counts suffix when signal_type='counts').",
+    "action_characterization": "Which signal design the run sorts on: it picks categories_dict and lc_signals, and for 'total_material_minus_immaterial' also the signal NUMERATOR (material__total - immaterial__total, signed, with signal_1 its exact negation), leaving signal_type to pick the denominator.",
     # ---- derived: analysis selection (cell 11) -----------------------------
     "analyse_high_low": "Derived: which tail the LC sorts report. Provenance only -- not read by any node.",
     "hml_directions": "Derived: per-signal direction of the long-short leg.",
