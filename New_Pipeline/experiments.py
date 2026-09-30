@@ -176,7 +176,7 @@ def build_cfg(**overrides) -> dict:
         # hashes into the cfg frame like any other knob.
         materiality_single_sdg=None,
         industry_level=0,
-        japan_year_adjustment_split_month_for_two_or_one=3,
+        japan_year_adjustment_split_month_for_two_or_one=6,
         # Which of the three LC sample filters run, in process_lc:
         #   "all"             -- (1) >= min_available_rfyears_if_execute_3_filters_true fiscal years, (2) drop
         #                        suspicious gvkeys, (3) drop Annual Reports with
@@ -379,14 +379,28 @@ def build_cfg(**overrides) -> dict:
         c.update(currency_filter=["USD"], region_filter=["United States and Canada"],
                  execute_region_filters=True, convert_to_USD=False,
                  fama_factor_region="North_America_and_Canada")
-    elif region == "Europe_and_North_America":
-        print("This analysis is foolish. We dont have factors for Europe and North America Only")
-        # c.update(currency_filter=["EUR", "USD"], convert_to_USD=True,
-        #          fama_factor_region="Developed", execute_region_filters=False)
-    elif region == "Europe_and_North_America_and_Japan":
-        print("This analysis is foolish. Make sure we include all the contries for the developed factors/ factors we are using")
-        # c.update(currency_filter=["EUR", "USD", "JPY"], convert_to_USD=True,
-        #          fama_factor_region="Developed", execute_region_filters=False)
+    elif region in ("Europe_and_North_America", "Europe_and_North_America_and_Japan"):
+        # Superseded by region_analysis="Developed". Raising rather than printing, because
+        # both of these produced a plausible-looking run that was wrong in two ways at once:
+        #
+        #   execute_region_filters=False -> NO geography screen. LC keeps everything its
+        #     MacroRegion list admits, which is 16,161 firms, of which 6,294 sit outside
+        #     Ken French's Developed 19 (IND 1417, CHN 1232, HKG 614, AUS 574, KOR 466,
+        #     IDN 452, SGP 397, MYS 325 ...). Those firms are not in the factor, but they
+        #     ARE in the industry cross-sections the signal is standardized within.
+        #
+        #   currency_filter=["EUR","USD","JPY"] -> drops GBP, CHF, NOK, SEK and DKK, i.e.
+        #     most of FF-Europe by firm count (GBR alone is 898 LC firms).
+        #
+        # "Developed" does both correctly: an explicit 19-country loc whitelist and all
+        # eight listing currencies.
+        raise ValueError(
+            f"region_analysis={region!r} is not supported -- it applied no geography "
+            f"screen (admitting ~6,294 LC firms outside the Developed factor's countries) "
+            f"while its currency filter dropped GBP/CHF/NOK/SEK/DKK, i.e. most of Europe. "
+            f"Use region_analysis='Developed': US + Canada + the 16 FF-Europe countries + "
+            f"Japan, priced against data/FAMA/Developed_*.csv."
+        )
         
     elif region == "Europe":
         print("Europe is in EUR, GBP, CHF, NOK, SEK, DKK, so we need to convert it to USD")
@@ -400,6 +414,58 @@ def build_cfg(**overrides) -> dict:
                  execute_region_filters=True,
                  convert_to_USD=(c["fama_factors_currency_if_Japan"] == "USD"),
                  fama_factor_region="Japan")
+
+    elif region == "Developed":
+        # US + Canada + Ken French's 16 Europe countries + Japan, priced against the
+        # Developed factor files (data/FAMA/Developed_{3,5}_Factors.csv and
+        # Developed_Momentum_Factor.csv).
+        #
+        # THREE THINGS TO KNOW BEFORE READING RESULTS OFF THIS ARM.
+        #
+        # 1. The factor is wider than the sample. Ken French's Developed is 23 countries;
+        #    this keeps 19 of them. Australia, Hong Kong, New Zealand and Singapore are in
+        #    the factor's market return but cannot be held by any portfolio built here.
+        #    A standard approximation, but it belongs in the write-up rather than in a
+        #    footnote nobody reads.
+        #
+        # 2. Canada is the US-LISTED SUBSET ONLY. The usa extract is `comp.secd` filtered to
+        #    `exchg IN (11, 12, 14)` (NYSE/AMEX/NASDAQ), so TSX-only firms are in no extract
+        #    at all: of the 599 Canadian firms in LC v2A1, 109 survive and 490 do not, and
+        #    the ones that survive are selected on size (Dec-2024 median cap $3.05bn against
+        #    $1.90bn for the US firms beside them) and unevenly by sector (0% of Consumer
+        #    Staples, 27% of Materials). Cross-listed firms are the larger, better-governed,
+        #    better-disclosing end of their market -- traits correlated with the ESG
+        #    disclosure this pipeline sorts on -- so treat Canadian results here as
+        #    descriptive of cross-listed Canada, not of Canada.
+        #
+        # 3. The market-cap screen goes GLOBAL. `percent_total_mcap` pools across the three
+        #    currency areas, and US mega-caps dominate the pooled distribution, so the
+        #    implied size floor lands well above what either the Europe or the Japan arm
+        #    applies on its own (~$6.15bn US / $1.34bn EU / ~$490m JP measured separately --
+        #    see the base_materiality_*_floor2bn note below). Prefer the absolute-floor
+        #    arm (market_cap_filter="percent_stocks" with a vacuous count share) for
+        #    anything meant to be compared across the three regions.
+        #
+        # convert_to_USD is forced True and is load-bearing: the pooled screen in
+        # process_global_universe, the mktcap weighting guard above, and
+        # build_analyse_portfolios all refuse a multi-currency universe that was not
+        # converted. `fama_factors_currency_if_Japan` is deliberately ignored -- the
+        # factors are USD here, and node 05's JPY conversion only fires on
+        # region_analysis == "Japan".
+        c.update(currency_filter=["USD", "CHF", "GBP", "EUR", "NOK", "SEK", "DKK", "JPY"],
+                 region_filter=["United States and Canada", "Europe", "Asia-Pacific"],
+                 execute_region_filters=True, convert_to_USD=True,
+                 fama_factor_region="Developed")
+
+    else:
+        # Every other enum knob in build_cfg raises on an unknown value; this one used to
+        # fall through to the defaults set just above the chain -- no geography screen, no
+        # currency screen, fama_factor_region="Developed". So a typo ("Developped",
+        # "europe", "US") produced a silently global run rather than an error.
+        raise ValueError(
+            f"unknown region_analysis {region!r}; choose from ['United_States', "
+            f"'North_America_and_Canada', 'Europe', 'Japan', 'Developed']"
+        )
 
     # Cap weighting sums market caps across the portfolio's holdings, which is only
     # meaningful once every cap is in ONE numeraire. `mktcap` is in the LISTING currency
@@ -909,6 +975,27 @@ def base_none_JP():
     return make_experiment("base_none_JP",
                            build_cfg(region_analysis="Japan",
                                      Add_Momentum_Factor=False))
+
+
+def base_none_Developed():
+    # The pooled US + Canada(US-listed) + FF-Europe-16 + Japan arm, priced against Ken
+    # French's Developed factors. Momentum is ON: data/FAMA/Developed_Momentum_Factor.csv
+    # ships trimmed and starts 199011, well inside the 2016-2024 window, so the coverage
+    # check in nodes/05_load_fama_french.py cannot fire here.
+    #
+    # NOT a like-for-like sibling of base_none / base_none_EU / base_none_JP, and should not
+    # be read as one: the market-cap screen pools across all three currency areas, so the
+    # implied size floor is set by US mega-caps and sits far above what any of the three
+    # single-region baselines applies. Use base_materiality_Developed_floor2bn-style
+    # absolute floors for anything compared across regions. See the "Developed" branch in
+    # build_cfg for the full list of caveats (factor wider than sample; Canada cross-listed
+    # only).
+    #
+    # Loads all three extracts at once (~37M daily rows) -- noticeably heavier than any
+    # single-region run.
+    return make_experiment("base_none_Developed",
+                           build_cfg(region_analysis="Developed",
+                                     Add_Momentum_Factor=True))
 
 
 def base_none_half_open():
@@ -1531,6 +1618,9 @@ EXPERIMENTS = {
     "base_none_US": base_none_US,
     "base_none_EU": base_none_EU,
     "base_none_JP": base_none_JP,
+    # Pooled US + Canada(US-listed) + FF-Europe-16 + Japan, on the Developed factors.
+    # Not comparable to the three above -- the size screen pools across currency areas.
+    "base_none_Developed": base_none_Developed,
 
 
     "base_materiality": base_materiality,

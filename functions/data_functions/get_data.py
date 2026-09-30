@@ -879,20 +879,20 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
 # Momentum lives in its own file, so it gets its own loader rather than a
 # `factors_number=4/6` branch above: those branches pick ONE file, and a momentum spec is
 # always some base model PLUS this series. Node 05 joins the two on `date`.
-MOMENTUM_REGIONS = ("Europe", "United_States")
+MOMENTUM_REGIONS = ("Europe", "United_States", "Developed")
 
 
 def get_momentum_factor(start_year, end_year, region):
     """Monthly momentum factor for `region` as a `date` + `mom` frame, in decimals.
 
-    Only Europe and United_States have a file. Every other region raises rather than
-    returning nothing, so a run can never print "+ Mom" column headers over a plain 3- or
-    5-factor fit.
+    Only Europe, United_States and Developed have a file. Every other region raises rather
+    than returning nothing, so a run can never print "+ Mom" column headers over a plain 3-
+    or 5-factor fit.
 
-    The two files are NOT the same shape. Europe ships trimmed (`Date,WML`); the US one is
-    a raw Ken French download with a 13-line text preamble, a `,Mom` header, an
+    The files are NOT the same shape. Europe and Developed ship trimmed (`Date,WML`); the US
+    one is a raw Ken French download with a 13-line text preamble, a `,Mom` header, an
     "Annual Factors:" block and a copyright footer. Keeping only the lines whose first
-    field is a 6-digit YYYYMM handles both without anyone hand-editing the data -- and
+    field is a 6-digit YYYYMM handles all three without anyone hand-editing the data -- and
     note that dropping blank lines would NOT be enough, because the annual rows
     ("  1927,  24.52") parse as perfectly valid numbers and would then blow up the strict
     "%Y%m" parse below. The header is discarded with everything else and the columns are

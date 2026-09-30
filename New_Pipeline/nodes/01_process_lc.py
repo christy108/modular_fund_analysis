@@ -456,42 +456,77 @@ def process_lc_v1(cfg):
     _stage("Industry map -> drop Health Care", "01_process_lc.py:174 / drop_health_care",
            active=C["drop_health_care"])
 
+    # ---- Geography: which ISO-3 `loc` values each region keeps ------------------------- #
+    # Defined INSIDE the process, like every import in this file: a @process body is
+    # executed in an isolated namespace by the leonardo_nodes store, so module-level
+    # names are not visible to it (NameError at run time, not import time).
+    # MacroRegion alone is too coarse to define any of these regions, which is why this table
+    # exists at all:
+    #   "United States and Canada" also carries Bermuda (52 firms in the usa extract) and
+    #   Greenland; "Europe" carries POL/CZE/HUN/TUR/ISL and the rest of non-FF Europe; and
+    #   "Asia-Pacific" is the whole of Asia-Pacific, not Japan. Filtering on MacroRegion alone
+    #   would silently widen every region beyond the factor it is priced against.
+
+    # The 16 countries Ken French builds the Europe factor from. All 16 list in one of the six
+    # currencies the row extract carries (EUR/GBP/CHF/DKK/NOK/SEK), so this list is fully
+    # reachable from the data on disk -- no re-extract is needed to cover "all of FF Europe".
+    _FF_EUROPE_LOCS = [
+        "AUT",  # Austria
+        "BEL",  # Belgium
+        "CHE",  # Switzerland
+        "DEU",  # Germany
+        "DNK",  # Denmark
+        "ESP",  # Spain
+        "FIN",  # Finland
+        "FRA",  # France
+        "GBR",  # Great Britain
+        "GRC",  # Greece
+        "IRL",  # Ireland
+        "ITA",  # Italy
+        "NLD",  # Netherlands
+        "NOR",  # Norway
+        "PRT",  # Portugal
+        "SWE",  # Sweden
+    ]
+
+    # region_analysis -> the `loc` values kept INSIDE the MacroRegion screen. A region absent
+    # from this table keeps whatever its region_filter admits, which is the pre-existing
+    # behaviour for North_America_and_Canada and Japan.
+    #
+    # "Developed" holds 19 of the 23 countries in Ken French's Developed factor: Australia,
+    # Hong Kong, New Zealand and Singapore are in the factor but in none of the three extracts.
+    # Its "CAN" is the US-listed subset of Canada only -- see the region branch in
+    # experiments.py for what that selection does to the sample.
+    _REGION_LOCS = {
+        "United_States": ["USA"],
+        "Europe": _FF_EUROPE_LOCS,
+        "Developed": ["USA", "CAN"] + _FF_EUROPE_LOCS + ["JPN"],
+    }
+
     _region_filters_on = C["execute_region_filters"] is True
-    _usa_filter_on = _region_filters_on and C["region_analysis"] == "United_States"
-    _Europe_filter_on = _region_filters_on and C["region_analysis"] == "Europe"
+    # None => this region applies no loc screen inside its MacroRegion(s).
+    _locs = _REGION_LOCS.get(C["region_analysis"]) if _region_filters_on else None
+
+    print(_locs)
 
     if _region_filters_on:
         lc = lc[lc["MacroRegion"].isin(C["region_filter"])]
         _stage(f"MacroRegion in region_filter ({list(C['region_filter'])})",
                "01_process_lc.py:177 / execute_region_filters")
-        if _usa_filter_on:
-            lc = lc[lc["loc"] == "USA"]
-            
-        if _Europe_filter_on:
-            _locs_in_ff_europe_factor = [
-                                        'AUT',  # Austria
-                                        'BEL',  # Belgium
-                                        'CHE',  # Switzerland
-                                        'DEU',  # Germany
-                                        'DNK',  # Denmark
-                                        'ESP',  # Spain
-                                        'FIN',  # Finland
-                                        'FRA',  # France
-                                        'GBR',  # Great Britain
-                                        'GRC',  # Greece
-                                        'IRL',  # Ireland
-                                        'ITA',  # Italy
-                                        'NLD',  # Netherlands
-                                        'NOR',  # Norway
-                                        'PRT',  # Portugal
-                                        'SWE',  # Sweden
-                                    ]
-            lc = lc[lc["loc"].isin(_locs_in_ff_europe_factor)]
+        if _locs is not None:
+            lc = lc[lc["loc"].isin(_locs)]
     else:
         _stage("MacroRegion in region_filter",
                "01_process_lc.py:177 / execute_region_filters", active=False)
-    _stage('loc == "USA"', "01_process_lc.py:179 / region_analysis",
-           active=_usa_filter_on)
+    # One honest funnel row per loc screen, whichever region ran. This used to read
+    # 'loc == "USA"' and was recorded as inactive for every non-US region -- so the Europe
+    # arm's 16-country screen dropped firms that the funnel never accounted for. The label
+    # is now the screen that actually ran.
+    _loc_label = (f"loc in the {C['region_analysis']} whitelist "
+                  f"({len(_locs)} {'country' if len(_locs) == 1 else 'countries'})"
+                  if _locs is not None else "loc whitelist")
+    _stage(_loc_label, "01_process_lc.py:179 / region_analysis",
+           active=_locs is not None)
 
     # ---- optional: inner-merge SASB materiality counts onto lc ----------- #
     # Gated (default off): the inner join filters lc to firm-years present in the

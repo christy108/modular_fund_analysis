@@ -165,12 +165,16 @@ ESG-universe path, which carries no LC data.""",
                 "of the sample. `loc` rides in on the LC dataset, so this is the same "
                 "country definition the universe geography uses — the two are directly "
                 "comparable.\n\n"
-                "**Expect a single wedge under the default config.** `region_analysis` "
-                "defaults to `United_States`, which filters LC to `loc == \"USA\"` at "
-                "`01_process_lc.py:179`; the chart only becomes informative for the "
-                "regions that leave `execute_region_filters` off "
-                "(`Europe_and_North_America`, `..._and_Japan`). A single wedge is still "
-                "worth showing: it is the confirmation that the regional screen ran."
+                "**How many wedges to expect is set by `region_analysis`.** Each region "
+                "keeps an explicit country whitelist at `01_process_lc.py` "
+                "(`_REGION_LOCS`): 1 country for `United_States`, 16 for `Europe` (Ken "
+                "French's Europe factor set), and 19 for `Developed` (those 16 plus USA, "
+                "CAN and JPN). `Japan` and `North_America_and_Canada` apply no whitelist, "
+                "so they show whatever their MacroRegion admits. A single wedge is not a "
+                "bug on a US run — it is the confirmation that the regional screen ran.\n\n"
+                "On a `Developed` run, note that the CAN wedge is the US-LISTED subset of "
+                "Canada only (the usa extract is NYSE/AMEX/NASDAQ), so it is both small "
+                "and selected on size — see the region branch in `experiments.py`."
             ),
         ),
         BundlePieViz(
@@ -183,8 +187,9 @@ ESG-universe path, which carries no LC data.""",
                 "market-cap filter cuts on and one of the three `standardize_pivot` "
                 "grouping columns, so this is the composition of the cross-sections the "
                 "sort actually standardises within.\n\n"
-                "Bounded by `cfg.currency_filter`, which the `region_analysis` block sets "
-                "(USD alone for `United_States`, EUR+USD for `Europe_and_North_America`)."
+                "Bounded by `cfg.currency_filter`, which the `region_analysis` block sets: "
+                "USD alone for `United_States`, the six European currencies for `Europe`, "
+                "JPY for `Japan`, and all eight for `Developed`."
             ),
         ),
         BundleTableViz(
@@ -469,8 +474,8 @@ def prepare_lc_v1(global_universe, lc, fama_french_raw, cfg):
     )
     sample_currencies = firm_counts(geo, "curcdd").merge(_ccy_extra, on="curcdd", how="left")
 
-    # Wide, not long: currencies are capped at five by currency_filter, so one column each
-    # reads as a matrix. Row totals count a firm once; column totals may not (see the widget).
+    # Wide, not long: currency_filter caps this at eight columns (the Developed arm; one
+    # for United_States, six for Europe), so one column each reads as a matrix. Row totals count a firm once; column totals may not (see the widget).
     _pair = geo[["gvkey", "loc", "curcdd"]].copy()
     _pair["curcdd"] = _pair["curcdd"].where(_pair["curcdd"].notna(), "(unmapped)").astype(str)
     _pair["_gv"] = pd.to_numeric(_pair["gvkey"], errors="coerce")

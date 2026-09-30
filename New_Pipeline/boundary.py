@@ -41,6 +41,19 @@ __all__ = [
 SENTINEL_COL = "_sentinel"
 PICKLE_COL = "__pickle__"
 
+# polars holds a binary value in one Arrow buffer indexed by u32, so a SINGLE cell cannot
+# exceed 4 GiB -- past that the Rust side panics with
+# `assertion failed: bytes.len() <= u32::MAX as usize`, which is not a catchable Exception.
+# That is not hypothetical: region_analysis="Developed" keeps all three regional universes
+# resident, and merge_esg_provider's bundle (the three universes PLUS the concatenated
+# global_universe) pickles to 4.27 GiB.
+#
+# A bundle at or under this size is written as ONE row, byte-for-byte what this module
+# produced before chunking existed -- so every config that already ran keeps its exact
+# content hash and the parity baselines are untouched. Only a bundle that previously
+# CRASHED gets more than one row, so nothing that worked can change.
+_PICKLE_CHUNK = 1 << 30  # 1 GiB
+
 
 # --------------------------------------------------------------------------- #
 # Lossless carriage of arbitrary objects (the "hybrid" plumbing path)
@@ -58,14 +71,29 @@ def pack_obj(obj: object) -> pl.DataFrame:
     """
     import pickle
 
-    return pl.DataFrame({PICKLE_COL: [pickle.dumps(obj, protocol=5)]})
+    buf = pickle.dumps(obj, protocol=5)
+    if len(buf) <= _PICKLE_CHUNK:
+        return pl.DataFrame({PICKLE_COL: [buf]})
+
+    # Oversized: split across rows. Built as a list first and `buf` released before the
+    # DataFrame is constructed, so the peak is one full copy plus polars' own -- the same
+    # peak the single-row path already had, not one copy more.
+    #
+    # bytes slices, not memoryview: polars types a memoryview as Object rather than
+    # Binary, which would not survive the round trip.
+    chunks = [buf[i:i + _PICKLE_CHUNK] for i in range(0, len(buf), _PICKLE_CHUNK)]
+    del buf
+    return pl.DataFrame({PICKLE_COL: chunks})
 
 
 def unpack_obj(df: pl.DataFrame) -> object:
     """Inverse of :func:`pack_obj`: recover the exact original object."""
     import pickle
 
-    return pickle.loads(df[PICKLE_COL][0])
+    col = df[PICKLE_COL]
+    if len(col) == 1:                       # the overwhelmingly common case
+        return pickle.loads(col[0])
+    return pickle.loads(b"".join(col.to_list()))
 
 
 # --------------------------------------------------------------------------- #
