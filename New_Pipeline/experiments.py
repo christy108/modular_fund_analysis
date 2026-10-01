@@ -173,6 +173,12 @@ def build_cfg(**overrides) -> dict:
         # left here under a different design is inert rather than wrong.
         materiality_people_action=None,
         materiality_all_action=None,
+        # Turn ANY two-signal mirror-pair design into its NET form: signal_0 becomes
+        # material - immaterial (a signed LEVEL) instead of material / (material +
+        # immaterial) (a share). A modifier, not a design: it composes with the group and
+        # action knobs above, so it covers every SDG group and every behaviour without a
+        # branch of its own. See the block after the action_characterization dispatch.
+        net_materiality=False,
 
         # Which single SDG action_characterization="Materiality_single_SDG" sorts on
         # (1-17). Ignored by every other characterization; required by that one, which
@@ -800,6 +806,62 @@ def build_cfg(**overrides) -> dict:
     else:
         raise ValueError(f"unknown action_characterization {ac!r}")
 
+    # ---- net materiality as a MODIFIER, not N more characterizations -------------- #
+    # A mirror-pair design becomes its net form by changing nothing but the NUMERATOR
+    # arithmetic, which node 02 already performs generically as sum_with_0 - sum_with_1.
+    # The COLUMNS are identical to the share version, so this needs no new categories_dict
+    # and no new signal_definitions entry -- only a flag the node can see, and a name that
+    # says what changed. ONE key therefore covers all four SDG groups AND every behavioural
+    # action split within them (People x advocacy_old_def, Planet x preparation, ...),
+    # instead of 4 new branches, or 16 once the actions are crossed in.
+    if c["net_materiality"]:
+        # Redundant rather than wrong, but it would put two differently-named runs on
+        # identical numbers in the dashboard and the parity artifacts.
+        if ac == "total_material_minus_immaterial":
+            raise ValueError(
+                "net_materiality=True with action_characterization="
+                "'total_material_minus_immaterial' is redundant -- that design already IS "
+                "the net of the all-SDG aggregate pair (material__total - immaterial__total). "
+                "Use net_materiality=True with a GROUP design (e.g. "
+                "Materiality_Planet_Action_SDG, Materiality_People_Action_SDG), or drop the "
+                "flag."
+            )
+        # Refused on anything that is not a mirror pair: material-minus-immaterial is not
+        # defined across two or more groups, and silently differencing the first two
+        # signals of e.g. Materiality_3_groups_people_planet_prosperity_SDG would be wrong
+        # rather than merely odd -- it would net People's material against People's
+        # immaterial and drop Planet and Prosperity entirely, with no error anywhere.
+        _VALID = ("Materiality_All_Action_SDG, Materiality_PP_Action_SDG, "
+                  "Materiality_People_Action_SDG, Materiality_Planet_Action_SDG, or any of "
+                  "the Health / Narrow_Planet / Materiality_single_SDG designs")
+        if len(lc_signals) != 2:
+            raise ValueError(
+                f"net_materiality=True needs a two-signal mirror-pair design (material vs "
+                f"immaterial of ONE group); action_characterization={ac!r} emits "
+                f"{len(lc_signals)} signals ({sorted(lc_signals.values())}). Use {_VALID}."
+            )
+        # Counting signals is NOT enough. A non-materiality design can also emit exactly two
+        # -- dict_all_SDG_1D_prosperity_into_people is {people plus prosperity, planet} --
+        # and differencing THOSE gives people-minus-planet, which is a real quantity but is
+        # not a net materiality and would be silently mislabelled "Net_". Check the COLUMNS
+        # the two signals are built from instead of the names: signal_0 must be the material
+        # leg and signal_1 the immaterial leg of the same group.
+        _leg = {0: set(), 1: set()}
+        for _col, _idx in categories_dict.items():
+            _leg[_idx].add(str(_col).split("__")[0])
+        if _leg[0] != {"material"} or _leg[1] != {"immaterial"}:
+            raise ValueError(
+                f"net_materiality=True needs signal_0 to be the MATERIAL leg and signal_1 the "
+                f"IMMATERIAL leg of one group, so that signal_0 - signal_1 is a net "
+                f"materiality. action_characterization={ac!r} builds signal_0 from "
+                f"{sorted(_leg[0])} and signal_1 from {sorted(_leg[1])} columns, so the "
+                f"difference would not be a materiality at all. Use {_VALID}."
+            )
+        # signal_1 stays the mirror -- it is the exact NEGATION of signal_0 here, where in
+        # the share designs it is 1 - signal_0. Both satisfy node 07's corr <= -0.99 gate
+        # (it is exactly -1.0 either way), so the initiative decomposition still applies.
+        lc_signals = {k: f"Net_{v}" for k, v in lc_signals.items()}
+
     # Tag the flavour onto the human-readable signal names so weights- and counts-based runs
     # are distinguishable in portfolio labels and audit tables ("transformation" vs
     # "transformation_counts"). Only "counts" is suffixed: the bare name has always meant
@@ -827,13 +889,17 @@ def build_cfg(**overrides) -> dict:
     # the numerator IS a count either way -- and two names for one signal would put two
     # differently-labelled but numerically identical runs in the dashboard and the parity
     # artifacts, so it is rejected rather than accepted as a synonym.
-    if ac == "total_material_minus_immaterial" and signal_type == "counts":
+    if ((ac == "total_material_minus_immaterial" or c["net_materiality"])
+            and signal_type == "counts"):
+        _why = ("action_characterization='total_material_minus_immaterial'"
+                if ac == "total_material_minus_immaterial" else
+                f"net_materiality=True on action_characterization={ac!r}")
         raise ValueError(
-            "action_characterization='total_material_minus_immaterial' already has a count "
-            "difference as its numerator, so signal_type='counts' would be an exact alias "
-            "for the default 'weights' (which applies no denominator here) and would only "
-            "relabel the same numbers. Use signal_type='weights' for the raw net count, or "
-            "'per_revenue' to divide it by sale_usd."
+            f"{_why} already has a count difference as its numerator, so "
+            "signal_type='counts' would be an exact alias for the default 'weights' (which "
+            "applies no denominator here) and would only relabel the same numbers. Use "
+            "signal_type='weights' for the raw net count, or 'per_revenue' to divide it by "
+            "sale_usd."
         )
     if signal_type == "counts":
         lc_signals = {k: f"{v}_counts" for k, v in lc_signals.items()}

@@ -570,7 +570,10 @@ def derive_signals_v1(lc, cfg):
     #
     # .get() for the same backwards-compat reason signal_type uses it: an archived Process
     # replayed against an older cfg has no such key and must still run.
-    net_materiality = C.get("action_characterization") == "total_material_minus_immaterial"
+    # Either the dedicated all-SDG design, or the net_materiality MODIFIER set on any
+    # two-signal group design (experiments.py). Both reduce to the same arithmetic below.
+    net_materiality = (C.get("net_materiality", False)
+                       or C.get("action_characterization") == "total_material_minus_immaterial")
 
     for i in range(max_category + 1):
         if net_materiality:
