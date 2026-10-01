@@ -5,24 +5,45 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-def ff3_regressions(excess_returns, fama_french):
+# Factor column -> the row label its loading is reported under. One mapping, so the
+# regression tables and every downstream .loc["beta_..."] cannot drift apart.
+_BETA_NAMES = {
+    "mktrf": "beta_mkt",
+    "smb": "beta_smb",
+    "hml": "beta_hml",
+    "rmw": "beta_rmw",
+    "cma": "beta_cma",
+    "mom": "beta_mom",
+}
 
+
+def _momentum_factors(factors, with_momentum):
+    """Append the momentum regressor when a run asked for it."""
+    return list(factors) + (["mom"] if with_momentum else [])
+
+
+def _factor_regressions(excess_returns, fama_french, factors):
+    """HC1 OLS of each portfolio's excess return on `factors`, one column per portfolio.
+
+    Returns a (statistic x portfolio) frame whose rows run alpha, the betas in factor
+    order, p-value(alpha), the p-values in the same order, then Adj. R^2. Both sides are
+    scaled by 100, so alphas read as monthly percent.
+
+    `fama_french` keeps its own index while the dependent series is rebuilt on a fresh
+    RangeIndex, which is what makes the concat align positionally -- callers pass a
+    reset_index(drop=True) factor frame for exactly that reason.
+    """
+    betas = [_BETA_NAMES[f] for f in factors]
     stat_index = [
-        'alpha',
-        'beta_mkt',
-        'beta_smb',
-        'beta_hml',
-        'p-value(alpha)',
-        'p-value(beta_mkt)',
-        'p-value(beta_smb)',
-        'p-value(beta_hml)',
+        'alpha', *betas,
+        'p-value(alpha)', *(f'p-value({b})' for b in betas),
         'Adj. R^2',
     ]
 
-    ff3_output = pd.DataFrame(np.nan, index=stat_index, columns=excess_returns.columns)
+    output = pd.DataFrame(np.nan, index=stat_index, columns=excess_returns.columns)
 
-    # Gather FF3 factors
-    independent_data = fama_french[['mktrf', 'smb', 'hml']]
+    # Gather factors
+    independent_data = fama_french[list(factors)]
 
     for col in excess_returns.columns:
 
@@ -45,7 +66,7 @@ def ff3_regressions(excess_returns, fama_french):
             continue
 
         # Model
-        mod = smf.ols(formula='excrt ~ mktrf + smb + hml', data=ols_data)
+        mod = smf.ols(formula='excrt ~ ' + ' + '.join(factors), data=ols_data)
 
         # Estimate and show output
         fitted_model = mod.fit(cov_type='HC1')
@@ -53,90 +74,31 @@ def ff3_regressions(excess_returns, fama_french):
         coef = fitted_model.params
         pval = fitted_model.pvalues
 
-        ff3_output.loc['alpha', col] = coef.get('Intercept', np.nan)
-        ff3_output.loc['beta_mkt', col] = coef.get('mktrf', np.nan)
-        ff3_output.loc['beta_smb', col] = coef.get('smb', np.nan)
-        ff3_output.loc['beta_hml', col] = coef.get('hml', np.nan)
-
-        ff3_output.loc['p-value(alpha)', col] = pval.get('Intercept', np.nan)
-        ff3_output.loc['p-value(beta_mkt)', col] = pval.get('mktrf', np.nan)
-        ff3_output.loc['p-value(beta_smb)', col] = pval.get('smb', np.nan)
-        ff3_output.loc['p-value(beta_hml)', col] = pval.get('hml', np.nan)
-        ff3_output.loc['Adj. R^2', col] = fitted_model.rsquared_adj
+        output.loc['alpha', col] = coef.get('Intercept', np.nan)
+        output.loc['p-value(alpha)', col] = pval.get('Intercept', np.nan)
+        for factor, beta in zip(factors, betas):
+            output.loc[beta, col] = coef.get(factor, np.nan)
+            output.loc[f'p-value({beta})', col] = pval.get(factor, np.nan)
+        output.loc['Adj. R^2', col] = fitted_model.rsquared_adj
 
     # Return regression output
-    return ff3_output
+    return output
 
 
-def ff5_regressions(excess_returns, fama_french):
+def ff3_regressions(excess_returns, fama_french, with_momentum=False):
+    """FF3 loadings, plus momentum (Carhart's 4-factor model) when `with_momentum`."""
+    return _factor_regressions(
+        excess_returns, fama_french,
+        _momentum_factors(['mktrf', 'smb', 'hml'], with_momentum),
+    )
 
-    stat_index = [
-        'alpha',
-        'beta_mkt',
-        'beta_smb',
-        'beta_hml',
-        'beta_rmw',
-        'beta_cma',
-        'p-value(alpha)',
-        'p-value(beta_mkt)',
-        'p-value(beta_smb)',
-        'p-value(beta_hml)',
-        'p-value(beta_rmw)',
-        'p-value(beta_cma)',
-        'Adj. R^2',
-    ]
 
-    ff5_output = pd.DataFrame(np.nan, index=stat_index, columns=excess_returns.columns)
-
-    # Gather FF5 factors
-    independent_data = fama_french[['mktrf', 'smb', 'hml', 'rmw', 'cma']]
-
-    for col in excess_returns.columns:
-
-        # Gather dependent data
-        dependent_data = pd.Series(excess_returns[col].values, name='excrt')
-
-        # Merge variables
-        ols_data = 100 * pd.concat(
-            [
-                dependent_data,
-                independent_data,
-            ],
-            axis=1,
-        )
-
-        # Skip missings
-        ols_data = ols_data[ols_data.notna().all(axis=1)].reset_index(drop=True)
-
-        if ols_data.empty:
-            continue
-
-        # Model
-        mod = smf.ols(formula='excrt ~ mktrf + smb + hml + rmw + cma', data=ols_data)
-
-        # Estimate and show output
-        fitted_model = mod.fit(cov_type='HC1')
-
-        coef = fitted_model.params
-        pval = fitted_model.pvalues
-
-        ff5_output.loc['alpha', col] = coef.get('Intercept', np.nan)
-        ff5_output.loc['beta_mkt', col] = coef.get('mktrf', np.nan)
-        ff5_output.loc['beta_smb', col] = coef.get('smb', np.nan)
-        ff5_output.loc['beta_hml', col] = coef.get('hml', np.nan)
-        ff5_output.loc['beta_rmw', col] = coef.get('rmw', np.nan)
-        ff5_output.loc['beta_cma', col] = coef.get('cma', np.nan)
-
-        ff5_output.loc['p-value(alpha)', col] = pval.get('Intercept', np.nan)
-        ff5_output.loc['p-value(beta_mkt)', col] = pval.get('mktrf', np.nan)
-        ff5_output.loc['p-value(beta_smb)', col] = pval.get('smb', np.nan)
-        ff5_output.loc['p-value(beta_hml)', col] = pval.get('hml', np.nan)
-        ff5_output.loc['p-value(beta_rmw)', col] = pval.get('rmw', np.nan)
-        ff5_output.loc['p-value(beta_cma)', col] = pval.get('cma', np.nan)
-        ff5_output.loc['Adj. R^2', col] = fitted_model.rsquared_adj
-
-    # Return regression output
-    return ff5_output
+def ff5_regressions(excess_returns, fama_french, with_momentum=False):
+    """FF5 loadings, plus momentum (the 6-factor model) when `with_momentum`."""
+    return _factor_regressions(
+        excess_returns, fama_french,
+        _momentum_factors(['mktrf', 'smb', 'hml', 'rmw', 'cma'], with_momentum),
+    )
 
 
 def rolling_ff_alphas(
@@ -145,6 +107,7 @@ def rolling_ff_alphas(
     fama_french: pd.DataFrame,
     window_size: int,
     n_factors: int = 3,
+    with_momentum: bool = False,
 ) -> dict[str, pd.Series]:
     """
     Compute rolling-window FF factors alphas for multiple signals.
@@ -163,6 +126,9 @@ def rolling_ff_alphas(
         Rolling window length in rows (e.g. 40 months).
     n_factors:
         3 for FF3 (`ff3_regressions`) or 5 for FF5 (`ff5_regressions`).
+    with_momentum:
+        Add the `mom` regressor to whichever base model `n_factors` selects, giving
+        Carhart's 4-factor or the 6-factor specification. Requires a `mom` column.
 
     Returns
     -------
@@ -174,17 +140,20 @@ def rolling_ff_alphas(
         raise ValueError("n_factors must be 3 or 5")
 
     if n_factors == 3:
-        regress = ff3_regressions
-        required_cols = ["mktrf", "smb", "hml"]
+        base_regress = ff3_regressions
+        required_cols = _momentum_factors(["mktrf", "smb", "hml"], with_momentum)
     else:
-        regress = ff5_regressions
-        required_cols = ["mktrf", "smb", "hml", "rmw", "cma"]
+        base_regress = ff5_regressions
+        required_cols = _momentum_factors(["mktrf", "smb", "hml", "rmw", "cma"], with_momentum)
+
+    def regress(window_returns, window_factors):
+        return base_regress(window_returns, window_factors, with_momentum=with_momentum)
 
     missing_cols = [c for c in required_cols if c not in fama_french.columns]
     if missing_cols:
         raise ValueError(
-            f"n_factors={n_factors} requires columns {required_cols}; "
-            f"missing from fama_french: {missing_cols}"
+            f"n_factors={n_factors} (with_momentum={with_momentum}) requires columns "
+            f"{required_cols}; missing from fama_french: {missing_cols}"
         )
 
     if not isinstance(window_size, int) or window_size <= 0:
@@ -249,6 +218,7 @@ def rolling_ff3_alphas(
     *,
     fama_french: pd.DataFrame,
     window_size: int,
+    with_momentum: bool = False,
 ) -> dict[str, pd.Series]:
     """Rolling FF3 alphas; alias for ``rolling_ff_alphas(..., n_factors=3)``."""
     return rolling_ff_alphas(
@@ -256,6 +226,7 @@ def rolling_ff3_alphas(
         fama_french=fama_french,
         window_size=window_size,
         n_factors=3,
+        with_momentum=with_momentum,
     )
 
 
@@ -264,6 +235,7 @@ def rolling_ff5_alphas(
     *,
     fama_french: pd.DataFrame,
     window_size: int,
+    with_momentum: bool = False,
 ) -> dict[str, pd.Series]:
     """Rolling FF5 alphas; alias for ``rolling_ff_alphas(..., n_factors=5)``."""
     return rolling_ff_alphas(
@@ -271,6 +243,7 @@ def rolling_ff5_alphas(
         fama_french=fama_french,
         window_size=window_size,
         n_factors=5,
+        with_momentum=with_momentum,
     )
 
 
