@@ -56,17 +56,17 @@ KEYS = ["date", "gvkey", "iid"]
 # so the comparison is filtered-new vs legacy on the value columns only.
 REGIONS = {
     "usa": (
-        "./data/usa_universe_all_secstat.csv",
+        "./data/usa_universe_all_secstat.parquet",
         "./data/old_universes/usa_universe.csv",
         ["mktcap", "tri"],
     ),
     "row": (
-        "./data/row_universe_all_secstat_new.csv",
+        "./data/row_universe_all_secstat_new.parquet",
         "./data/old_universes/row_universe.csv",
         ["mktcap_lcu", "tri_lcu"],
     ),
     "japan": (
-        "./data/japan_universe_all_secstat.csv",
+        "./data/japan_universe_all_secstat.parquet",
         "./data/old_universes/japan_universe.csv",
         ["mktcap_lcu", "tri_lcu"],
     ),
@@ -76,11 +76,17 @@ REGIONS = {
 def _load(path: str, value_cols: list[str], *, want_secstat: bool) -> pd.DataFrame:
     """Read only the key + value (+ secstat) columns, with stable key dtypes."""
     cols = KEYS + value_cols + (["secstat"] if want_secstat else [])
-    df = pd.read_csv(
-        path,
-        usecols=lambda c: c in cols,
-        dtype={"date": str, "gvkey": str, "iid": str, "secstat": str},
-    )
+    if path.endswith(".parquet"):
+        df = pd.read_parquet(path, columns=[c for c in cols])
+        for key in ("date", "gvkey", "iid", "secstat"):
+            if key in df.columns:
+                df[key] = df[key].astype(str)
+    else:
+        df = pd.read_csv(
+            path,
+            usecols=lambda c: c in cols,
+            dtype={"date": str, "gvkey": str, "iid": str, "secstat": str},
+        )
     missing = [c for c in cols if c not in df.columns]
     if missing:
         raise SystemExit(f"{path}: missing expected column(s) {missing}")

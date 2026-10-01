@@ -13,9 +13,9 @@ import wrds
 # effect with vintage drift -- measured at 79 vanished gvkeys and retroactive split
 # rescaling across six weeks on the Japan extract.) Write path and read path share these
 # constants so they cannot drift apart.
-USA_UNIVERSE_PATH = "./data/usa_universe_all_secstat.csv"
-ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat_new.csv"
-JAPAN_UNIVERSE_PATH = "./data/japan_universe_all_secstat.csv"
+USA_UNIVERSE_PATH = "./data/usa_universe_all_secstat.parquet"
+ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat_new.parquet"
+JAPAN_UNIVERSE_PATH = "./data/japan_universe_all_secstat.parquet"
 
 SECURITY_STATUS_CHOICES = ("active_only", "all_firms_even_delisted")
 
@@ -104,12 +104,19 @@ def _apply_security_status(df, security_status, region):
 
 # This can be aggregated to compute monthly figures.
 
+def _drop_legacy_index_column(df):
+    """Drop the unnamed index column carried over from the old CSV extracts, if present."""
+    if len(df.columns) and df.columns[0] in ("", "Unnamed: 0"):
+        return df.iloc[:, 1:]
+    return df
+
+
 def _read_universe_csv(path, label, load_rows):
     """Read a universe extract from disk -- or only its SCHEMA when it is not analysed.
 
-    ``load_rows=False`` reads 5 rows and slices to zero, so the caller gets a frame with
-    the exact columns AND dtypes a full read would give, for ~0 bytes instead of GBs.
-    The schema has to be real on both counts: process_global_universe uses
+    ``load_rows=False`` reads a handful of rows and slices to zero, so the caller gets a
+    frame with the exact columns AND dtypes a full read would give, for ~0 bytes instead
+    of GBs. The schema has to be real on both counts: process_global_universe uses
     ``usa_universe.columns`` as the template every other region is reindexed onto, and
     pd.concat resolves each column's dtype across all its parts -- a stub built by an
     empty read (which types every column as object) would not concat identically.
@@ -118,8 +125,12 @@ def _read_universe_csv(path, label, load_rows):
     """
     f = _require_universe_file(path, label)
     if not load_rows:
-        return pd.read_csv(f, nrows=5).iloc[:, 1:].iloc[0:0]
-    return pd.read_csv(f).iloc[:, 1:]
+        import pyarrow.parquet as pq
+
+        batch = next(pq.ParquetFile(f).iter_batches(batch_size=5))
+        stub = batch.to_pandas()
+        return _drop_legacy_index_column(stub).iloc[0:0]
+    return _drop_legacy_index_column(pd.read_parquet(f))
 
 
 def get_usa_universe(start_year, end_year, download_wrds_data=False,
@@ -169,7 +180,7 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False,
         # Save to disk. The saved extract is ALWAYS the unfiltered all-secstat frame;
         # the sample choice is applied to what we RETURN, not to what we persist.
         print('Saving to disk!')
-        usa_universe.to_csv(USA_UNIVERSE_PATH)
+        usa_universe.to_parquet(USA_UNIVERSE_PATH, index=False)
         return _apply_security_status(usa_universe, security_status, 'usa')
 
     # Load from file
@@ -234,7 +245,7 @@ def get_row_universe(start_year, end_year, download_wrds_data=False,
         row_universe = row_universe.drop(columns=['year'])
         # Save to disk
         print('Saving to disk!')
-        row_universe.to_csv(ROW_UNIVERSE_PATH)
+        row_universe.to_parquet(ROW_UNIVERSE_PATH, index=False)
 
         return _apply_security_status(row_universe, security_status, 'row')
     # Load from file
@@ -293,7 +304,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False,
         japan_universe = japan_universe.drop(columns=["year"])
 
         print("Saving to disk!")
-        japan_universe.to_csv(JAPAN_UNIVERSE_PATH)
+        japan_universe.to_parquet(JAPAN_UNIVERSE_PATH, index=False)
         return _apply_security_status(japan_universe, security_status, "japan")
 
     else:

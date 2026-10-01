@@ -14,11 +14,11 @@ sys.path.insert(0, os.getcwd())
 OUT = sys.argv[1]
 
 REGION = {
-    "United_States": dict(path="data/usa_universe_all_secstat.csv", cap="mktcap",
+    "United_States": dict(path="data/usa_universe_all_secstat.parquet", cap="mktcap",
                           ccy=["USD"], convert=False, has_ccy=False),
-    "Europe":        dict(path="data/row_universe_all_secstat_new.csv", cap="mktcap_lcu",
+    "Europe":        dict(path="data/row_universe_all_secstat_new.parquet", cap="mktcap_lcu",
                           ccy=["CHF","GBP","EUR","NOK","SEK","DKK"], convert=True, has_ccy=True),
-    "Japan":         dict(path="data/japan_universe_all_secstat.csv", cap="mktcap_lcu",
+    "Japan":         dict(path="data/japan_universe_all_secstat.parquet", cap="mktcap_lcu",
                           ccy=["JPY"], convert=False, has_ccy=True),
 }
 END_YEAR = 2024
@@ -33,9 +33,10 @@ for region, R in REGION.items():
     print("=" * 70, flush=True)
     print(region, R["path"], flush=True)
     cols = ["date", "gvkey", "iid", R["cap"]] + (["curcdd"] if R["has_ccy"] else [])
-    lf = pl.scan_csv(R["path"], infer_schema_length=10000,
-                     schema_overrides={"gvkey": pl.Float64, "iid": pl.Utf8,
-                                       "curcdd": pl.Utf8, R["cap"]: pl.Float64}).select(cols)
+    lf = pl.scan_parquet(R["path"]).select(cols).with_columns(
+        pl.col("gvkey").cast(pl.Float64), pl.col("iid").cast(pl.Utf8),
+        pl.col(R["cap"]).cast(pl.Float64),
+        *([pl.col("curcdd").cast(pl.Utf8)] if R["has_ccy"] else []))
     lf = lf.with_columns(pl.col("date").str.to_date("%Y-%m-%d"))
     if not R["has_ccy"]:
         lf = lf.with_columns(pl.lit("USD").alias("curcdd"))
