@@ -168,6 +168,11 @@ def build_cfg(**overrides) -> dict:
         # from action_characterization (Materiality_Planet_Action_SDG vs
         # Materiality_Narrow_Planet_Action_SDG), so adding a width needs no new key.
         materiality_planet_action=None,
+        # The People and All-SDG twins of the two action knobs above. Same eight
+        # values; each is read ONLY by its own action_characterization, so a value
+        # left here under a different design is inert rather than wrong.
+        materiality_people_action=None,
+        materiality_all_action=None,
 
         # Which single SDG action_characterization="Materiality_single_SDG" sorts on
         # (1-17). Ignored by every other characterization; required by that one, which
@@ -500,8 +505,10 @@ def build_cfg(**overrides) -> dict:
 
 
     from functions.signal_design.signal_definitions_materiality import (
+        Materiality_All_Action_SDG,
         Materiality_Signals,
         Materiality_Signals_3_groups_people_planet_prosperity_SDG,
+        Materiality_People_Action_SDG,
         Materiality_People_SDG,
         Materiality_Planet_SDG,
         Materiality_Narrow_Planet_SDG,
@@ -723,6 +730,37 @@ def build_cfg(**overrides) -> dict:
     # all three), but each branch here only ever passes ONE of them to
     # _signals_from_groups, so that overlap never collides -- these are three alternative
     # single-group signals, never combined in the same run.
+    # The People twin of Materiality_PP_Action_SDG. One branch for all eight actions, the
+    # action read off its own cfg key so it is a sweepable axis and shows in the manifest.
+    elif ac == "Materiality_People_Action_SDG":
+        _act = c["materiality_people_action"]
+        if _act is None:
+            raise ValueError(
+                "action_characterization='Materiality_People_Action_SDG' needs "
+                "materiality_people_action=<one of adaptation/advocacy_new_def/"
+                "advocacy_old_def/innovation/preparation/transformation/upskilling/total>; "
+                "got None"
+            )
+        categories_dict, *names = Materiality_People_Action_SDG(_act)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # All 17 SDGs as ONE group, per action. NOT interchangeable with
+    # Material_Immaterial_only even at action="total" -- that design reads the aggregate
+    # material__total column, this one sums the per-SDG cube, and the two differ on
+    # multi-SDG and unmapped initiatives. Use THIS for every cell of an all-SDG x
+    # behaviour block (including the total cell) so the block shares one denominator.
+    elif ac == "Materiality_All_Action_SDG":
+        _act = c["materiality_all_action"]
+        if _act is None:
+            raise ValueError(
+                "action_characterization='Materiality_All_Action_SDG' needs "
+                "materiality_all_action=<one of adaptation/advocacy_new_def/"
+                "advocacy_old_def/innovation/preparation/transformation/upskilling/total>; "
+                "got None"
+            )
+        categories_dict, *names = Materiality_All_Action_SDG(_act)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
     elif ac == "Materiality_One_Health_SDGS":
         categories_dict, *names = Materiality_One_Health_SDGS()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}

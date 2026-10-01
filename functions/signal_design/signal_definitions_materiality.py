@@ -141,6 +141,59 @@ def Materiality_Planet_Action_SDG(width, action):
     return _signals_from_groups({width: PLANET_SDGS_Groups[width]}, action=action)
 
 
+def Materiality_People_Action_SDG(action):
+    """2 signals: material/immaterial People for ONE behavioural action.
+
+    The People twin of ``Materiality_People_Plus_Prosperity_Action_SDG`` -- same
+    one-group mirror-pair shape as ``Materiality_People_SDG`` (PEOPLE_PLANET_PROSPERITY
+    ["People"]), restricted to a single action, so the columns are
+    ``material__<action>__SDG_n`` rather than ``material__total__SDG_n``.
+
+    Same NAMING TRAP as the People+Prosperity version: ``advocacy_old_def`` is the
+    advocacy leg of the ORIGINAL 3-way split (advocacy_old_def / preparation /
+    transformation), ``advocacy_new_def`` the one from the newer 4-way split. Both are
+    real, different columns -- picking the wrong one sorts on a different quantity with
+    no error.
+
+    ``action="total"`` reproduces ``Materiality_People_SDG`` exactly (same columns, same
+    untagged names), so the two are interchangeable at that value.
+
+    Read the signal_sparsity audit before trusting any non-total action here: People is a
+    NARROWER group than People+Prosperity, so every action's density is lower than the
+    measured table in experiments.py::_register_pp_action_experiments reports.
+    """
+    return _signals_from_groups(
+        {"People": PEOPLE_PLANET_PROSPERITY["People"]}, action=action
+    )
+
+
+# Every SDG, as ONE group. Used by Materiality_All_Action_SDG below.
+_ALL_SDGS = list(range(1, 18))
+
+
+def Materiality_All_Action_SDG(action):
+    """2 signals: material/immaterial across ALL 17 SDGs for ONE behavioural action.
+
+    NOT the same construction as ``Materiality_Signals`` (the ``Material_Immaterial_only``
+    design), and the difference matters if you put the two side by side:
+
+    * ``Materiality_Signals`` reads the AGGREGATE columns ``material__total`` /
+      ``immaterial__total`` -- one pair, no SDG dimension.
+    * this reads the per-SDG cube and sums ``material__<action>__SDG_1..17``.
+
+    Those two need not be equal even at ``action="total"``: an initiative mapped to more
+    than one SDG is counted once per SDG here but once in total there, and anything the
+    workbook left unmapped to any SDG is in the aggregate column and in NO per-SDG column.
+    So use THIS function for every cell of an all-SDG x behaviour block, including the
+    "all behaviours" cell (``action="total"``), rather than mixing it with
+    ``Material_Immaterial_only`` -- otherwise one cell of the block is built on a
+    different denominator from the other three and the block is not internally comparable.
+
+    One group, so signal_0 is the material share and signal_1 its exact mirror.
+    """
+    return _signals_from_groups({"All_SDGs": _ALL_SDGS}, action=action)
+
+
 def Materiality_People_Plus_Prosperity_SDG():
     """2 signals: Material_People_Plus_Prosperity, Immaterial_People_Plus_Prosperity.
 
