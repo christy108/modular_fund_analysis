@@ -166,3 +166,134 @@ def cache_put(tag: str, key: str, value, refs: tuple = ()):
     slots.append((key, value, tuple(refs)))
     del slots[: max(0, len(slots) - _maxsize())]
     return value
+
+
+# --------------------------------------------------------------------------- #
+# Static audit of the DEPENDS_* tuples
+# --------------------------------------------------------------------------- #
+# The ONE way caching here can return a wrong answer is a cfg key a Process reads but
+# its DEPENDS_* tuple omits: two genuinely different configs would then share an entry.
+# That is checkable without running anything, because cfg reaches a Process by exactly
+# one route -- `C = json.loads(cfg["json"][0])` -- so the read set is the direct
+# C[...]/C.get(...) in the body plus whatever any helper handed the whole dict reads.
+#
+# audit_dependencies() walks that closure over the AST and reports any key that is read
+# but undeclared. It reports a handoff it CANNOT follow as a problem too: an audit that
+# silently under-approximates is worse than none. Wire it to a test so a future edit
+# that reads a new key fails immediately instead of at the next sweep.
+
+_AUDITED: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    # tag: (node module filename, process function, declared dependencies)
+    "load_universes@v1": ("03_load_universes.py", "load_universes_v1", DEPENDS_LOAD_UNIVERSES),
+    "esg_none@v1": ("04_merge_esg_provider.py", "esg_none_v1", DEPENDS_MERGE_ESG),
+    "mktcap_filter_audit@v1": ("10_mktcap_filter_audit.py", "mktcap_filter_audit_v1",
+                               DEPENDS_MKTCAP_AUDIT),
+}
+
+# Receives the parsed cfg by design and reads nothing out of it.
+_CFG_SINKS = frozenset({"cache_key"})
+
+
+def _find_function(tree, name: str):
+    import ast
+
+    return next((n for n in ast.walk(tree)
+                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name), None)
+
+
+def _reads(fn_node, var: str) -> tuple[set[str], list[tuple[str, int, int]]]:
+    """Keys read off ``var``, and every call that hands ``var`` somewhere else."""
+    import ast
+
+    keys: set[str] = set()
+    handoffs: list[tuple[str, int, int]] = []
+    for node in ast.walk(fn_node):
+        if (isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name)
+                and node.value.id == var):
+            if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+                keys.add(node.slice.value)
+            else:
+                handoffs.append(("<computed subscript>", node.lineno, -1))
+        elif isinstance(node, ast.Call):
+            func = node.func
+            if (isinstance(func, ast.Attribute) and func.attr == "get"
+                    and isinstance(func.value, ast.Name) and func.value.id == var):
+                if node.args and isinstance(node.args[0], ast.Constant):
+                    keys.add(node.args[0].value)
+                else:
+                    handoffs.append(("<computed get>", node.lineno, -1))
+                continue
+            position = next((i for i, a in enumerate(node.args)
+                             if isinstance(a, ast.Name) and a.id == var), None)
+            if position is None and not any(
+                isinstance(k.value, ast.Name) and k.value.id == var for k in node.keywords
+            ):
+                continue
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "<expr>")
+            if name not in _CFG_SINKS:
+                handoffs.append((name, node.lineno, -1 if position is None else position))
+    return keys, handoffs
+
+
+def audit_dependencies() -> list[str]:
+    """Return a list of problems; empty means every cached Process is fully declared."""
+    import ast
+    from pathlib import Path
+
+    here = Path(__file__).resolve().parent
+    common = ast.parse((here / "_common.py").read_text())
+    problems: list[str] = []
+
+    for tag, (filename, func_name, declared) in _AUDITED.items():
+        tree = ast.parse((here / "nodes" / filename).read_text())
+        fn = _find_function(tree, func_name)
+        if fn is None:
+            problems.append(f"{tag}: no function {func_name!r} in {filename}")
+            continue
+
+        # The local name bound to the parsed cfg, rather than assuming it is "C".
+        var = next(
+            (t.id for n in ast.walk(fn) if isinstance(n, ast.Assign)
+             for t in n.targets
+             if isinstance(t, ast.Name) and isinstance(n.value, ast.Call)
+             and getattr(n.value.func, "attr", "") == "loads"),
+            None,
+        )
+        if var is None:
+            problems.append(f"{tag}: could not find the `X = json.loads(cfg[...])` binding")
+            continue
+
+        keys, handoffs = _reads(fn, var)
+        for helper, lineno, position in handoffs:
+            target = _find_function(common, helper)
+            if target is None or position < 0 or position >= len(target.args.args):
+                problems.append(
+                    f"{tag}: {filename}:{lineno} hands the cfg to {helper!r}, which this "
+                    f"audit cannot follow -- resolve it by hand and add it to _CFG_SINKS "
+                    f"or declare the keys it reads"
+                )
+                continue
+            inner, deeper = _reads(target, target.args.args[position].arg)
+            keys |= inner
+            for onward, inner_line, _ in deeper:
+                problems.append(
+                    f"{tag}: {helper!r} passes the cfg onward to {onward!r} "
+                    f"(_common.py:{inner_line}); this audit stops at one level"
+                )
+
+        undeclared = sorted(keys - set(declared))
+        if undeclared:
+            problems.append(
+                f"{tag}: reads {undeclared} but they are NOT in its DEPENDS_* tuple. A sweep "
+                f"varying any of them would serve a STALE cached result."
+            )
+    return problems
+
+
+if __name__ == "__main__":
+    found = audit_dependencies()
+    for problem in found:
+        print(f"  !! {problem}")
+    print(f"\n{'FAIL' if found else 'OK'} -- {len(found)} problem(s) across "
+          f"{len(_AUDITED)} cached process(es)")
+    raise SystemExit(1 if found else 0)
