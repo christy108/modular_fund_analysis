@@ -1,24 +1,24 @@
 {
   "fama_us_3": {
     "exists": true,
-    "mtime": 1780234515.855294,
-    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_3_Factors.csv",
-    "sha256": "b051ff49133b5a60c9c3ae56b0725b93d55687b0bffbea213304e42d4471beb6",
-    "size": 34472
+    "mtime": 1790952242.339986,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_3_Factors.parquet",
+    "sha256": "cf1fc8e64feb3c99c2a24766700bdac224653efc111655454e9ce2386470420f",
+    "size": 25378
   },
   "fama_us_5": {
     "exists": true,
-    "mtime": 1780234471.5294535,
-    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_5_Factors.csv",
-    "sha256": "02528b89b5479ecc81a98aa28cfeab3a958460250aad410b5fb39583f4212943",
-    "size": 29710
+    "mtime": 1790952242.3484123,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_5_Factors.parquet",
+    "sha256": "55f6e4502a45c3f0eda9d0361efad795c885905e907bbdcadb9fc87eeaadb168",
+    "size": 25150
   },
   "fama_us_mom": {
     "exists": true,
-    "mtime": 1788365034.0,
-    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_Momentum_Factor.csv",
-    "sha256": "af286d7898c42fc5c92a8c3604ca9105cc45a1ad9dd34b489173a880d4387458",
-    "size": 21624
+    "mtime": 1790952242.3654022,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_Momentum_Factor.parquet",
+    "sha256": "996e68c91aa79e3d860d34fbce4b72ea120f2b579bec46f24d52a6271737af8f",
+    "size": 12925
   },
   "golden_lc": {
     "exists": true,
@@ -29,10 +29,10 @@
   },
   "sales": {
     "exists": true,
-    "mtime": 1788185645.779274,
-    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/sales_all_regions.csv",
-    "sha256": "dcc7acd2bd06694ad116fd59a08197f462791325f07bbd88ec16813cc5bb8005",
-    "size": 11120300
+    "mtime": 1790952242.4943023,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/sales_all_regions.parquet",
+    "sha256": "48b88a64f1e0f129b90a3cec97700f641e41f25387bd5a45c61793f99bc35908",
+    "size": 2996177
   },
   "sasb_materiality": {
     "exists": true,

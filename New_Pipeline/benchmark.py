@@ -52,10 +52,10 @@ _SOURCES: dict[str, Path] = {
     "universe_usa": REPO / "data/usa_universe_all_secstat.parquet",
     "universe_row": REPO / "data/row_universe_all_secstat_new.parquet",
     "universe_japan": REPO / "data/japan_universe_all_secstat.parquet",
-    "sales": REPO / "data/sales_all_regions.csv",
-    "fama_us_3": REPO / "data/FAMA/United_States_3_Factors.csv",
-    "fama_us_5": REPO / "data/FAMA/United_States_5_Factors.csv",
-    "fama_us_mom": REPO / "data/FAMA/United_States_Momentum_Factor.csv",
+    "sales": REPO / "data/sales_all_regions.parquet",
+    "fama_us_3": REPO / "data/FAMA/United_States_3_Factors.parquet",
+    "fama_us_5": REPO / "data/FAMA/United_States_5_Factors.parquet",
+    "fama_us_mom": REPO / "data/FAMA/United_States_Momentum_Factor.parquet",
     "sasb_materiality": Path.home() / "Documents/GitHub/Data/Materiality/"
                         "Matched_SASB_GOLDEN_long_matchings_v_2A1_FirmYear_17SDGs_matching_v2.csv",
 }

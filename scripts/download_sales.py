@@ -3,7 +3,8 @@
     .venv/bin/python -m scripts.download_sales
     .venv/bin/python -m scripts.download_sales --start 2010 --end 2026 --out data/sales_all_regions.csv
 
-Standalone, run by hand. Writes `data/sales_all_regions.csv` and touches nothing else.
+Standalone, run by hand. Writes `data/sales_all_regions.csv` plus a `.parquet` twin
+(the one the pipeline actually reads) and touches nothing else.
 
 **gvkey inclusion mirrors the universe downloads exactly.** Each region's gvkey set is
 the DISTINCT gvkeys from the same secd/g_secd query `get_*_universe` runs -- same
@@ -253,8 +254,10 @@ def main(argv: list[str]) -> None:
     allsales = add_sale_usd(allsales, end)
     out.parent.mkdir(parents=True, exist_ok=True)
     allsales.to_csv(out, index=False)
+    parquet_out = out.with_suffix(".parquet")
+    allsales.to_parquet(parquet_out, index=False)
 
-    print(f"\n{len(allsales):,} rows -> {out}")
+    print(f"\n{len(allsales):,} rows -> {out} (+ {parquet_out}, which the pipeline reads)")
     print(allsales.groupby("region").agg(rows=("sale", "size"), firms=("gvkey", "nunique"),
                                          median_sale=("sale", "median"),
                                          median_sale_usd=("sale_usd", "median")).to_string())

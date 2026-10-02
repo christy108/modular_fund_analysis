@@ -1,6 +1,6 @@
 """One-off: download the US GICS classification cache from WRDS (INTERACTIVE).
 
-Why: the `esg_full_universe` path needs ``data/GICS/gics_comp_<region>_<end_year>.csv``.
+Why: the `esg_full_universe` path needs ``data/GICS/gics_comp_<region>_<end_year>.parquet``.
 Only the Japan file ships with the repo; the US file must be pulled from WRDS, which
 requires an interactive WRDS login. Run this yourself once:
 
@@ -9,7 +9,7 @@ requires an interactive WRDS login. Run this yourself once:
     .venv/bin/python -m scripts.download_us_gics Japan 2024 # other region/year
 
 It builds the universe from the cached local extracts (no WRDS needed for that),
-then makes the single WRDS GICS call and writes the CSV to ./data/GICS/. After it
+then makes the single WRDS GICS call and writes the parquet to ./data/GICS/. After it
 finishes, the pipeline + notebook can run `esg_full_universe` with
 `download_gics_data=False` and be parity-gated headlessly.
 """
@@ -55,7 +55,7 @@ def main(region_analysis: str = "United_States", end_year: int = 2024) -> None:
 
     print(f"Universe built ({global_universe['gvkey'].nunique()} gvkeys). Calling WRDS for GICS ...")
     get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_data=True)
-    print(f"Done. Wrote ./data/GICS/gics_comp_{region_analysis}_{end_year}.csv")
+    print(f"Done. Wrote ./data/GICS/gics_comp_{region_analysis}_{end_year}.parquet")
 
 
 if __name__ == "__main__":
