@@ -1102,6 +1102,52 @@ def base_none_Developed():
                                      Add_Momentum_Factor=True))
 
 
+def base_net_materiality_People_advocacy_Developed():
+    """Net materiality, People SDGs, advocacy_old_def behaviour, on Developed.
+
+    ONE CELL of sweep_parameters_Developed_net.py, lifted out as a named experiment so the
+    design can be inspected (dashboard, decomposition PDF, sort_cutpoint audit) without
+    running the 64-cell grid. Every knob below matches that file's FIXED block, so this IS
+    the grid's (People, advocacy_old_def, mktcap-weighted, 0.95) cell -- not a lookalike.
+
+        signal_0 = Net_Material_Advocacy_Old_Def_People
+                 = SUM material__advocacy_old_def__SDG_{1,2,3,4,5,8,10}
+                 - SUM immaterial__advocacy_old_def__SDG_{1,2,3,4,5,8,10}
+
+    A signed LEVEL, not a share: signal_1 is its exact negation (corr -1.0), where the
+    share designs carry 1 - signal_0. Measured on Developed, Planet/advocacy ran -16..+16
+    -- far tighter than the raw workbook's -229..+291, because the market-cap screen and
+    the alpha-bound trim remove the extreme disclosers.
+
+    WATCH THE ZERO BUCKET. A firm with 7 material and 7 immaterial scores 0, and so does a
+    firm with NO People-advocacy initiatives at all; the share version separates them
+    (0.500 vs NaN, and NaN leaves the sort). On the raw workbook that pile is 18.7% of
+    firm-years, and with 5 quantiles it straddles a cutpoint whose side is decided by
+    quantile_interval_bounds="closed". Read sort_cutpoint_summary before the alpha.
+    """
+    return make_experiment(
+        "base_net_materiality_People_advocacy_Developed",
+        build_cfg(
+            region_analysis="Developed",
+            action_characterization="Materiality_People_Action_SDG",
+            materiality_people_action="advocacy_old_def",
+            net_materiality=True,
+            # signal_type stays at the "weights" baseline, which for a NET design means no
+            # denominator at all (the raw net count). per_revenue is deliberately not used:
+            # scripts/download_sales.py never pulled NOK/SEK/DKK fundamentals, so it would
+            # silently drop ~99% of Scandinavian and 81% of Canadian firm-years.
+            add_materiality=True,
+            materiality_version=2,
+            minimum_initatives_needed_to_split_by_materiality=0,
+            # Real Estate and Utilities KEPT (build_cfg drops both by default).
+            drop_real_estate=False,
+            drop_utilities=False,
+            no_simple_quantiles=5,
+            execute_3_filters="suspicious_only",
+        ),
+    )
+
+
 def base_none_half_open():
     # base_none with the ONLY change being the cutpoint tie-break convention, so this pair
     # isolates the tie mass and nothing else: same sample, same signal, same cutpoints.
@@ -1725,6 +1771,9 @@ EXPERIMENTS = {
     # Pooled US + Canada(US-listed) + FF-Europe-16 + Japan, on the Developed factors.
     # Not comparable to the three above -- the size screen pools across currency areas.
     "base_none_Developed": base_none_Developed,
+    # One cell of sweep_parameters_Developed_net.py: net materiality, People SDGs,
+    # advocacy_old_def, mktcap-weighted at 0.95. For inspecting the design on its own.
+    "base_net_materiality_People_advocacy_Developed": base_net_materiality_People_advocacy_Developed,
 
 
     "base_materiality": base_materiality,
