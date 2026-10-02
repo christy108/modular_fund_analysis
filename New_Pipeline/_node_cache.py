@@ -38,12 +38,27 @@ import hashlib
 import json
 import os
 
-# ONE live entry per tag: {tag: (key, value, refs)}. A sweep holds each invariant
-# bundle for its whole duration, so an unbounded cache would hold every variant a
-# multi-axis sweep ever produced -- and these bundles reach gigabytes. Size 1 keeps the
-# memory cost to one bundle per cached node while still collapsing a sweep whose
-# invariant keys never change, which is the case this exists for.
-_ENTRIES: dict[str, tuple[str, object, tuple]] = {}
+# {tag: [(key, value, refs), ...]} -- a tiny LRU per tag, newest last. Unbounded is not
+# an option: a sweep holds each bundle for its whole duration and these reach gigabytes
+# (boundary.py measures a Developed bundle at 4.27 GiB).
+#
+# The default of 2, rather than 1, is the market-cap axis. Every current sweep that
+# varies mktcap_covered_if_filter_by_cum_market_cap produces exactly TWO distinct
+# universes, and orders its cells 0.95, 0.95, 0.99, 0.99, ... -- so a single slot is
+# evicted by every pair and recomputes instead of hitting. Measured against the real
+# 128-cell Developed worklist: merge_esg_provider and mktcap_filter_audit get 64 of 127
+# possible hits at size 1 and 126 at size 2, which on that sweep is worth about an hour
+# and three quarters. Raise it with SWEEP_CACHE_SIZE for a sweep with a wider upstream
+# axis, but cost it in RAM first: one more slot is one more whole bundle per worker.
+_DEFAULT_SIZE = 2
+_ENTRIES: dict[str, list[tuple[str, object, tuple]]] = {}
+
+
+def _maxsize() -> int:
+    try:
+        return max(1, int(os.environ.get("SWEEP_CACHE_SIZE", _DEFAULT_SIZE)))
+    except ValueError:
+        return _DEFAULT_SIZE
 
 # cfg keys each cached node reads. Derived by reading the Process body AND the helpers
 # it calls; see the module docstring for why over-inclusion is the safe direction.
@@ -113,10 +128,12 @@ def cache_get(tag: str, key: str):
     """
     if _verifying():
         return None
-    entry = _ENTRIES.get(tag)
-    if entry is not None and entry[0] == key:
-        print(f"[node_cache] HIT  {tag}")
-        return entry[1]
+    slots = _ENTRIES.get(tag, [])
+    for i, (held, value, refs) in enumerate(slots):
+        if held == key:
+            slots.append(slots.pop(i))      # most recently used last
+            print(f"[node_cache] HIT  {tag}")
+            return value
     return None
 
 
@@ -127,12 +144,13 @@ def cache_put(tag: str, key: str, value, refs: tuple = ()):
     is compared against the held one and raises on any difference -- that is the signal
     that this tag's DEPENDS_* tuple is missing a cfg key the Process actually reads.
     """
+    slots = _ENTRIES.setdefault(tag, [])
     if _verifying():
-        previous = _ENTRIES.get(tag)
-        if previous is not None and previous[0] == key:
+        previous = next((v for held, v, _ in slots if held == key), None)
+        if previous is not None:
             from leonardo_nodes.hashing import hash_data
 
-            if hash_data(previous[1]) != hash_data(value):
+            if hash_data(previous) != hash_data(value):
                 raise RuntimeError(
                     f"[node_cache] VERIFY FAILED for {tag}: two runs share a cache key "
                     f"but produced different output. A cfg key this Process reads is "
@@ -141,5 +159,10 @@ def cache_put(tag: str, key: str, value, refs: tuple = ()):
                     f"sweep with the cache enabled until that tuple is corrected."
                 )
             print(f"[node_cache] verified {tag}")
-    _ENTRIES[tag] = (key, value, tuple(refs))
+    for i, (held, _, _) in enumerate(slots):
+        if held == key:
+            slots.pop(i)
+            break
+    slots.append((key, value, tuple(refs)))
+    del slots[: max(0, len(slots) - _maxsize())]
     return value
