@@ -88,7 +88,7 @@ QUERIES = {
               AND s.tpci = '0' AND s.prccd > 0 AND s.cshtrd > 0
               AND s.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 154, 171, 107,
                               172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194)
-              AND s.curcdd IN ('CHF', 'GBP', 'EUR')
+              AND s.curcdd IN ('CHF', 'GBP', 'EUR', 'NOK', 'SEK', 'DKK')
         )
     """),
     "japan": ("comp_global_daily.g_funda", _STD_GL, """
