@@ -1277,7 +1277,7 @@
    {
     "description": "",
     "parameter": "sales_path",
-    "value": "data/sales_all_regions.csv"
+    "value": "data/sales_all_regions.parquet"
    },
    {
     "description": "Trim fraction applied to the signal tails when use_alpha_bound is on.",

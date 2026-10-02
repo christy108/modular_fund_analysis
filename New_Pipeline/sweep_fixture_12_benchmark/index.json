@@ -1,10 +1,10 @@
 {
- "captured_at": "2026-10-02T14:14:31.626946+01:00",
- "sweep_dir": "sweep_output/20261002T130209Z_sweep_fixture_12_benchmark",
+ "captured_at": "2026-10-02T16:51:25.249386+01:00",
+ "sweep_dir": "sweep_output/20261002T154357Z_sweep_fixture_12_benchmark",
  "n_runs": 12,
  "n_ok": 12,
- "sweep_wall_s": 498.781594,
- "total_cell_s": 970.3279736249242,
+ "sweep_wall_s": 336.625068,
+ "total_cell_s": 642.7613272100571,
  "env": {
   "python": "3.14.4",
   "polars": "1.43.2",
@@ -15,9 +15,9 @@
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hb4d03750": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, no_simple_quantiles=3",
    "status": "ok",
-   "timestamp": "2026-10-02T13:02:12Z",
-   "duration_s": 110.92015608301153,
-   "node_span_s": 109.249526,
+   "timestamp": "2026-10-02T15:43:59Z",
+   "duration_s": 79.48196958296467,
+   "node_span_s": 78.337342,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -46,7 +46,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -131,26 +131,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
+      "output_hash": "db0354f21931cf6e9432611d5a22410289079eb6f13270f6b4fc80ab8897edc3",
       "input_hashes": {
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 2.58163600001717
+      "duration_s": 2.4036172500345856
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 11.598623291007243
+      "duration_s": 8.083591208036523
      }
     ],
     "load_fama_french": [
@@ -160,9 +160,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 0.02012583299074322
+      "duration_s": 0.02082770800916478
      }
     ],
     "derive_signals": [
@@ -172,23 +172,23 @@
       "status": "ok",
       "output_hash": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
       "input_hashes": {
-       "lc": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "lc": "db0354f21931cf6e9432611d5a22410289079eb6f13270f6b4fc80ab8897edc3",
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 0.3110211250022985
+      "duration_s": 0.2724150000140071
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 27.18736775004072
+      "duration_s": 22.527238750015385
      }
     ],
     "prepare_panel": [
@@ -201,22 +201,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 6.03850370895816
+      "duration_s": 5.685068749997299
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 4.24244791601086
+      "duration_s": 4.248825250018854
      }
     ],
     "build_analyse_portfolios": [
@@ -227,9 +227,9 @@
       "output_hash": "33ca8927e99132cb117a51ca55e1e5fb71af85427e2072d2f0d1be4a7dca7f6b",
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 20.94120129197836
+      "duration_s": 14.453532707993872
      }
     ],
     "esg_signal_corr": [
@@ -240,9 +240,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 0.016663125017657876
+      "duration_s": 0.001624791999347508
      }
     ],
     "esg_coverage": [
@@ -253,11 +253,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
+       "lc": "db0354f21931cf6e9432611d5a22410289079eb6f13270f6b4fc80ab8897edc3",
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 0.013773416983895004
+      "duration_s": 0.0022504169610328972
      }
     ],
     "geography_audit": [
@@ -269,9 +269,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 2.0897659169859253
+      "duration_s": 2.1221710419631563
      }
     ],
     "sample_funnel_audit": [
@@ -284,9 +284,9 @@
        "lc_stages": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 1.1864888750133105
+      "duration_s": 1.2369814999983646
      }
     ],
     "sort_cutpoint_audit": [
@@ -298,20 +298,20 @@
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
        "portfolios": "33ca8927e99132cb117a51ca55e1e5fb71af85427e2072d2f0d1be4a7dca7f6b",
-       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+       "cfg": "39da8ca2bec61e7155be589695f8b4b31aab99444069b4ee88cfaaeea3572a59"
       },
-      "duration_s": 0.1340476669720374
+      "duration_s": 0.14395729202078655
      }
     ]
    },
-   "run_dir": "runs/20261002T130212Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hb4d03750"
+   "run_dir": "runs/20261002T154359Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hb4d03750"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hcd8adb64": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:04:07Z",
-   "duration_s": 77.51070641598199,
-   "node_span_s": 76.593842,
+   "timestamp": "2026-10-02T15:45:24Z",
+   "duration_s": 49.65133595903171,
+   "node_span_s": 48.648351,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -340,7 +340,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -425,26 +425,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
+      "output_hash": "2d02565fe01e77e9f9a070d99b506c0137aad63bad7d4e95471346a8f68862cf",
       "input_hashes": {
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 2.378905790974386
+      "duration_s": 2.7631509579950944
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 7.957932666002307
+      "duration_s": 1.474605291034095
      }
     ],
     "load_fama_french": [
@@ -454,9 +454,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 0.01744320901343599
+      "duration_s": 0.016648124961648136
      }
     ],
     "derive_signals": [
@@ -466,23 +466,23 @@
       "status": "ok",
       "output_hash": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
       "input_hashes": {
-       "lc": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "lc": "2d02565fe01e77e9f9a070d99b506c0137aad63bad7d4e95471346a8f68862cf",
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 0.2554132500081323
+      "duration_s": 0.3310624590376392
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 20.892340791004244
+      "duration_s": 2.1273510419996455
      }
     ],
     "prepare_panel": [
@@ -495,22 +495,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 6.240221791958902
+      "duration_s": 5.5072637920384295
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 4.116807250014972
+      "duration_s": 0.005987415963318199
      }
     ],
     "build_analyse_portfolios": [
@@ -521,9 +521,9 @@
       "output_hash": "be830c70f04f5d2e2187a399a90aaaadd276330eaae5ca676c7dbefaf60bdb04",
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 17.523096750024706
+      "duration_s": 17.41976891597733
      }
     ],
     "esg_signal_corr": [
@@ -534,9 +534,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 0.0004072909941896796
+      "duration_s": 0.00039850000757724047
      }
     ],
     "esg_coverage": [
@@ -547,11 +547,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
+       "lc": "2d02565fe01e77e9f9a070d99b506c0137aad63bad7d4e95471346a8f68862cf",
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 0.00030112499371171
+      "duration_s": 0.0002787910052575171
      }
     ],
     "geography_audit": [
@@ -563,9 +563,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 2.0989280000212602
+      "duration_s": 2.2578015420003794
      }
     ],
     "sample_funnel_audit": [
@@ -578,9 +578,9 @@
        "lc_stages": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 1.0448860409669578
+      "duration_s": 1.1511646250146441
      }
     ],
     "sort_cutpoint_audit": [
@@ -592,20 +592,20 @@
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
        "portfolios": "be830c70f04f5d2e2187a399a90aaaadd276330eaae5ca676c7dbefaf60bdb04",
-       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+       "cfg": "f2121ac3a6e04b8c92a0ec4d96d0f86d2caac0a9690b1f5a80d2d29cd5a13c9f"
       },
-      "duration_s": 0.13331591698806733
+      "duration_s": 0.16763558401726186
      }
     ]
    },
-   "run_dir": "runs/20261002T130407Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hcd8adb64"
+   "run_dir": "runs/20261002T154524Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hcd8adb64"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hea21dafb": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, no_simple_quantiles=3, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:04:03Z",
-   "duration_s": 72.72670258296421,
-   "node_span_s": 71.53313,
+   "timestamp": "2026-10-02T15:45:18Z",
+   "duration_s": 41.79076270799851,
+   "node_span_s": 40.878049,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -634,7 +634,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -719,26 +719,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
+      "output_hash": "db3e495a7ac32d279efb15378a16118a3dcfc385f65bf72675a65bbc243a902b",
       "input_hashes": {
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 2.7199501249706373
+      "duration_s": 2.589655624993611
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 7.675413207965903
+      "duration_s": 1.6074144589947537
      }
     ],
     "load_fama_french": [
@@ -748,9 +748,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 0.018502374994568527
+      "duration_s": 0.020015417016111314
      }
     ],
     "derive_signals": [
@@ -760,23 +760,23 @@
       "status": "ok",
       "output_hash": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
       "input_hashes": {
-       "lc": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "lc": "db3e495a7ac32d279efb15378a16118a3dcfc385f65bf72675a65bbc243a902b",
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 0.25407799996901304
+      "duration_s": 0.23826545802876353
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 19.630048332968727
+      "duration_s": 2.238120040972717
      }
     ],
     "prepare_panel": [
@@ -789,22 +789,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 6.3172021670034155
+      "duration_s": 5.877855041995645
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 4.312270166003145
+      "duration_s": 0.006137249991297722
      }
     ],
     "build_analyse_portfolios": [
@@ -815,9 +815,9 @@
       "output_hash": "f2be2599d8eb34db33ce610cf12e8fa70a288762b59458085852bb9c7909b26a",
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 12.20104325003922
+      "duration_s": 12.128542874997947
      }
     ],
     "esg_signal_corr": [
@@ -828,9 +828,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 0.00041337497532367706
+      "duration_s": 0.0004366670036688447
      }
     ],
     "esg_coverage": [
@@ -841,11 +841,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
+       "lc": "db3e495a7ac32d279efb15378a16118a3dcfc385f65bf72675a65bbc243a902b",
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 0.00027829199098050594
+      "duration_s": 0.0002589580253697932
      }
     ],
     "geography_audit": [
@@ -857,9 +857,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 2.0356162080424838
+      "duration_s": 2.005446416034829
      }
     ],
     "sample_funnel_audit": [
@@ -872,9 +872,9 @@
        "lc_stages": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 1.0746067079599015
+      "duration_s": 1.0599721249891445
      }
     ],
     "sort_cutpoint_audit": [
@@ -886,20 +886,20 @@
       "input_hashes": {
        "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
        "portfolios": "f2be2599d8eb34db33ce610cf12e8fa70a288762b59458085852bb9c7909b26a",
-       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+       "cfg": "7698f75a9cb8abec04e186e42731b96da31d4f951d99be6feec23b89d80842f1"
       },
-      "duration_s": 0.14805562497349456
+      "duration_s": 0.15488587494473904
      }
     ]
    },
-   "run_dir": "runs/20261002T130403Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hea21dafb"
+   "run_dir": "runs/20261002T154518Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hea21dafb"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advocacy_old_def": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def",
    "status": "ok",
-   "timestamp": "2026-10-02T13:02:12Z",
-   "duration_s": 115.12510645802831,
-   "node_span_s": 114.075456,
+   "timestamp": "2026-10-02T15:43:59Z",
+   "duration_s": 85.06187375000445,
+   "node_span_s": 83.995386,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -928,7 +928,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -1013,26 +1013,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
+      "output_hash": "9c55ce55cab8f5d5f8d35051a409c31bd3cb8d04e3e7de73ac551c963da5b2ec",
       "input_hashes": {
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 2.6023138749878854
+      "duration_s": 2.4034038750105537
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 11.56806320801843
+      "duration_s": 8.1175430000294
      }
     ],
     "load_fama_french": [
@@ -1042,9 +1042,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 0.04197783296694979
+      "duration_s": 0.017818166001234204
      }
     ],
     "derive_signals": [
@@ -1054,23 +1054,23 @@
       "status": "ok",
       "output_hash": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
       "input_hashes": {
-       "lc": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "lc": "9c55ce55cab8f5d5f8d35051a409c31bd3cb8d04e3e7de73ac551c963da5b2ec",
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 0.31436612497782335
+      "duration_s": 0.26729741698363796
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 27.13844125001924
+      "duration_s": 22.687987124954816
      }
     ],
     "prepare_panel": [
@@ -1083,22 +1083,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 6.166918875009287
+      "duration_s": 5.6186991250142455
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 4.285276625014376
+      "duration_s": 4.10614870802965
      }
     ],
     "build_analyse_portfolios": [
@@ -1109,9 +1109,9 @@
       "output_hash": "5d0d3e4117f741b2db497814c2d8b6ef985e1b9053e3eae4dfd63b491bfce53d",
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 26.549191917001735
+      "duration_s": 19.69307633402059
      }
     ],
     "esg_signal_corr": [
@@ -1122,9 +1122,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 0.0007330829976126552
+      "duration_s": 0.0008012499893084168
      }
     ],
     "esg_coverage": [
@@ -1135,11 +1135,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
+       "lc": "9c55ce55cab8f5d5f8d35051a409c31bd3cb8d04e3e7de73ac551c963da5b2ec",
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 0.0007322909659706056
+      "duration_s": 0.0006764589925296605
      }
     ],
     "geography_audit": [
@@ -1151,9 +1151,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 2.094652292027604
+      "duration_s": 2.1043537920340896
      }
     ],
     "sample_funnel_audit": [
@@ -1166,9 +1166,9 @@
        "lc_stages": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 1.0342963750008494
+      "duration_s": 1.1090228750254028
      }
     ],
     "sort_cutpoint_audit": [
@@ -1180,20 +1180,20 @@
       "input_hashes": {
        "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
        "portfolios": "5d0d3e4117f741b2db497814c2d8b6ef985e1b9053e3eae4dfd63b491bfce53d",
-       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+       "cfg": "8924167e46d303852c5a0a077a1b789c2f49e22cdf933b50ba1d91a0e33b1f2e"
       },
-      "duration_s": 0.1376805829931982
+      "duration_s": 0.1390532919904217
      }
     ]
    },
-   "run_dir": "runs/20261002T130212Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advocacy_old_def"
+   "run_dir": "runs/20261002T154359Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advocacy_old_def"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__ha2af1cb2": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, no_simple_quantiles=3",
    "status": "ok",
-   "timestamp": "2026-10-02T13:05:15Z",
-   "duration_s": 72.4011724999873,
-   "node_span_s": 71.457465,
+   "timestamp": "2026-10-02T15:46:00Z",
+   "duration_s": 45.512725792010315,
+   "node_span_s": 44.561507,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -1222,7 +1222,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -1307,26 +1307,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
+      "output_hash": "3cdd926c51478ba9e0dfacd258024160b0e10b3098ac5f98b06a2f164572aae1",
       "input_hashes": {
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 2.6074022499960847
+      "duration_s": 2.5403211660450324
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 7.812334541988093
+      "duration_s": 2.4416867080144584
      }
     ],
     "load_fama_french": [
@@ -1336,9 +1336,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 0.018380583031103015
+      "duration_s": 0.01739645900670439
      }
     ],
     "derive_signals": [
@@ -1348,23 +1348,23 @@
       "status": "ok",
       "output_hash": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
       "input_hashes": {
-       "lc": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "lc": "3cdd926c51478ba9e0dfacd258024160b0e10b3098ac5f98b06a2f164572aae1",
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 0.23102266696514562
+      "duration_s": 0.26163774996530265
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 19.847188708023168
+      "duration_s": 3.1497037499793805
      }
     ],
     "prepare_panel": [
@@ -1377,22 +1377,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 5.43620016699424
+      "duration_s": 5.861715417006053
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 4.361994459002744
+      "duration_s": 0.0063947089947760105
      }
     ],
     "build_analyse_portfolios": [
@@ -1403,9 +1403,9 @@
       "output_hash": "3d56dbcc61248e9236fc8def6cb0904ff8173a0cfd38bb1674f0ee2fbe341495",
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 12.453163833997678
+      "duration_s": 12.743560375005472
      }
     ],
     "esg_signal_corr": [
@@ -1416,9 +1416,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 0.00028558302437886596
+      "duration_s": 0.00028416700661182404
      }
     ],
     "esg_coverage": [
@@ -1429,11 +1429,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
+       "lc": "3cdd926c51478ba9e0dfacd258024160b0e10b3098ac5f98b06a2f164572aae1",
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 0.00028316699899733067
+      "duration_s": 0.00027545803459361196
      }
     ],
     "geography_audit": [
@@ -1445,9 +1445,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 2.0368841669987887
+      "duration_s": 2.041296124982182
      }
     ],
     "sample_funnel_audit": [
@@ -1460,9 +1460,9 @@
        "lc_stages": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 1.0395692919846624
+      "duration_s": 1.0250378749915399
      }
     ],
     "sort_cutpoint_audit": [
@@ -1474,20 +1474,20 @@
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
        "portfolios": "3d56dbcc61248e9236fc8def6cb0904ff8173a0cfd38bb1674f0ee2fbe341495",
-       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+       "cfg": "e67a63244db94243ce31eef78cefe877276e2a18df6b7a450cbe808fb108242f"
       },
-      "duration_s": 0.12767245899885893
+      "duration_s": 0.12743216700619087
      }
     ]
    },
-   "run_dir": "runs/20261002T130516Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__ha2af1cb2"
+   "run_dir": "runs/20261002T154600Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__ha2af1cb2"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__hbf080774": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, no_simple_quantiles=3, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:06:28Z",
-   "duration_s": 70.87809341697721,
-   "node_span_s": 69.987168,
+   "timestamp": "2026-10-02T15:46:46Z",
+   "duration_s": 46.874630166974384,
+   "node_span_s": 45.967914,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -1516,7 +1516,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -1601,26 +1601,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
+      "output_hash": "83c32ee7592bcffa2b74949c24ac11442e63e9640bbb17104c468cb43e7df82f",
       "input_hashes": {
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 2.3024337920360267
+      "duration_s": 2.276345832971856
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 7.761099292023573
+      "duration_s": 1.3496550830313936
      }
     ],
     "load_fama_french": [
@@ -1630,9 +1630,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 0.01797458401415497
+      "duration_s": 0.016395292012020946
      }
     ],
     "derive_signals": [
@@ -1642,23 +1642,23 @@
       "status": "ok",
       "output_hash": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
       "input_hashes": {
-       "lc": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "lc": "83c32ee7592bcffa2b74949c24ac11442e63e9640bbb17104c468cb43e7df82f",
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 0.26839466695673764
+      "duration_s": 0.22646783402888104
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 20.304208957997616
+      "duration_s": 4.382489749987144
      }
     ],
     "prepare_panel": [
@@ -1671,22 +1671,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 5.290716167015489
+      "duration_s": 5.658477499964647
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 4.219699499954004
+      "duration_s": 0.0064189580152742565
      }
     ],
     "build_analyse_portfolios": [
@@ -1697,9 +1697,9 @@
       "output_hash": "991d4e42587c0d1ed2f8f5e88a830e287c749b94ae9d990be336ce5b08142bc3",
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 12.253013374982402
+      "duration_s": 12.670490540971514
      }
     ],
     "esg_signal_corr": [
@@ -1710,9 +1710,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 0.00035429198760539293
+      "duration_s": 0.0002680410398170352
      }
     ],
     "esg_coverage": [
@@ -1723,11 +1723,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
+       "lc": "83c32ee7592bcffa2b74949c24ac11442e63e9640bbb17104c468cb43e7df82f",
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 0.0002964999875985086
+      "duration_s": 0.00030216597951948643
      }
     ],
     "geography_audit": [
@@ -1739,9 +1739,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 1.9883739580400288
+      "duration_s": 2.0376092920196243
      }
     ],
     "sample_funnel_audit": [
@@ -1754,9 +1754,9 @@
        "lc_stages": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 1.0268917079665698
+      "duration_s": 1.0368012499529868
      }
     ],
     "sort_cutpoint_audit": [
@@ -1768,20 +1768,20 @@
       "input_hashes": {
        "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
        "portfolios": "991d4e42587c0d1ed2f8f5e88a830e287c749b94ae9d990be336ce5b08142bc3",
-       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+       "cfg": "ce04eb547e80c049f90ac243d298b8758568bcb48a850ca0d7736e1264614ef3"
       },
-      "duration_s": 0.12874854198889807
+      "duration_s": 0.12811216700356454
      }
     ]
    },
-   "run_dir": "runs/20261002T130628Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__hbf080774"
+   "run_dir": "runs/20261002T154646Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__hbf080774"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__heb780f57": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:06:44Z",
-   "duration_s": 74.41134191694437,
-   "node_span_s": 73.477077,
+   "timestamp": "2026-10-02T15:47:05Z",
+   "duration_s": 49.826366666995455,
+   "node_span_s": 48.927981,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -1810,7 +1810,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -1895,26 +1895,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
+      "output_hash": "f120a30dcf3d76580c01e4a91fe907fef29db7af238f854d2ac9499e9ff8a40c",
       "input_hashes": {
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 2.424628707987722
+      "duration_s": 2.631765332946088
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 7.701217791007366
+      "duration_s": 1.3881108329514973
      }
     ],
     "load_fama_french": [
@@ -1924,9 +1924,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 0.015227792027872056
+      "duration_s": 0.015987166960258037
      }
     ],
     "derive_signals": [
@@ -1936,23 +1936,23 @@
       "status": "ok",
       "output_hash": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
       "input_hashes": {
-       "lc": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "lc": "f120a30dcf3d76580c01e4a91fe907fef29db7af238f854d2ac9499e9ff8a40c",
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 0.24045191699406132
+      "duration_s": 0.25779120897641405
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 20.05305520899128
+      "duration_s": 2.2117817499674857
      }
     ],
     "prepare_panel": [
@@ -1965,22 +1965,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 5.197554874990601
+      "duration_s": 5.483671082998626
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 4.033106624963693
+      "duration_s": 0.006627292023040354
      }
     ],
     "build_analyse_portfolios": [
@@ -1991,9 +1991,9 @@
       "output_hash": "36af6fb5b1515d00851273dddaf6a3cffc6c6d17b1925d17eff67766ddfbdb95",
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 17.240061249991413
+      "duration_s": 17.4549910830101
      }
     ],
     "esg_signal_corr": [
@@ -2004,9 +2004,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 0.0003156669554300606
+      "duration_s": 0.00029495899798348546
      }
     ],
     "esg_coverage": [
@@ -2017,11 +2017,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
+       "lc": "f120a30dcf3d76580c01e4a91fe907fef29db7af238f854d2ac9499e9ff8a40c",
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 0.0002776249893940985
+      "duration_s": 0.00030383304692804813
      }
     ],
     "geography_audit": [
@@ -2033,9 +2033,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 2.054690374992788
+      "duration_s": 2.101075500017032
      }
     ],
     "sample_funnel_audit": [
@@ -2048,9 +2048,9 @@
        "lc_stages": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 1.0453358329832554
+      "duration_s": 1.0511396250221878
      }
     ],
     "sort_cutpoint_audit": [
@@ -2062,20 +2062,20 @@
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
        "portfolios": "36af6fb5b1515d00851273dddaf6a3cffc6c6d17b1925d17eff67766ddfbdb95",
-       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+       "cfg": "9cad430e1fb5bf6b469b6fc7c981e332766a15c4e32c543367d289b46b1ab12c"
       },
-      "duration_s": 0.13475045800441876
+      "duration_s": 0.13351587497163564
      }
     ]
    },
-   "run_dir": "runs/20261002T130644Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__heb780f57"
+   "run_dir": "runs/20261002T154705Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__heb780f57"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-preparation": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation",
    "status": "ok",
-   "timestamp": "2026-10-02T13:05:25Z",
-   "duration_s": 79.33672150003258,
-   "node_span_s": 78.428253,
+   "timestamp": "2026-10-02T15:46:14Z",
+   "duration_s": 51.573604084027465,
+   "node_span_s": 50.617009,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -2104,7 +2104,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -2189,26 +2189,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
+      "output_hash": "79fb5fcf83e5de099d6764f4a79da9f78a53be36970b10b366018ff547744257",
       "input_hashes": {
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 2.594648208003491
+      "duration_s": 2.422443583025597
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 7.956979416019749
+      "duration_s": 1.3969226659974083
      }
     ],
     "load_fama_french": [
@@ -2218,9 +2218,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 0.015129958977922797
+      "duration_s": 0.017714457993861288
      }
     ],
     "derive_signals": [
@@ -2230,23 +2230,23 @@
       "status": "ok",
       "output_hash": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
       "input_hashes": {
-       "lc": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "lc": "79fb5fcf83e5de099d6764f4a79da9f78a53be36970b10b366018ff547744257",
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 0.22302162501728162
+      "duration_s": 0.235554208047688
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 19.912879665964283
+      "duration_s": 3.806461542029865
      }
     ],
     "prepare_panel": [
@@ -2259,22 +2259,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 5.727976082998794
+      "duration_s": 5.324175500019919
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 4.030439292022493
+      "duration_s": 0.0059769999934360385
      }
     ],
     "build_analyse_portfolios": [
@@ -2285,9 +2285,9 @@
       "output_hash": "7532a144ab789c149f582b7c9aa634afbf57fa2e043adf85c49cf0dcc0ed77df",
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 18.049142166040838
+      "duration_s": 18.474644624977373
      }
     ],
     "esg_signal_corr": [
@@ -2298,9 +2298,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 0.00033599999733269215
+      "duration_s": 0.0004147079889662564
      }
     ],
     "esg_coverage": [
@@ -2311,11 +2311,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
+       "lc": "79fb5fcf83e5de099d6764f4a79da9f78a53be36970b10b366018ff547744257",
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 0.0003185829846188426
+      "duration_s": 0.0003814580268226564
      }
     ],
     "geography_audit": [
@@ -2327,9 +2327,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 2.075928042002488
+      "duration_s": 2.062222291016951
      }
     ],
     "sample_funnel_audit": [
@@ -2342,9 +2342,9 @@
        "lc_stages": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 1.1242128750309348
+      "duration_s": 1.0879715830087662
      }
     ],
     "sort_cutpoint_audit": [
@@ -2356,20 +2356,20 @@
       "input_hashes": {
        "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
        "portfolios": "7532a144ab789c149f582b7c9aa634afbf57fa2e043adf85c49cf0dcc0ed77df",
-       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+       "cfg": "20fbc9889664fd37423a8c4251843f017a890b9e76e9ec3be3a57a891163a572"
       },
-      "duration_s": 0.137012708990369
+      "duration_s": 0.13413445797050372
      }
     ]
    },
-   "run_dir": "runs/20261002T130525Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-preparation"
+   "run_dir": "runs/20261002T154614Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-preparation"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h03ea0323": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, no_simple_quantiles=3",
    "status": "ok",
-   "timestamp": "2026-10-02T13:07:39Z",
-   "duration_s": 73.149359833973,
-   "node_span_s": 72.233595,
+   "timestamp": "2026-10-02T15:47:33Z",
+   "duration_s": 44.67435554199619,
+   "node_span_s": 43.766419,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -2398,7 +2398,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -2483,26 +2483,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
+      "output_hash": "089f0b7de2642bb369442ac13a32b67b52cf55ea9735af6b75f700946e9cfcaa",
       "input_hashes": {
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 2.32079549995251
+      "duration_s": 2.2982712910161354
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 7.823196708981413
+      "duration_s": 1.4002657500095665
      }
     ],
     "load_fama_french": [
@@ -2512,9 +2512,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 0.017613832955248654
+      "duration_s": 0.016926582960877568
      }
     ],
     "derive_signals": [
@@ -2524,23 +2524,23 @@
       "status": "ok",
       "output_hash": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
       "input_hashes": {
-       "lc": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "lc": "089f0b7de2642bb369442ac13a32b67b52cf55ea9735af6b75f700946e9cfcaa",
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 0.35703033400932327
+      "duration_s": 0.33867687499150634
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 20.91151104203891
+      "duration_s": 2.2314505830290727
      }
     ],
     "prepare_panel": [
@@ -2553,22 +2553,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 5.951864624978043
+      "duration_s": 6.102482917020097
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 4.028546208981425
+      "duration_s": 0.005965958000160754
      }
     ],
     "build_analyse_portfolios": [
@@ -2579,9 +2579,9 @@
       "output_hash": "a5da74c647549975f3ca20acf78462c3bad16338081f0bb8c3b977e2e05d6a93",
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 13.33610829198733
+      "duration_s": 13.717921083967667
      }
     ],
     "esg_signal_corr": [
@@ -2592,9 +2592,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 0.00028724997537210584
+      "duration_s": 0.0003212919691577554
      }
     ],
     "esg_coverage": [
@@ -2605,11 +2605,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
+       "lc": "089f0b7de2642bb369442ac13a32b67b52cf55ea9735af6b75f700946e9cfcaa",
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 0.00027308298740535975
+      "duration_s": 0.00028666702564805746
      }
     ],
     "geography_audit": [
@@ -2621,9 +2621,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 2.043715583975427
+      "duration_s": 2.052358583023306
      }
     ],
     "sample_funnel_audit": [
@@ -2636,9 +2636,9 @@
        "lc_stages": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 1.0461422500084154
+      "duration_s": 1.0918561670114286
      }
     ],
     "sort_cutpoint_audit": [
@@ -2650,20 +2650,20 @@
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
        "portfolios": "a5da74c647549975f3ca20acf78462c3bad16338081f0bb8c3b977e2e05d6a93",
-       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+       "cfg": "9c62f9cbdc6c9edfdcd740241da3609adec01bbea42a870a57711e1540cc24f3"
       },
-      "duration_s": 0.13514295796630904
+      "duration_s": 0.137943624984473
      }
     ]
    },
-   "run_dir": "runs/20261002T130739Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h03ea0323"
+   "run_dir": "runs/20261002T154733Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h03ea0323"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h23e0ac54": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:09:16Z",
-   "duration_s": 75.23073529201793,
-   "node_span_s": 74.311378,
+   "timestamp": "2026-10-02T15:48:46Z",
+   "duration_s": 49.92158158303937,
+   "node_span_s": 49.057581,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -2692,7 +2692,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -2777,26 +2777,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
+      "output_hash": "054533fc7458f3560c50fe3935d876f5973fc8bbfb2668dcdf1238c771bcdbb2",
       "input_hashes": {
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 2.4401738749584183
+      "duration_s": 2.3609374170191586
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 7.797910750028677
+      "duration_s": 1.4069910410325974
      }
     ],
     "load_fama_french": [
@@ -2806,9 +2806,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 0.014929583994671702
+      "duration_s": 0.018885667028371245
      }
     ],
     "derive_signals": [
@@ -2818,23 +2818,23 @@
       "status": "ok",
       "output_hash": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
       "input_hashes": {
-       "lc": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "lc": "054533fc7458f3560c50fe3935d876f5973fc8bbfb2668dcdf1238c771bcdbb2",
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 0.347192500019446
+      "duration_s": 0.3819507909938693
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 19.15817579202121
+      "duration_s": 3.760790915985126
      }
     ],
     "prepare_panel": [
@@ -2847,22 +2847,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 6.0951284999609925
+      "duration_s": 6.169332749966998
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 4.325511749950238
+      "duration_s": 0.0061727919965051115
      }
     ],
     "build_analyse_portfolios": [
@@ -2873,9 +2873,9 @@
       "output_hash": "165ff4dbf55d0bca5209e1debc510013c5ff3b9ac36e25b27b7197a2af8b1f27",
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 17.38174754101783
+      "duration_s": 17.75516120903194
      }
     ],
     "esg_signal_corr": [
@@ -2886,9 +2886,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 0.0002976250252686441
+      "duration_s": 0.00028137495974078774
      }
     ],
     "esg_coverage": [
@@ -2899,11 +2899,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
+       "lc": "054533fc7458f3560c50fe3935d876f5973fc8bbfb2668dcdf1238c771bcdbb2",
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 0.0002889580209739506
+      "duration_s": 0.00032654200913384557
      }
     ],
     "geography_audit": [
@@ -2915,9 +2915,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 2.0402426249929704
+      "duration_s": 2.0280862080398947
      }
     ],
     "sample_funnel_audit": [
@@ -2930,9 +2930,9 @@
        "lc_stages": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 1.029148833011277
+      "duration_s": 1.0440011250320822
      }
     ],
     "sort_cutpoint_audit": [
@@ -2944,20 +2944,20 @@
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
        "portfolios": "165ff4dbf55d0bca5209e1debc510013c5ff3b9ac36e25b27b7197a2af8b1f27",
-       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+       "cfg": "7d20aa91e0e78c61272fe5aacf0f8f984b072b0f4c1b2b410b5bd81bc3575568"
       },
-      "duration_s": 0.159253166988492
+      "duration_s": 0.16099566599586979
      }
     ]
    },
-   "run_dir": "runs/20261002T130916Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h23e0ac54"
+   "run_dir": "runs/20261002T154847Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h23e0ac54"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__hd7b73cb1": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, no_simple_quantiles=3, portfolio_weighting=equal",
    "status": "ok",
-   "timestamp": "2026-10-02T13:08:52Z",
-   "duration_s": 70.78456875000848,
-   "node_span_s": 69.867757,
+   "timestamp": "2026-10-02T15:48:17Z",
+   "duration_s": 46.91670866700588,
+   "node_span_s": 45.924014,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -2986,7 +2986,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -3071,26 +3071,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
+      "output_hash": "1f8f77c952b2749bf64bde8f46bc17597db9b5936b5fc605eaeec5b2a7b257cb",
       "input_hashes": {
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 2.3234480830142274
+      "duration_s": 2.3064898750162683
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 7.437884917017072
+      "duration_s": 1.3900004170136526
      }
     ],
     "load_fama_french": [
@@ -3100,9 +3100,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 0.015868375019636005
+      "duration_s": 0.015987333026714623
      }
     ],
     "derive_signals": [
@@ -3112,23 +3112,23 @@
       "status": "ok",
       "output_hash": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
       "input_hashes": {
-       "lc": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "lc": "1f8f77c952b2749bf64bde8f46bc17597db9b5936b5fc605eaeec5b2a7b257cb",
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 0.3450541249476373
+      "duration_s": 0.33684345899382606
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 19.046352290955838
+      "duration_s": 2.239695333002601
      }
     ],
     "prepare_panel": [
@@ -3141,22 +3141,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 5.8029990830109455
+      "duration_s": 5.538671208021697
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 4.207297292014118
+      "duration_s": 0.006232665968127549
      }
     ],
     "build_analyse_portfolios": [
@@ -3167,9 +3167,9 @@
       "output_hash": "e5d96327fa295d15c991435f50fd4de1899f53f6d9bc244b9eb12661f8eea873",
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 12.871317624987569
+      "duration_s": 12.93724358297186
      }
     ],
     "esg_signal_corr": [
@@ -3180,9 +3180,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 0.00026762497145682573
+      "duration_s": 0.00028058397583663464
      }
     ],
     "esg_coverage": [
@@ -3193,11 +3193,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
+       "lc": "1f8f77c952b2749bf64bde8f46bc17597db9b5936b5fc605eaeec5b2a7b257cb",
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 0.0003267500433139503
+      "duration_s": 0.00030208402313292027
      }
     ],
     "geography_audit": [
@@ -3209,9 +3209,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 2.0454372079693712
+      "duration_s": 2.287783458014019
      }
     ],
     "sample_funnel_audit": [
@@ -3224,9 +3224,9 @@
        "lc_stages": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 1.0861985830124468
+      "duration_s": 1.0986449579941109
      }
     ],
     "sort_cutpoint_audit": [
@@ -3238,20 +3238,20 @@
       "input_hashes": {
        "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
        "portfolios": "e5d96327fa295d15c991435f50fd4de1899f53f6d9bc244b9eb12661f8eea873",
-       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+       "cfg": "776177c77cf3e3bccb8f7b77ea0a00a4b979ef142807177c0969707be2465aca"
       },
-      "duration_s": 0.1524694170220755
+      "duration_s": 0.13640308298636228
      }
     ]
    },
-   "run_dir": "runs/20261002T130852Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__hd7b73cb1"
+   "run_dir": "runs/20261002T154817Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__hd7b73cb1"
   },
   "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transformation": {
    "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation",
    "status": "ok",
-   "timestamp": "2026-10-02T13:07:58Z",
-   "duration_s": 77.85330887499731,
-   "node_span_s": 76.931937,
+   "timestamp": "2026-10-02T15:47:55Z",
+   "duration_s": 51.47541270800866,
+   "node_span_s": 50.532752,
    "cfg": {
     "golden_data": "v_2A1",
     "region_analysis": "United_States",
@@ -3280,7 +3280,7 @@
     "signal_denominator": "Sum_All_Signals",
     "signal_type": "weights",
     "add_sales": false,
-    "sales_path": "data/sales_all_regions.csv",
+    "sales_path": "data/sales_all_regions.parquet",
     "alpha_bound": 0.05,
     "winsorise_signal_pct": 0.0,
     "market_cap_filter": "percent_total_mcap",
@@ -3365,26 +3365,26 @@
    "nodes": {
     "process_lc": [
      {
-      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "process_id": "0c5f979e0178974c6cfa6887d516577c337bb7a28dfb9067172508254127e1be",
       "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
       "status": "ok",
-      "output_hash": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
+      "output_hash": "612dee59b089818c0e257f56d31b88b5ce9e7eb97e2e9a23339ce5bd6fc477b4",
       "input_hashes": {
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 2.357336416025646
+      "duration_s": 2.325462416978553
      }
     ],
     "load_universes": [
      {
-      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "process_id": "6e21f32fed20d05bc11fb985461a63eb2e333dec6c1599601a5424724f1c937b",
       "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
       "status": "ok",
       "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
       "input_hashes": {
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 7.693392874964047
+      "duration_s": 1.3967292919987813
      }
     ],
     "load_fama_french": [
@@ -3394,9 +3394,9 @@
       "status": "ok",
       "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
       "input_hashes": {
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 0.015482791000977159
+      "duration_s": 0.01634633302455768
      }
     ],
     "derive_signals": [
@@ -3406,23 +3406,23 @@
       "status": "ok",
       "output_hash": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
       "input_hashes": {
-       "lc": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "lc": "612dee59b089818c0e257f56d31b88b5ce9e7eb97e2e9a23339ce5bd6fc477b4",
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 0.3631854999694042
+      "duration_s": 0.34292383398860693
      }
     ],
     "merge_esg_provider": [
      {
-      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "process_id": "bfbc8771bf3b097fdb287e55d0f72a8eddfd89f3d487960b97eb60af1b88c125",
       "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
       "status": "ok",
       "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
       "input_hashes": {
        "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 19.249089667049702
+      "duration_s": 2.185997749969829
      }
     ],
     "prepare_panel": [
@@ -3435,22 +3435,22 @@
        "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "lc": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
        "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 5.668855874973815
+      "duration_s": 5.9938477500109
      }
     ],
     "mktcap_filter_audit": [
      {
-      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "process_id": "8a06b10a2c8c94132a0fa16aa3782be99dd8fc3bce6670610a87368a2b2b8aad",
       "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
       "status": "ok",
       "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 4.303067540982738
+      "duration_s": 0.006100041966419667
      }
     ],
     "build_analyse_portfolios": [
@@ -3461,9 +3461,9 @@
       "output_hash": "be8ef21b3e8bdf684d5183076f3138a6fbc67bf57459e1b94f0f4e98532df06d",
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 18.580302041955292
+      "duration_s": 18.858407084015198
      }
     ],
     "esg_signal_corr": [
@@ -3474,9 +3474,9 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 0.0003299579839222133
+      "duration_s": 0.00029366702074185014
      }
     ],
     "esg_coverage": [
@@ -3487,11 +3487,11 @@
       "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
-       "lc": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
+       "lc": "612dee59b089818c0e257f56d31b88b5ce9e7eb97e2e9a23339ce5bd6fc477b4",
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 0.0002959159901365638
+      "duration_s": 0.0010940420324914157
      }
     ],
     "geography_audit": [
@@ -3503,9 +3503,9 @@
       "input_hashes": {
        "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 2.0280365830403753
+      "duration_s": 2.058141458022874
      }
     ],
     "sample_funnel_audit": [
@@ -3518,9 +3518,9 @@
        "lc_stages": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
        "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
        "panel_stages": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 1.0576247079879977
+      "duration_s": 1.076583749963902
      }
     ],
     "sort_cutpoint_audit": [
@@ -3532,13 +3532,13 @@
       "input_hashes": {
        "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
        "portfolios": "be8ef21b3e8bdf684d5183076f3138a6fbc67bf57459e1b94f0f4e98532df06d",
-       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+       "cfg": "b95f2c347150442876d40e65bc72b742bac4aec68312baca4c22c894bc2dda6b"
       },
-      "duration_s": 0.14565983298234642
+      "duration_s": 0.14025345799745992
      }
     ]
    },
-   "run_dir": "runs/20261002T130758Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transformation"
+   "run_dir": "runs/20261002T154755Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transformation"
   }
  }
 }
