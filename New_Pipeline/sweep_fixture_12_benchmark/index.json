@@ -1,0 +1,3544 @@
+{
+ "captured_at": "2026-10-02T14:14:31.626946+01:00",
+ "sweep_dir": "sweep_output/20261002T130209Z_sweep_fixture_12_benchmark",
+ "n_runs": 12,
+ "n_ok": 12,
+ "sweep_wall_s": 498.781594,
+ "total_cell_s": 970.3279736249242,
+ "env": {
+  "python": "3.14.4",
+  "polars": "1.43.2",
+  "pandas": "2.2.3",
+  "numpy": "2.4.3"
+ },
+ "runs": {
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hb4d03750": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, no_simple_quantiles=3",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:02:12Z",
+   "duration_s": 110.92015608301153,
+   "node_span_s": 109.249526,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "advocacy_old_def",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__advocacy_old_def__SDG_6": 0,
+     "material__advocacy_old_def__SDG_7": 0,
+     "material__advocacy_old_def__SDG_12": 0,
+     "material__advocacy_old_def__SDG_13": 0,
+     "material__advocacy_old_def__SDG_14": 0,
+     "material__advocacy_old_def__SDG_15": 0,
+     "immaterial__advocacy_old_def__SDG_6": 1,
+     "immaterial__advocacy_old_def__SDG_7": 1,
+     "immaterial__advocacy_old_def__SDG_12": 1,
+     "immaterial__advocacy_old_def__SDG_13": 1,
+     "immaterial__advocacy_old_def__SDG_14": 1,
+     "immaterial__advocacy_old_def__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Advocacy_Old_Def_Planet",
+     "signal_1": "Immaterial_Advocacy_Old_Def_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
+      "input_hashes": {
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 2.58163600001717
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 11.598623291007243
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 0.02012583299074322
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "c01132fc1fcf887c6c5b00d50204adf50291b3674130b0b1392db289445c4da7",
+      "contract_version": "cdbb3bd4447f8294afb23cf07de69d2aa84d415eb5216aa611e9da489f63aaa2",
+      "status": "ok",
+      "output_hash": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+      "input_hashes": {
+       "lc": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 0.3110211250022985
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 27.18736775004072
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "3eaab9c58d2912a6ad732e15b0152734641b885a2aa954272f9a456aef3fd2a9",
+      "contract_version": "643c91e4aa1fc19542793d01b50b9a7d85802276089a04642bca4145fd9425c4",
+      "status": "ok",
+      "output_hash": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 6.03850370895816
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 4.24244791601086
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "33ca8927e99132cb117a51ca55e1e5fb71af85427e2072d2f0d1be4a7dca7f6b",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 20.94120129197836
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 0.016663125017657876
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "4639c5098613b6fe5a9d83bf563ae11c5e482ffbe9b4d52a9b6b12b0e99d04c5",
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 0.013773416983895004
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "b0c7165cbfb3d24cdaae5d3c42a82b4abe4a6e11f0704fe024d56671d79d999f",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 2.0897659169859253
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "157fabeb532d57d732e2462986315919ea4ab3525ced96864089e7a2a5b035e9",
+      "input_hashes": {
+       "lc_stages": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 1.1864888750133105
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "7b12080d88c20433cd87f4b1956f8c481d05c345696dc390ea4e79f2e11f1133",
+      "contract_version": "e38d37427e70ab852a1445a99545c30cdccea3e360e2237f24fae78711a2960a",
+      "status": "ok",
+      "output_hash": "484bed17593ede911a5537a3a3a8ad835e43e469f993d9f5d48c0e5674f1d3f8",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "portfolios": "33ca8927e99132cb117a51ca55e1e5fb71af85427e2072d2f0d1be4a7dca7f6b",
+       "cfg": "3e478c70ab07a9372f5d1f20ed7d1787d178b199240345689b017d98b6938354"
+      },
+      "duration_s": 0.1340476669720374
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130212Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hb4d03750"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hcd8adb64": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:04:07Z",
+   "duration_s": 77.51070641598199,
+   "node_span_s": 76.593842,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "advocacy_old_def",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__advocacy_old_def__SDG_6": 0,
+     "material__advocacy_old_def__SDG_7": 0,
+     "material__advocacy_old_def__SDG_12": 0,
+     "material__advocacy_old_def__SDG_13": 0,
+     "material__advocacy_old_def__SDG_14": 0,
+     "material__advocacy_old_def__SDG_15": 0,
+     "immaterial__advocacy_old_def__SDG_6": 1,
+     "immaterial__advocacy_old_def__SDG_7": 1,
+     "immaterial__advocacy_old_def__SDG_12": 1,
+     "immaterial__advocacy_old_def__SDG_13": 1,
+     "immaterial__advocacy_old_def__SDG_14": 1,
+     "immaterial__advocacy_old_def__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Advocacy_Old_Def_Planet",
+     "signal_1": "Immaterial_Advocacy_Old_Def_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
+      "input_hashes": {
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 2.378905790974386
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 7.957932666002307
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 0.01744320901343599
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+      "input_hashes": {
+       "lc": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 0.2554132500081323
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 20.892340791004244
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 6.240221791958902
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 4.116807250014972
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "be830c70f04f5d2e2187a399a90aaaadd276330eaae5ca676c7dbefaf60bdb04",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 17.523096750024706
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 0.0004072909941896796
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "03ef6c3ee53d5abc12c1ecd8c2a2804d76fbdb46059d53963c9f936a096519a9",
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 0.00030112499371171
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "b0c7165cbfb3d24cdaae5d3c42a82b4abe4a6e11f0704fe024d56671d79d999f",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 2.0989280000212602
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "157fabeb532d57d732e2462986315919ea4ab3525ced96864089e7a2a5b035e9",
+      "input_hashes": {
+       "lc_stages": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 1.0448860409669578
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "7f816f92e99a566eca0351326e37a735690d5b0dc4f684c97ac74d4b52972f1e",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "portfolios": "be830c70f04f5d2e2187a399a90aaaadd276330eaae5ca676c7dbefaf60bdb04",
+       "cfg": "8bb91d0f699f379d544694000b774a4dafb4ae07c4c31a554b1ded98019d1df5"
+      },
+      "duration_s": 0.13331591698806733
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130407Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hcd8adb64"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hea21dafb": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def, no_simple_quantiles=3, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:04:03Z",
+   "duration_s": 72.72670258296421,
+   "node_span_s": 71.53313,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "advocacy_old_def",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__advocacy_old_def__SDG_6": 0,
+     "material__advocacy_old_def__SDG_7": 0,
+     "material__advocacy_old_def__SDG_12": 0,
+     "material__advocacy_old_def__SDG_13": 0,
+     "material__advocacy_old_def__SDG_14": 0,
+     "material__advocacy_old_def__SDG_15": 0,
+     "immaterial__advocacy_old_def__SDG_6": 1,
+     "immaterial__advocacy_old_def__SDG_7": 1,
+     "immaterial__advocacy_old_def__SDG_12": 1,
+     "immaterial__advocacy_old_def__SDG_13": 1,
+     "immaterial__advocacy_old_def__SDG_14": 1,
+     "immaterial__advocacy_old_def__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Advocacy_Old_Def_Planet",
+     "signal_1": "Immaterial_Advocacy_Old_Def_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
+      "input_hashes": {
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 2.7199501249706373
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 7.675413207965903
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 0.018502374994568527
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+      "input_hashes": {
+       "lc": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 0.25407799996901304
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 19.630048332968727
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 6.3172021670034155
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 4.312270166003145
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "f2be2599d8eb34db33ce610cf12e8fa70a288762b59458085852bb9c7909b26a",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 12.20104325003922
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 0.00041337497532367706
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "9825fd8a5ef51c7d77b17e12c6b465190a612ba406e3e4e8fb336fad235bc3fb",
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 0.00027829199098050594
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "b0c7165cbfb3d24cdaae5d3c42a82b4abe4a6e11f0704fe024d56671d79d999f",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 2.0356162080424838
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "157fabeb532d57d732e2462986315919ea4ab3525ced96864089e7a2a5b035e9",
+      "input_hashes": {
+       "lc_stages": "353faf976d7d9299c48b9052dd997cc5f6ba1267ded06046254cdbe0ef543145",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 1.0746067079599015
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "484bed17593ede911a5537a3a3a8ad835e43e469f993d9f5d48c0e5674f1d3f8",
+      "input_hashes": {
+       "prep": "a55c9d7641540c057d097f3884a9d62af583b2b8f294ff78211ad7775580054d",
+       "portfolios": "f2be2599d8eb34db33ce610cf12e8fa70a288762b59458085852bb9c7909b26a",
+       "cfg": "74cc10b1a4e4d402bf920dffa97c9777a3c6a49f2e5e0c5df32b59463ee4274e"
+      },
+      "duration_s": 0.14805562497349456
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130403Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advoca__hea21dafb"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advocacy_old_def": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=advocacy_old_def",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:02:12Z",
+   "duration_s": 115.12510645802831,
+   "node_span_s": 114.075456,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "advocacy_old_def",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__advocacy_old_def__SDG_6": 0,
+     "material__advocacy_old_def__SDG_7": 0,
+     "material__advocacy_old_def__SDG_12": 0,
+     "material__advocacy_old_def__SDG_13": 0,
+     "material__advocacy_old_def__SDG_14": 0,
+     "material__advocacy_old_def__SDG_15": 0,
+     "immaterial__advocacy_old_def__SDG_6": 1,
+     "immaterial__advocacy_old_def__SDG_7": 1,
+     "immaterial__advocacy_old_def__SDG_12": 1,
+     "immaterial__advocacy_old_def__SDG_13": 1,
+     "immaterial__advocacy_old_def__SDG_14": 1,
+     "immaterial__advocacy_old_def__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Advocacy_Old_Def_Planet",
+     "signal_1": "Immaterial_Advocacy_Old_Def_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
+      "input_hashes": {
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 2.6023138749878854
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 11.56806320801843
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 0.04197783296694979
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "c01132fc1fcf887c6c5b00d50204adf50291b3674130b0b1392db289445c4da7",
+      "contract_version": "cdbb3bd4447f8294afb23cf07de69d2aa84d415eb5216aa611e9da489f63aaa2",
+      "status": "ok",
+      "output_hash": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+      "input_hashes": {
+       "lc": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 0.31436612497782335
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 27.13844125001924
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "3eaab9c58d2912a6ad732e15b0152734641b885a2aa954272f9a456aef3fd2a9",
+      "contract_version": "643c91e4aa1fc19542793d01b50b9a7d85802276089a04642bca4145fd9425c4",
+      "status": "ok",
+      "output_hash": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 6.166918875009287
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 4.285276625014376
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "5d0d3e4117f741b2db497814c2d8b6ef985e1b9053e3eae4dfd63b491bfce53d",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 26.549191917001735
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 0.0007330829976126552
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "71d4deffc8f711308fd917d95c6e082341dabc3b36431fc7613dc39d2489eacb",
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 0.0007322909659706056
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "b0c7165cbfb3d24cdaae5d3c42a82b4abe4a6e11f0704fe024d56671d79d999f",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 2.094652292027604
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "157fabeb532d57d732e2462986315919ea4ab3525ced96864089e7a2a5b035e9",
+      "input_hashes": {
+       "lc_stages": "1ee3cf356d3f93037d9f2e0773527ba0ecd25e1a002692c99d0eaea853f473d3",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 1.0342963750008494
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "7b12080d88c20433cd87f4b1956f8c481d05c345696dc390ea4e79f2e11f1133",
+      "contract_version": "e38d37427e70ab852a1445a99545c30cdccea3e360e2237f24fae78711a2960a",
+      "status": "ok",
+      "output_hash": "7f816f92e99a566eca0351326e37a735690d5b0dc4f684c97ac74d4b52972f1e",
+      "input_hashes": {
+       "prep": "2868e4b21290b003f6a46c1f2d7fe9ca1fc53e655a77689adcc344640966fd02",
+       "portfolios": "5d0d3e4117f741b2db497814c2d8b6ef985e1b9053e3eae4dfd63b491bfce53d",
+       "cfg": "8fdb075bd967934d946c81c29ebf574d3bb8e34ff6fc71bab2e0754fad07e855"
+      },
+      "duration_s": 0.1376805829931982
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130212Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-advocacy_old_def"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__ha2af1cb2": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, no_simple_quantiles=3",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:05:15Z",
+   "duration_s": 72.4011724999873,
+   "node_span_s": 71.457465,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "preparation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__preparation__SDG_6": 0,
+     "material__preparation__SDG_7": 0,
+     "material__preparation__SDG_12": 0,
+     "material__preparation__SDG_13": 0,
+     "material__preparation__SDG_14": 0,
+     "material__preparation__SDG_15": 0,
+     "immaterial__preparation__SDG_6": 1,
+     "immaterial__preparation__SDG_7": 1,
+     "immaterial__preparation__SDG_12": 1,
+     "immaterial__preparation__SDG_13": 1,
+     "immaterial__preparation__SDG_14": 1,
+     "immaterial__preparation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Preparation_Planet",
+     "signal_1": "Immaterial_Preparation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
+      "input_hashes": {
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 2.6074022499960847
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 7.812334541988093
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 0.018380583031103015
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+      "input_hashes": {
+       "lc": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 0.23102266696514562
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 19.847188708023168
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 5.43620016699424
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 4.361994459002744
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "3d56dbcc61248e9236fc8def6cb0904ff8173a0cfd38bb1674f0ee2fbe341495",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 12.453163833997678
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 0.00028558302437886596
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "e2cf8e4b5fea3a4b696c1a1254e4360cb653b9dab8afdd9959be57158b14b425",
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 0.00028316699899733067
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "9b38b0243f509901003b603bf408d81a3403a946ecf9a1be261af7004ab62761",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 2.0368841669987887
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "f6f1f24c107cd50c0a8d410eee141f048e75b0c294c0a25fd8902996b9904a16",
+      "input_hashes": {
+       "lc_stages": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 1.0395692919846624
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "2b34b8851fb0293ae245f91374b17661bca537bb50f21e82a4c875d584a6c427",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "portfolios": "3d56dbcc61248e9236fc8def6cb0904ff8173a0cfd38bb1674f0ee2fbe341495",
+       "cfg": "4bd6854ab7d911dacd2b4020249f08bef8d418662795b8f353f6b4bd4af20378"
+      },
+      "duration_s": 0.12767245899885893
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130516Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__ha2af1cb2"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__hbf080774": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, no_simple_quantiles=3, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:06:28Z",
+   "duration_s": 70.87809341697721,
+   "node_span_s": 69.987168,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "preparation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__preparation__SDG_6": 0,
+     "material__preparation__SDG_7": 0,
+     "material__preparation__SDG_12": 0,
+     "material__preparation__SDG_13": 0,
+     "material__preparation__SDG_14": 0,
+     "material__preparation__SDG_15": 0,
+     "immaterial__preparation__SDG_6": 1,
+     "immaterial__preparation__SDG_7": 1,
+     "immaterial__preparation__SDG_12": 1,
+     "immaterial__preparation__SDG_13": 1,
+     "immaterial__preparation__SDG_14": 1,
+     "immaterial__preparation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Preparation_Planet",
+     "signal_1": "Immaterial_Preparation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
+      "input_hashes": {
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 2.3024337920360267
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 7.761099292023573
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 0.01797458401415497
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+      "input_hashes": {
+       "lc": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 0.26839466695673764
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 20.304208957997616
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 5.290716167015489
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 4.219699499954004
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "991d4e42587c0d1ed2f8f5e88a830e287c749b94ae9d990be336ce5b08142bc3",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 12.253013374982402
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 0.00035429198760539293
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "48a2033912d4d04ea0385907ba2411217b928894039dfea2be8899a6a2641e3c",
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 0.0002964999875985086
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "9b38b0243f509901003b603bf408d81a3403a946ecf9a1be261af7004ab62761",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 1.9883739580400288
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "f6f1f24c107cd50c0a8d410eee141f048e75b0c294c0a25fd8902996b9904a16",
+      "input_hashes": {
+       "lc_stages": "aa5a81bd46f008f4e7693c66065f35b97c95fd8e021c56d28272fcde88d4085b",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 1.0268917079665698
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "2b34b8851fb0293ae245f91374b17661bca537bb50f21e82a4c875d584a6c427",
+      "input_hashes": {
+       "prep": "e0f6b87b02c4a6a977c3fdcd2ae0a94f324e42a8f86a4e2e3d3eef6708f607e0",
+       "portfolios": "991d4e42587c0d1ed2f8f5e88a830e287c749b94ae9d990be336ce5b08142bc3",
+       "cfg": "f7150e1b18291cd34a210d95d7995675261cd502e958f9dfdbd44848523dae31"
+      },
+      "duration_s": 0.12874854198889807
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130628Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__hbf080774"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__heb780f57": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:06:44Z",
+   "duration_s": 74.41134191694437,
+   "node_span_s": 73.477077,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "preparation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__preparation__SDG_6": 0,
+     "material__preparation__SDG_7": 0,
+     "material__preparation__SDG_12": 0,
+     "material__preparation__SDG_13": 0,
+     "material__preparation__SDG_14": 0,
+     "material__preparation__SDG_15": 0,
+     "immaterial__preparation__SDG_6": 1,
+     "immaterial__preparation__SDG_7": 1,
+     "immaterial__preparation__SDG_12": 1,
+     "immaterial__preparation__SDG_13": 1,
+     "immaterial__preparation__SDG_14": 1,
+     "immaterial__preparation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Preparation_Planet",
+     "signal_1": "Immaterial_Preparation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
+      "input_hashes": {
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 2.424628707987722
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 7.701217791007366
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 0.015227792027872056
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+      "input_hashes": {
+       "lc": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 0.24045191699406132
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 20.05305520899128
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 5.197554874990601
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 4.033106624963693
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "36af6fb5b1515d00851273dddaf6a3cffc6c6d17b1925d17eff67766ddfbdb95",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 17.240061249991413
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 0.0003156669554300606
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "369453469309d1afff19776c4a2025407cf43bd39a615e26c19c431dc4abd40a",
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 0.0002776249893940985
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "9b38b0243f509901003b603bf408d81a3403a946ecf9a1be261af7004ab62761",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 2.054690374992788
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "f6f1f24c107cd50c0a8d410eee141f048e75b0c294c0a25fd8902996b9904a16",
+      "input_hashes": {
+       "lc_stages": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 1.0453358329832554
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "a3f22787dc7d246a0077184e552c91c407288ee59a2525364dabfcc6f8649a23",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "portfolios": "36af6fb5b1515d00851273dddaf6a3cffc6c6d17b1925d17eff67766ddfbdb95",
+       "cfg": "7aeaa209e5ee873cff28a0a100f15eb787770533591b5ccbf741083183a444d5"
+      },
+      "duration_s": 0.13475045800441876
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130644Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-prepar__heb780f57"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-preparation": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=preparation",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:05:25Z",
+   "duration_s": 79.33672150003258,
+   "node_span_s": 78.428253,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "preparation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__preparation__SDG_6": 0,
+     "material__preparation__SDG_7": 0,
+     "material__preparation__SDG_12": 0,
+     "material__preparation__SDG_13": 0,
+     "material__preparation__SDG_14": 0,
+     "material__preparation__SDG_15": 0,
+     "immaterial__preparation__SDG_6": 1,
+     "immaterial__preparation__SDG_7": 1,
+     "immaterial__preparation__SDG_12": 1,
+     "immaterial__preparation__SDG_13": 1,
+     "immaterial__preparation__SDG_14": 1,
+     "immaterial__preparation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Preparation_Planet",
+     "signal_1": "Immaterial_Preparation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
+      "input_hashes": {
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 2.594648208003491
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 7.956979416019749
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 0.015129958977922797
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+      "input_hashes": {
+       "lc": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 0.22302162501728162
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 19.912879665964283
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 5.727976082998794
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 4.030439292022493
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "7532a144ab789c149f582b7c9aa634afbf57fa2e043adf85c49cf0dcc0ed77df",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 18.049142166040838
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 0.00033599999733269215
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "25a139e0fa538e70e1b63299ad9aad1111fa1dff7bd8fd4f2bda26e10a432349",
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 0.0003185829846188426
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "9b38b0243f509901003b603bf408d81a3403a946ecf9a1be261af7004ab62761",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 2.075928042002488
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "f6f1f24c107cd50c0a8d410eee141f048e75b0c294c0a25fd8902996b9904a16",
+      "input_hashes": {
+       "lc_stages": "4dbf68803f92b18f729da11e665a26cc43e85fb5f125758d25c7b4a7a1ed4c44",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 1.1242128750309348
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "a3f22787dc7d246a0077184e552c91c407288ee59a2525364dabfcc6f8649a23",
+      "input_hashes": {
+       "prep": "58c5df7493c273dcce201737459d09b3a91a7faef15417c3d974848d2020376f",
+       "portfolios": "7532a144ab789c149f582b7c9aa634afbf57fa2e043adf85c49cf0dcc0ed77df",
+       "cfg": "b51c7aadb2481526484e1bb65a729a7174f167cdc98880a3f960542c0085f643"
+      },
+      "duration_s": 0.137012708990369
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130525Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-preparation"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h03ea0323": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, no_simple_quantiles=3",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:07:39Z",
+   "duration_s": 73.149359833973,
+   "node_span_s": 72.233595,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "transformation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__transformation__SDG_6": 0,
+     "material__transformation__SDG_7": 0,
+     "material__transformation__SDG_12": 0,
+     "material__transformation__SDG_13": 0,
+     "material__transformation__SDG_14": 0,
+     "material__transformation__SDG_15": 0,
+     "immaterial__transformation__SDG_6": 1,
+     "immaterial__transformation__SDG_7": 1,
+     "immaterial__transformation__SDG_12": 1,
+     "immaterial__transformation__SDG_13": 1,
+     "immaterial__transformation__SDG_14": 1,
+     "immaterial__transformation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Transformation_Planet",
+     "signal_1": "Immaterial_Transformation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
+      "input_hashes": {
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 2.32079549995251
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 7.823196708981413
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 0.017613832955248654
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+      "input_hashes": {
+       "lc": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 0.35703033400932327
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 20.91151104203891
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 5.951864624978043
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 4.028546208981425
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "a5da74c647549975f3ca20acf78462c3bad16338081f0bb8c3b977e2e05d6a93",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 13.33610829198733
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 0.00028724997537210584
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "1be0163fbfbe99eff761634b2d5e0a00cbb89c64a9c4e4736b69d9c30cf472f5",
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 0.00027308298740535975
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "c9379d4eb2b6319c6497c0cec70f4c2db5d41d730b0baa08ad833e7539c44067",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 2.043715583975427
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "26d1076a439086429073c69e72935ad94925c24f8852e9ebacf8076e84e0bece",
+      "input_hashes": {
+       "lc_stages": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 1.0461422500084154
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "8b8b6fcdfcaf9822924698b1dfcc6eb95cb6ac75556328eca18ea302dc66ac83",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "portfolios": "a5da74c647549975f3ca20acf78462c3bad16338081f0bb8c3b977e2e05d6a93",
+       "cfg": "f08d6bf2dd2a68a241bd809b9f19cae357f041684a0c2372d251ed58b6a62a45"
+      },
+      "duration_s": 0.13514295796630904
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130739Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h03ea0323"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h23e0ac54": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:09:16Z",
+   "duration_s": 75.23073529201793,
+   "node_span_s": 74.311378,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "transformation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__transformation__SDG_6": 0,
+     "material__transformation__SDG_7": 0,
+     "material__transformation__SDG_12": 0,
+     "material__transformation__SDG_13": 0,
+     "material__transformation__SDG_14": 0,
+     "material__transformation__SDG_15": 0,
+     "immaterial__transformation__SDG_6": 1,
+     "immaterial__transformation__SDG_7": 1,
+     "immaterial__transformation__SDG_12": 1,
+     "immaterial__transformation__SDG_13": 1,
+     "immaterial__transformation__SDG_14": 1,
+     "immaterial__transformation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Transformation_Planet",
+     "signal_1": "Immaterial_Transformation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
+      "input_hashes": {
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 2.4401738749584183
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 7.797910750028677
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 0.014929583994671702
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+      "input_hashes": {
+       "lc": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 0.347192500019446
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 19.15817579202121
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 6.0951284999609925
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 4.325511749950238
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "165ff4dbf55d0bca5209e1debc510013c5ff3b9ac36e25b27b7197a2af8b1f27",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 17.38174754101783
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 0.0002976250252686441
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "9aa859105747ff53a9c9635120deb4a7aeca9e9434391f05ec9fd94af56fd70f",
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 0.0002889580209739506
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "c9379d4eb2b6319c6497c0cec70f4c2db5d41d730b0baa08ad833e7539c44067",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 2.0402426249929704
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "26d1076a439086429073c69e72935ad94925c24f8852e9ebacf8076e84e0bece",
+      "input_hashes": {
+       "lc_stages": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 1.029148833011277
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "3521a462e80de4c77896ae9c88194ea7748b335592269cd1f626763b893e58a7",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "portfolios": "165ff4dbf55d0bca5209e1debc510013c5ff3b9ac36e25b27b7197a2af8b1f27",
+       "cfg": "a12f5feb708397cabeb4146555de42ec5bf553e0bc1f423c466c9072d343caa6"
+      },
+      "duration_s": 0.159253166988492
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130916Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__h23e0ac54"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__hd7b73cb1": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation, no_simple_quantiles=3, portfolio_weighting=equal",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:08:52Z",
+   "duration_s": 70.78456875000848,
+   "node_span_s": 69.867757,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 3,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "equal",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "transformation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__transformation__SDG_6": 0,
+     "material__transformation__SDG_7": 0,
+     "material__transformation__SDG_12": 0,
+     "material__transformation__SDG_13": 0,
+     "material__transformation__SDG_14": 0,
+     "material__transformation__SDG_15": 0,
+     "immaterial__transformation__SDG_6": 1,
+     "immaterial__transformation__SDG_7": 1,
+     "immaterial__transformation__SDG_12": 1,
+     "immaterial__transformation__SDG_13": 1,
+     "immaterial__transformation__SDG_14": 1,
+     "immaterial__transformation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Transformation_Planet",
+     "signal_1": "Immaterial_Transformation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
+      "input_hashes": {
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 2.3234480830142274
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 7.437884917017072
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 0.015868375019636005
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+      "input_hashes": {
+       "lc": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 0.3450541249476373
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 19.046352290955838
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 5.8029990830109455
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 4.207297292014118
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "e5d96327fa295d15c991435f50fd4de1899f53f6d9bc244b9eb12661f8eea873",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 12.871317624987569
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 0.00026762497145682573
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "639186f09dff2d8cfb6f407d8ede54077c3401fb53510f09fe9889c231eaa8e2",
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 0.0003267500433139503
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "c9379d4eb2b6319c6497c0cec70f4c2db5d41d730b0baa08ad833e7539c44067",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 2.0454372079693712
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "26d1076a439086429073c69e72935ad94925c24f8852e9ebacf8076e84e0bece",
+      "input_hashes": {
+       "lc_stages": "8a260006d161d1067a6669c3d8d589caf20e4862cc04fe6c9cd1a4147286a7e5",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 1.0861985830124468
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "8b8b6fcdfcaf9822924698b1dfcc6eb95cb6ac75556328eca18ea302dc66ac83",
+      "input_hashes": {
+       "prep": "c104878871325b7b954278d33de4530052a75bb5532ab7a777bb7aff61d6e264",
+       "portfolios": "e5d96327fa295d15c991435f50fd4de1899f53f6d9bc244b9eb12661f8eea873",
+       "cfg": "0c2383fb6f4b72ed7c1d14cebabb8840ce22d1891dc4d11cd2343c0ed611d707"
+      },
+      "duration_s": 0.1524694170220755
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130852Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transf__hd7b73cb1"
+  },
+  "sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transformation": {
+   "title": "action_characterization=Materiality_Planet_Action_SDG, drop_real_estate=False, drop_utilities=False, materiality_planet_action=transformation",
+   "status": "ok",
+   "timestamp": "2026-10-02T13:07:58Z",
+   "duration_s": 77.85330887499731,
+   "node_span_s": 76.931937,
+   "cfg": {
+    "golden_data": "v_2A1",
+    "region_analysis": "United_States",
+    "RF_JAPAN_PATH": "./data/FAMA/Rf_Japan_Monthly.xlsx",
+    "Add_Momentum_Factor": true,
+    "action_characterization": "Materiality_Planet_Action_SDG",
+    "start_year": 2016,
+    "end_year": 2024,
+    "security_status": "all_firms_even_delisted",
+    "no_simple_quantiles": 5,
+    "quantile_interval_bounds": "closed",
+    "portfolio_weighting": "mktcap",
+    "max_portfolio_weight_if_portfolio_weighting_equal": 0.1,
+    "esg_choice": "none",
+    "esg_full_universe": false,
+    "show_esg_corr_matricies": false,
+    "esg_corr_method": "pearson",
+    "esg_min_group_size": 5,
+    "min_stocks_per_portfolio": 25,
+    "min_portfolio_coverage": 0.8,
+    "fama_factors_currency_if_Japan": "JPY",
+    "show_sort_cutpoint_audit": true,
+    "drop_real_estate_Full_ESG": true,
+    "drop_utilities_Full_ESG": true,
+    "download_gics_data": false,
+    "signal_denominator": "Sum_All_Signals",
+    "signal_type": "weights",
+    "add_sales": false,
+    "sales_path": "data/sales_all_regions.csv",
+    "alpha_bound": 0.05,
+    "winsorise_signal_pct": 0.0,
+    "market_cap_filter": "percent_total_mcap",
+    "mktcap_covered_if_filter_by_cum_market_cap": 0.95,
+    "percentage_stocks_removed_if_percent_stocks_true": 0.01,
+    "floor_if_percent_stocks_true": 100000000.0,
+    "add_accounting_data": false,
+    "add_materiality": true,
+    "materiality_version": 2,
+    "materiality_pp_action": null,
+    "materiality_planet_action": "transformation",
+    "materiality_people_action": null,
+    "materiality_all_action": null,
+    "net_materiality": false,
+    "materiality_single_sdg": null,
+    "industry_level": 0,
+    "japan_year_adjustment_split_month_for_two_or_one": 6,
+    "execute_3_filters": "suspicious_only",
+    "min_available_rfyears_if_execute_3_filters_true": 3,
+    "min_initatives_annual_reports_if_execute_3_filters_true": 5,
+    "minimum_initatives_needed_to_split_by_materiality": 0,
+    "write_debug_csv": false,
+    "drop_suspicious_gvkeys": true,
+    "drop_real_estate": false,
+    "drop_fin": false,
+    "drop_utilities": false,
+    "drop_health_care": false,
+    "anlayse_fashion_only": false,
+    "msci_score_column": "weighted",
+    "use_alpha_bound": true,
+    "show_sample_portfolio": false,
+    "plot_coverage": false,
+    "show_esg_coverage": false,
+    "show_mktcap_filter_audit": true,
+    "show_sample_funnel_audit": true,
+    "area_material_initatives_plots_per_signal_to_PDF": true,
+    "include_all_signals_in_cum_risk_table": true,
+    "fama_factor_region": "United_States",
+    "currency_filter": [
+     "USD"
+    ],
+    "convert_to_USD": false,
+    "region_filter": [
+     "United States and Canada"
+    ],
+    "execute_region_filters": true,
+    "categories_dict": {
+     "material__transformation__SDG_6": 0,
+     "material__transformation__SDG_7": 0,
+     "material__transformation__SDG_12": 0,
+     "material__transformation__SDG_13": 0,
+     "material__transformation__SDG_14": 0,
+     "material__transformation__SDG_15": 0,
+     "immaterial__transformation__SDG_6": 1,
+     "immaterial__transformation__SDG_7": 1,
+     "immaterial__transformation__SDG_12": 1,
+     "immaterial__transformation__SDG_13": 1,
+     "immaterial__transformation__SDG_14": 1,
+     "immaterial__transformation__SDG_15": 1
+    },
+    "lc_signals": {
+     "signal_0": "Material_Transformation_Planet",
+     "signal_1": "Immaterial_Transformation_Planet"
+    },
+    "analyse_high_low": "High",
+    "hml_directions": {
+     "signal_0": "high_minus_low",
+     "signal_1": "high_minus_low"
+    },
+    "universe_signals": {},
+    "analysis_selection": [
+     [
+      "signal_0",
+      "high"
+     ],
+     [
+      "signal_1",
+      "high"
+     ]
+    ]
+   },
+   "nodes": {
+    "process_lc": [
+     {
+      "process_id": "d0461510b84eecc689a0f973cfe729e7f03f761025429913fdaed5ed788f614d",
+      "contract_version": "b9b4e53b8cbf4249759a4fb70de3dac3388acf00440a9684d2bf213b90bba786",
+      "status": "ok",
+      "output_hash": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
+      "input_hashes": {
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 2.357336416025646
+     }
+    ],
+    "load_universes": [
+     {
+      "process_id": "c442b67b5e10fda98acbfa7a4a6f6aeb20c1a52cfc7872ef92dcfeae88c10b17",
+      "contract_version": "c917d9e021bd14957771c81b25eacb921a2771afc59a59e89c38c5065d3abd2b",
+      "status": "ok",
+      "output_hash": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+      "input_hashes": {
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 7.693392874964047
+     }
+    ],
+    "load_fama_french": [
+     {
+      "process_id": "1bf22f7f8404cc2d5037ce253e4be0a5e84eb385b54279c819193c6365df8f66",
+      "contract_version": "75509926896a150cd07e2655b946f9722b0f66b7546507b0035d100e1203809b",
+      "status": "ok",
+      "output_hash": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+      "input_hashes": {
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 0.015482791000977159
+     }
+    ],
+    "derive_signals": [
+     {
+      "process_id": "6831bc388694a7aa1b3ed2b4d5c797d0701dd5c8df70fb8bc4a585d27a30052c",
+      "contract_version": "558f97dc37eb131f639dfaf89a8d12f4705deb7daa79eda11df25901f509dba5",
+      "status": "ok",
+      "output_hash": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+      "input_hashes": {
+       "lc": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 0.3631854999694042
+     }
+    ],
+    "merge_esg_provider": [
+     {
+      "process_id": "2faf8137733282b83dff59bea3c886ae9d53b5a46f5f624d5e1b43f0cb6f7b42",
+      "contract_version": "068650fd4427d765b1eef4992bdbbb7b9c3783cdcc42f91f51b180c5f2c0efda",
+      "status": "ok",
+      "output_hash": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+      "input_hashes": {
+       "universes": "db2112e91aae1b9bb83139c4e26c776662e509fb3f12d1438fa2004895d4b855",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 19.249089667049702
+     }
+    ],
+    "prepare_panel": [
+     {
+      "process_id": "01faf9a5e89b0f79b3f43a37c339cdd5d8db06fee104ea1656f654f495d10f75",
+      "contract_version": "24632c0f33679a967790a1c66c1e6d7a6b40e3dbe555ff9f88ccaf506bbf9104",
+      "status": "ok",
+      "output_hash": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+      "input_hashes": {
+       "global_universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+       "fama_french_raw": "41023525e9ccbdeff6a1327915165e2b4c73ec97724db2a788b4a681f56f7c0b",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 5.668855874973815
+     }
+    ],
+    "mktcap_filter_audit": [
+     {
+      "process_id": "dcc8796e2271e0aac39c184fac7250ed87605d3e9106d5e090904aed0d291ae7",
+      "contract_version": "5abc99fb2df6d71355541f39e6329a583eaf71e05ed02aeee3cdcaf0c46dcfe8",
+      "status": "ok",
+      "output_hash": "ce98ca2587a7a9b84725670b1e7673d56287d42e13465c0796074cd6e57f669a",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 4.303067540982738
+     }
+    ],
+    "build_analyse_portfolios": [
+     {
+      "process_id": "412984b1ecdab7e46f2a06d0de059b77075164c27a02c6516a0cc7755cf84bf9",
+      "contract_version": "895a34384b31c01aaecfa7fc5dbb7826d57977688c65d1ae23e5d459fa9e693f",
+      "status": "ok",
+      "output_hash": "be8ef21b3e8bdf684d5183076f3138a6fbc67bf57459e1b94f0f4e98532df06d",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 18.580302041955292
+     }
+    ],
+    "esg_signal_corr": [
+     {
+      "process_id": "55efa9f18902fff722e9cff94bbba16ce9072cec65c7d1d585e4e34ddb4692ed",
+      "contract_version": "2bb9b67f9f937a3a3fc80d26bd9706dce5191e66e9cc0c44203fc68b2e143429",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 0.0003299579839222133
+     }
+    ],
+    "esg_coverage": [
+     {
+      "process_id": "b113c234604f0a6d4e028b5614550345165e3233a50b7aabea5d48584d5a29ba",
+      "contract_version": "e0b66bb1e7fc2f1e4172389da11f141522e6202023e84204dd9e6009423c3338",
+      "status": "ok",
+      "output_hash": "91a1a1c8e2ac541fab6bc7d34ea46e67c40f496ae4b44aebf68fc2d15f024944",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "lc": "a3d4b8274602090caf1db0715a33dba53b17f4c5476ecc48f95cb1fe86c35fd8",
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 0.0002959159901365638
+     }
+    ],
+    "geography_audit": [
+     {
+      "process_id": "485eae1bba7897937e1bd12fe29f5e9b46ce1fdf3ecf398c476c47ed1c7567d3",
+      "contract_version": "ee45835652089c0e7190105f12b77ef1e135ba5fde36590a676c22056952687b",
+      "status": "ok",
+      "output_hash": "c9379d4eb2b6319c6497c0cec70f4c2db5d41d730b0baa08ad833e7539c44067",
+      "input_hashes": {
+       "universe": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 2.0280365830403753
+     }
+    ],
+    "sample_funnel_audit": [
+     {
+      "process_id": "41ad3dbc06f980ed72f54ca9655a6dd80d34278356a31a13f20a5e1e7fae395e",
+      "contract_version": "d9d39a152298a12e0b4206cb50a94686e39c09e9f45f3ac529c9aa29fc0862fe",
+      "status": "ok",
+      "output_hash": "26d1076a439086429073c69e72935ad94925c24f8852e9ebacf8076e84e0bece",
+      "input_hashes": {
+       "lc_stages": "395272630da64e14020748befe3cad8596296e3ab43c681b4bb686e474d26417",
+       "universe_stages": "95be591327fb0cb7fa97a9d6e6608d2d2a5db3833cc083481925cebe6e836ded",
+       "panel_stages": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 1.0576247079879977
+     }
+    ],
+    "sort_cutpoint_audit": [
+     {
+      "process_id": "fc41e19bce0dff3703c3363485d0bf80f4a8ba33d09ce50afd41ed7b9e56bba3",
+      "contract_version": "e476a228f092a07c008de20bdf58c6531b98d0e7df14669e6bca9b1413aaea02",
+      "status": "ok",
+      "output_hash": "3521a462e80de4c77896ae9c88194ea7748b335592269cd1f626763b893e58a7",
+      "input_hashes": {
+       "prep": "8c946b210d277747064da7be3921919c26a56a922cf77827fe9f1ec77b98e983",
+       "portfolios": "be8ef21b3e8bdf684d5183076f3138a6fbc67bf57459e1b94f0f4e98532df06d",
+       "cfg": "eaefa20946e5a416d0c7ba0d331e195373389ba59ce8aa1f22dc638a6789dcea"
+      },
+      "duration_s": 0.14565983298234642
+     }
+    ]
+   },
+   "run_dir": "runs/20261002T130758Z_sweep__action_characterization-Materiality_Planet_Action_SDG__drop_real_estate-False__drop_utilities-False__materiality_planet_action-transformation"
+  }
+ }
+}

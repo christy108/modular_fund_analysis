@@ -1,0 +1,72 @@
+{
+  "fama_us_3": {
+    "exists": true,
+    "mtime": 1780234515.855294,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_3_Factors.csv",
+    "sha256": "b051ff49133b5a60c9c3ae56b0725b93d55687b0bffbea213304e42d4471beb6",
+    "size": 34472
+  },
+  "fama_us_5": {
+    "exists": true,
+    "mtime": 1780234471.5294535,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_5_Factors.csv",
+    "sha256": "02528b89b5479ecc81a98aa28cfeab3a958460250aad410b5fb39583f4212943",
+    "size": 29710
+  },
+  "fama_us_mom": {
+    "exists": true,
+    "mtime": 1788365034.0,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/FAMA/United_States_Momentum_Factor.csv",
+    "sha256": "af286d7898c42fc5c92a8c3604ca9105cc45a1ad9dd34b489173a880d4387458",
+    "size": 21624
+  },
+  "golden_lc": {
+    "exists": true,
+    "mtime": 1787216425.7250082,
+    "path": "/Users/cbruce1/Documents/GitHub/data/Golden_Data/LC_dataset_v2A1_20260813.parquet",
+    "sha256": "0afa9445d14f2daa6007bbf1a00b849f778ea8a3bf4ed3042bc552b3a590216d",
+    "size": 10961031
+  },
+  "sales": {
+    "exists": true,
+    "mtime": 1788185645.779274,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/sales_all_regions.csv",
+    "sha256": "dcc7acd2bd06694ad116fd59a08197f462791325f07bbd88ec16813cc5bb8005",
+    "size": 11120300
+  },
+  "sasb_materiality": {
+    "exists": true,
+    "mtime": 1787817165.8159225,
+    "path": "/Users/cbruce1/Documents/GitHub/Data/Materiality/Matched_SASB_GOLDEN_long_matchings_v_2A1_FirmYear_17SDGs_matching_v2.csv",
+    "sha256": "b637539178511e5108dcfa95a357bbd606b55de42fc5e98ace955d4f236c7078",
+    "size": 72430538
+  },
+  "suspicious_gvkeys": {
+    "exists": true,
+    "mtime": 1778585768.818396,
+    "path": "/Users/cbruce1/Documents/GitHub/data/Golden_Data/lc_gvkey_suspicious.csv",
+    "sha256": "9fffdbf075bf09eb69814dd1e0312e32110b6ca84fa2a84dee8f47598f210dc7",
+    "size": 669458
+  },
+  "universe_japan": {
+    "exists": true,
+    "mtime": 1790863940.5848227,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/japan_universe_all_secstat.parquet",
+    "sha256": "e4e825cfb671bb3ce333472cbf211c114b1dd6ff19552d2d57879158e2c970fb",
+    "size": 197944924
+  },
+  "universe_row": {
+    "exists": true,
+    "mtime": 1790863944.1882677,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/row_universe_all_secstat_new.parquet",
+    "sha256": "4ebf25cad15c4c3a5241fa6c36ef69519227f2b8ef1b25f3e81b8ccecd242e7c",
+    "size": 345884549
+  },
+  "universe_usa": {
+    "exists": true,
+    "mtime": 1790863941.6178424,
+    "path": "/Users/cbruce1/Documents/GitHub/modular_fund_analysis/data/usa_universe_all_secstat.parquet",
+    "sha256": "e49dc36dbd0c33acc02f489476f927b466c0f087dc2a655d04d01bb5e8184f11",
+    "size": 144845604
+  }
+}

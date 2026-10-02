@@ -44,6 +44,7 @@ import importlib
 import itertools
 import os
 import sys
+import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -244,6 +245,12 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
     _register(name, cfg)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    # End-to-end wall clock for this cell. The manifest's own created_at/finalised_at
+    # bracket node execution only, so they miss run()'s export, dashboard.md and the
+    # decomposition PDF/CSV -- real per-cell cost that any optimisation has to be
+    # measured against. `timestamp` above is a START stamp and cannot supply it.
+    started = time.perf_counter()
+
     try:
         # --out keeps 100 sweep configs out of parity/artifacts/new/, which
         # parity.compare reads. The runs/<ts>_<name>/ archive still happens as normal.
@@ -257,6 +264,7 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
             "experiment": name, "title": title, "timestamp": stamp,
             "status": "failed", "error": f"{type(exc).__name__}: {exc}",
             "cfg": cfg, "payloads": {}, "run_dir": _latest_run_dir(name),
+            "duration_s": time.perf_counter() - started,
         }
 
     return {
@@ -264,6 +272,7 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
         "status": "ok", "cfg": cfg,
         "payloads": _collect_payloads(manifest),
         "run_dir": _latest_run_dir(name),
+        "duration_s": time.perf_counter() - started,
     }
 
 
