@@ -391,6 +391,12 @@ def mktcap_filter_audit_v1(universe, cfg):
     import numpy as np
     import pandas as pd
 
+    from New_Pipeline._node_cache import (
+        DEPENDS_MKTCAP_AUDIT,
+        cache_get,
+        cache_key,
+        cache_put,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
@@ -399,6 +405,14 @@ def mktcap_filter_audit_v1(universe, cfg):
         # succeeds so every extractor's `bundle.get(...) -> None` guard renders the widget
         # blank (no {"error": ...} in the manifest), and run.py's export loop writes nothing.
         return pack_obj({})
+
+    # A pure replay of the screen merge_esg_provider already ran, so it is invariant
+    # wherever that node is (50.5s of the 12-cell benchmark, one distinct output).
+    # Keyed on `universe` by identity -- merge_esg_provider hands back a cached object.
+    _key = cache_key("mktcap_filter_audit@v1", C, DEPENDS_MKTCAP_AUDIT, (universe,))
+    _hit = cache_get("mktcap_filter_audit@v1", _key)
+    if _hit is not None:
+        return _hit
 
     U = unpack_obj(universe)
     currency_filter = C["currency_filter"]
@@ -812,11 +826,11 @@ def mktcap_filter_audit_v1(universe, cfg):
           f"per-currency-area n_mismatched={row['cross_check_n_mismatched_ccy']}, "
           f"screen_pooled_confirmed={row['screen_pooled_confirmed']})")
 
-    return pack_obj({
+    return cache_put("mktcap_filter_audit@v1", _key, pack_obj({
         "mktcap_filter_by_month": by,
         "mktcap_filter_by_currency": by_ccy,
         "mktcap_filter_summary": summary,
-    })
+    }), refs=(universe,))
 
 
 NODE = Node(
