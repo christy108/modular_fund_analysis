@@ -3,6 +3,11 @@
 # there and the material/immaterial ones here are cut from the same groups and can never
 # drift apart. Change a split there, not here. Re-exported under the same names this
 # module has always used.
+# The loader owns the action-type spelling: a name it does not select is never on lc, so
+# Materiality_Action_Aggregate validates against the same tuple the merge is built from and a
+# design can never ask for a column that was never loaded.
+from functions.data_functions.process_materiality import MATERIALITY_ACTION_TYPES
+
 from functions.signal_design.signal_definitions import (  # noqa: F401
     CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG,
     PEOPLE_PLANET_PROSPERITY,
@@ -33,6 +38,15 @@ def Materiality_Signals(signal_0_name="Material", signal_1_name="Immaterial"):
 # column that was never loaded, and the sort would come back empty rather than raise.
 _SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
                 "preparation", "transformation", "upskilling", "total")
+
+
+def _action_tag(action):
+    """``'r_d_investments'`` -> ``'R_D_Investments'`` — an action's signal-name spelling.
+
+    Shared by the per-SDG designs below and Materiality_Action_Aggregate so the two families
+    spell the same action identically in portfolio labels and parity artifacts.
+    """
+    return action.replace("_", " ").title().replace(" ", "_")
 
 
 def _signals_from_groups(groups, action="total"):
@@ -66,7 +80,7 @@ def _signals_from_groups(groups, action="total"):
     _check_groups_disjoint(groups)
 
     # "total" stays unlabelled so existing signal names are untouched.
-    action_tag = "" if action == "total" else f"{action.replace('_', ' ').title().replace(' ', '_')}_"
+    action_tag = "" if action == "total" else f"{_action_tag(action)}_"
 
     categories = {}
     names = []
@@ -367,7 +381,45 @@ def Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS():
 
 
 
-def Combined_Material_Immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation", 
+def Materiality_Action_Aggregate(action):
+    """2 signals: Material_<Action>, Immaterial_<Action> — ONE action type, material vs immaterial.
+
+    One level finer than the bucket designs: where material_4_Behavioural_Signals reads
+    ``material__innovation`` (new products + r&d investments pooled), this reads
+    ``material__new_products`` alone. ``action`` must be one of MATERIALITY_ACTION_TYPES.
+
+    Reads the FLAT aggregate columns, so it deliberately does not go through
+    _signals_from_groups -- that helper hardcodes the ``__SDG_{n}`` suffix. The per-SDG
+    action columns exist in the same workbook but no design reads them yet.
+
+    One group, so with signal_denominator="Sum_All_Signals" the denominator is this action's
+    material + immaterial count: signal_0 is the action's material share and signal_1 its
+    exact mirror (1 - signal_0). Sort on signal_0 only. Being a confirmed mirror pair with a
+    single group, these qualify for minimum_initatives_needed_to_split_by_materiality.
+
+    SPARSITY IS THE BINDING CONSTRAINT, worse here than anywhere else in this module. The
+    measured BUCKET-level table in New_Pipeline/experiments.py::_register_pp_action_experiments
+    already shows innovation at 81.6% of firm-years zero with a MEDIAN denominator of 1 — and
+    that is two action types pooled. Every design here is strictly thinner than the bucket
+    containing it, so several will be degenerate (a quantile sort that is mostly cutting ties).
+    Read the signal_sparsity and materiality_split_floor audits before trusting any alpha.
+
+    Raises on an unknown action rather than naming a column the materiality merge never
+    selected -- that would merge as NaN and empty the sort with no error anywhere.
+    """
+    if action not in MATERIALITY_ACTION_TYPES:
+        raise ValueError(
+            f"action {action!r} is not one of {sorted(MATERIALITY_ACTION_TYPES)}"
+        )
+    tag = _action_tag(action)
+    return (
+        {f"material__{action}": 0, f"immaterial__{action}": 1},
+        f"Material_{tag}",
+        f"Immaterial_{tag}",
+    )
+
+
+def Combined_Material_Immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation",
 signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation", signal_4_name="Material__Advocacy", signal_5_name="Material__Adaptation", 
 signal_6_name="Material__Upskilling", signal_7_name="Material__Innovation"):
     return{

@@ -173,6 +173,11 @@ def build_cfg(**overrides) -> dict:
         # left here under a different design is inert rather than wrong.
         materiality_people_action=None,
         materiality_all_action=None,
+        # Which INDIVIDUAL action type Materiality_Action_Aggregate sorts on — one of the 14
+        # MATERIALITY_ACTION_TYPES, a level finer than the action knobs above (those take the
+        # 7 behaviour BUCKETS). Read only by that design, so a value left here under another
+        # action_characterization is inert rather than wrong.
+        materiality_aggregate_action=None,
         # Turn ANY two-signal mirror-pair design into its NET form: signal_0 becomes
         # material - immaterial (a signed LEVEL) instead of material / (material +
         # immaterial) (a share). A modifier, not a design: it composes with the group and
@@ -529,6 +534,8 @@ def build_cfg(**overrides) -> dict:
         Materiality_SDG_X,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
+        Materiality_Action_Aggregate,
+        MATERIALITY_ACTION_TYPES,
         Combined_Material_Immaterial_4_Behavioural_Signals,
         Combined_Material_Immaterial_3_Matteo_Signals,
         immaterial_4_Behavioural_Signals,
@@ -801,6 +808,20 @@ def build_cfg(**overrides) -> dict:
 
     elif ac == "Materiality_Climate_Natural_Capital_vs_All_SDGS":
         categories_dict, *names = Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One INDIVIDUAL action type, material vs immaterial — the flat aggregate columns, not
+    # the per-SDG cube. Raises on a missing action rather than defaulting to one: there is no
+    # natural default among the 14, and a silent choice would sort on a different quantity
+    # than the experiment name claims.
+    elif ac == "Materiality_Action_Aggregate":
+        _agg_action = c["materiality_aggregate_action"]
+        if _agg_action is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs materiality_aggregate_action, one of "
+                f"{sorted(MATERIALITY_ACTION_TYPES)}"
+            )
+        categories_dict, *names = Materiality_Action_Aggregate(_agg_action)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     else:
@@ -1654,6 +1675,33 @@ def base_materiality_pp_action(action: str, **overrides):
                             materiality_pp_action=action, **overrides)
 
 
+def base_materiality_action(action: str, **overrides):
+    """Material vs immaterial for ONE individual action type, across all SDGs.
+
+    Registered below as base_materiality_action_<action> for all 14 MATERIALITY_ACTION_TYPES.
+    One level finer than base_materiality_pp_<action> and its siblings, which take the seven
+    behaviour BUCKETS: this reads the flat `material__<action>` aggregate columns.
+
+    area_material_initatives_plots_per_signal_to_PDF IS FORCED OFF, and that is load-bearing
+    rather than tidiness. It defaults True, and these designs are exactly one
+    materiality_split_groups group whose two signals are a perfect mirror, so node 07's
+    decomposition gate PASSES and calls into initiative_brackets.parse_numerator -- which
+    knows only the 8 bucket ACTIONS and raises `unknown action 'training'`. Adding the 14
+    there would not help either: an SDG-free column is then read as all 17 SDGs and
+    bands_for_numerator demands material__<action>__SDG_n, which the loader does not select,
+    turning the ValueError into a KeyError. Teaching initiative_brackets about aggregate-only
+    actions is a separate change; until then every run of these would die at the final PDF.
+
+    Pass area_material_initatives_plots_per_signal_to_PDF=True in overrides only once that
+    follow-up lands.
+    """
+    return _sdg_materiality(f"base_materiality_action_{action}",
+                            "Materiality_Action_Aggregate",
+                            materiality_aggregate_action=action,
+                            area_material_initatives_plots_per_signal_to_PDF=False,
+                            **overrides)
+
+
 def base_materiality_planet_action(width: str, action: str, **overrides):
     """Planet material vs immaterial, restricted to ONE behavioural action.
 
@@ -1922,6 +1970,31 @@ def _register_pp_action_experiments():
 
 
 _register_pp_action_experiments()
+
+
+# base_materiality_action_<action>: 14 configs, one per INDIVIDUAL action type.
+#
+# The same loop shape as the bucket families above, with two differences. The action list
+# comes from MATERIALITY_ACTION_TYPES (the loader's tuple) rather than _SDG_ACTIONS, because
+# these read the flat aggregate columns and not the per-SDG cube. And nothing is excluded:
+# there is no "total" among the 14, and `pricing` is a real action type here even though no
+# bucket design isolates it.
+#
+# EXPECT MANY OF THESE TO BE TOO THIN TO SORT. The measured BUCKET-level density table above
+# already puts innovation at 81.6% of firm-years zero on a median denominator of 1, and every
+# action here is a strict subset of its bucket. Read each run's signal_sparsity and
+# materiality_split_floor audits before reporting an alpha; a degenerate sort is a finding
+# about the data, not a result.
+def _register_aggregate_action_experiments():
+    # The signal module validates against this same tuple, so the loop and the design cannot
+    # disagree about which actions exist.
+    from functions.signal_design.signal_definitions_materiality import MATERIALITY_ACTION_TYPES
+
+    for a in MATERIALITY_ACTION_TYPES:
+        EXPERIMENTS[f"base_materiality_action_{a}"] = (lambda a=a: base_materiality_action(a))
+
+
+_register_aggregate_action_experiments()
 
 
 # ---- the same, per Planet width -------------------------------------------- #
