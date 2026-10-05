@@ -60,6 +60,12 @@ def load_universes_v1(cfg):
         process_row_universe,
         process_usa_universe,
     )
+    from New_Pipeline._node_cache import (
+        DEPENDS_LOAD_UNIVERSES,
+        cache_get,
+        cache_key,
+        cache_put,
+    )
     from New_Pipeline.boundary import pack_obj
 
     # Listing currencies each extract can contain. Used ONLY to decide whether a file is
@@ -107,6 +113,14 @@ def load_universes_v1(cfg):
     # _common.mktcap_filter_kwargs.
     security_status = C.get("security_status", "active_only")
 
+    # Nothing below reads a knob a sweep varies, so every cell of one reloads the same
+    # ~690MB of Compustat extracts to build an identical bundle (100.8s of the 12-cell
+    # benchmark). Serve it once per worker instead. See New_Pipeline/_node_cache.py.
+    _key = cache_key("load_universes@v1", C, DEPENDS_LOAD_UNIVERSES)
+    _hit = cache_get("load_universes@v1", _key)
+    if _hit is not None:
+        return _hit
+
     fx_rates = get_processed_fx_rates(end_year)
 
     # Which extracts this region actually needs. The three files partition the universe by
@@ -152,12 +166,12 @@ def load_universes_v1(cfg):
         C["japan_year_adjustment_split_month_for_two_or_one"],
     )
 
-    return pack_obj({
+    return cache_put("load_universes@v1", _key, pack_obj({
         "fx_rates": fx_rates,
         "usa_universe": usa_universe,
         "row_universe": row_universe,
         "japan_universe": japan_universe,
-    })
+    }))
 
 
 NODE = Node(

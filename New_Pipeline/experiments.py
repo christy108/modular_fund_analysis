@@ -124,12 +124,12 @@ def build_cfg(**overrides) -> dict:
                                    #   Requires add_sales=True. NOTE this puts size in the
                                    #   denominator, so the sort partly inverts size: check the
                                    #   beta_smb row of the FF3 table before reading anything into it.
-        # Merge annual Compustat revenue (data/sales_all_regions.csv, built by
+        # Merge annual Compustat revenue (data/sales_all_regions.parquet, built by
         # scripts.download_sales) onto lc at (gvkey, rfyear) <- (gvkey, fyear). Additive:
         # a LEFT join, so it adds `sale`/`sale_usd` columns without dropping firm-years.
         # Only signal_type="per_revenue" consumes it; otherwise it just rides along.
         add_sales=False,
-        sales_path="data/sales_all_regions.csv",
+        sales_path="data/sales_all_regions.parquet",
         alpha_bound=0.05,
         # Winsorise each signal_i within its rfyear: values above the (1 - p) quantile are
         # CAPPED at it and values below p are FLOORED at it. 0.0 = off (the default, so
@@ -1406,7 +1406,7 @@ def base_materiality_per_revenue():
     # signal_i = material__total / sale_usd (and immaterial__total / sale_usd), i.e. the
     # SAME numerator as base_materiality_counts, scaled to strip out firm size.
     #
-    # add_sales attaches data/sales_all_regions.csv (built by scripts.download_sales) with
+    # add_sales attaches data/sales_all_regions.parquet (built by scripts.download_sales) with
     # a LEFT join, so the merge itself changes nothing; only signal_type="per_revenue"
     # consumes it. Firm-years with no revenue become a NaN signal and leave the sort --
     # ~93.6% are usable on this config, reported by the "Annual revenue merge — coverage"

@@ -647,6 +647,8 @@ def _row_for(record: dict, page_num: int) -> dict:
         "status": record.get("status", ""),
         "run_dir": record.get("run_dir", ""),
         "param_diff": record.get("title", ""),
+        # Absent from ledgers written before run_one started timing cells; blank there.
+        "duration_s": record.get("duration_s"),
     }
 
     payloads = record.get("payloads") or {}
@@ -690,7 +692,8 @@ def _row_for(record: dict, page_num: int) -> dict:
 
 
 # Fixed leading (identifying) columns.
-_LEAD_COLS = ["experiment", "page", "timestamp", "status", "run_dir", "param_diff"]
+_LEAD_COLS = ["experiment", "page", "timestamp", "duration_s", "status", "run_dir",
+              "param_diff"]
 
 
 def _rows_and_cols(ledger_path: str | Path) -> tuple[list[dict], list[str]]:

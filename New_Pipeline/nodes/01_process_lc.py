@@ -584,8 +584,8 @@ def process_lc_v1(cfg):
     # fiscal year as each other.
     sales_coverage = None
     if C["add_sales"]:
-        _sales = pd.read_csv(C["sales_path"], usecols=["gvkey", "fyear", "curcd",
-                                                       "sale", "sale_usd"])
+        _sales = pd.read_parquet(C["sales_path"], columns=["gvkey", "fyear", "curcd",
+                                                            "sale", "sale_usd"])
         # gvkey format on the lc side is CONDITIONAL: process_lc.py:44 leaves it unpadded,
         # but the drop_suspicious_gvkeys branch above has already zero-padded it. Normalise
         # BOTH sides here rather than assume -- otherwise the merge silently matches

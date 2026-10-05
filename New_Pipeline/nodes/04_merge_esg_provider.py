@@ -61,9 +61,26 @@ def esg_none_v1(universes, cfg):
         normalise_gvkeys,
         universe_funnel_rows,
     )
+    from New_Pipeline._node_cache import (
+        DEPENDS_MERGE_ESG,
+        cache_get,
+        cache_key,
+        cache_put,
+    )
     from New_Pipeline.boundary import pack_obj, unpack_obj
 
     C = json.loads(cfg["json"][0])
+
+    # The most expensive node in the pipeline -- 253.3s of the 12-cell benchmark's
+    # 746.4s, all of it process_global_universe screening the pooled universe -- and it
+    # produced ONE distinct output across all 12 cells. Keyed on `universes` by identity
+    # because load_universes above hands back the same cached object.
+    # See New_Pipeline/_node_cache.py.
+    _key = cache_key("esg_none@v1", C, DEPENDS_MERGE_ESG, (universes,))
+    _hit = cache_get("esg_none@v1", _key)
+    if _hit is not None:
+        return _hit
+
     U = unpack_obj(universes)
     usa_universe, row_universe, japan_universe = U["usa_universe"], U["row_universe"], U["japan_universe"]
 
@@ -91,7 +108,7 @@ def esg_none_v1(universes, cfg):
     global_universe["gvkey"] = normalise_gvkeys(global_universe["gvkey"])
     print("global_universe unique gvkeys:", global_universe["gvkey"].nunique())
 
-    return pack_obj({
+    return cache_put("esg_none@v1", _key, pack_obj({
         "funnel": universe_funnel_rows(
             _pre, (usa_universe, row_universe, japan_universe), global_universe, C,
             "none (neutral esg=100, no provider merged)",
@@ -101,7 +118,7 @@ def esg_none_v1(universes, cfg):
         "row_universe": row_universe,
         "japan_universe": japan_universe,
         "fx_rates": U["fx_rates"],
-    })
+    }), refs=(universes,))
 
 
 @process(tag="esg_refinitiv@v1", contract="merge_esg_provider", author="refactor")

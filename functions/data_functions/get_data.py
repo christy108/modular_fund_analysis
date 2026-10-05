@@ -326,7 +326,7 @@ def get_processed_fx_rates(end_year):
     #https://www.federalreserve.gov/datadownload/Download.aspx?rel=H10&series=2525778bbd3442ab095d4c1f1b4dd2ab&filetype=csv&label=include&layout=seriescolumn&from=01/01/2009&to=12/31/2024
     try:
         # Load exchange rate data
-        FRB_H10 = pd.read_csv(f'./data/FRB/FRB_H10_2024.csv')
+        FRB_H10 = pd.read_parquet('./data/FRB/FRB_H10_2024.parquet')
         FRB_H10.replace('ND', np.nan, inplace=True)
         FRB_H10.columns = ['date', 'EUR', 'GBP','DKK','JPY', 'NOK', 'SEK', 'CHF']
 
@@ -359,7 +359,7 @@ def get_processed_fx_rates(end_year):
     
     except Exception as e:
         print(f"Error retrieving FX rates: {e}")
-        print("Make sure you have the FRB_H10_{end_year}.csv file in the data/FRB folder")
+        print("Make sure you have the FRB_H10_{end_year}.parquet file in the data/FRB folder")
 
 
 
@@ -368,7 +368,7 @@ def get_processed_fx_rates(end_year):
 
 def get_snp_esg_merge_to_universe(usa_universe, row_universe, japan_universe=None):
 
-    sp_esg_table = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp_esg_table = pd.read_parquet('./data/ESG/SP_ESG_20231231.parquet')
     sp_esg_table['gvkey'] = sp_esg_table['gvkey'].astype(float).astype(str)
     #sp_esg_table = sp_esg_table.rename(columns={"esg_sp": "esg"})
 
@@ -471,10 +471,8 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_unive
     """
 
     # --- Load new LSEG / Refinitiv export (cusip + isin already inline) ---
-    refinitiv_esg_table = pd.read_csv(
-        './data/ESG/ESG Ratings/LSEG ESG Score.csv',
-        dtype={'cusip': str, 'isin': str},
-    )
+    # cusip/isin are stored as string in the parquet twin itself, so no dtype= needed here.
+    refinitiv_esg_table = pd.read_parquet('./data/ESG/ESG Ratings/LSEG ESG Score.parquet')
 
     # --- Keep usable ESG score rows only ---
     # ``.copy()`` so the subsequent column assignments operate on an owned frame
@@ -562,11 +560,8 @@ def get_msci_esg_merge_to_universe(usa_universe, row_universe, japan_universe=No
     raw_col = _MSCI_COLS[score_column]
 
     # --- Load MSCI monthly panel (ISIN inline; no identifier crosswalk needed) ---
-    msci = pd.read_csv(
-        './data/ESG/ESG Ratings/MSCI ESG Updated.csv',
-        dtype={'issuer_isin': str},
-        low_memory=False,
-    )
+    # issuer_isin is stored as string in the parquet twin itself, so no dtype= needed here.
+    msci = pd.read_parquet('./data/ESG/ESG Ratings/MSCI ESG Updated.parquet')
 
     # --- Standardise types and keep usable score rows only ---
     msci['as_of_date'] = pd.to_datetime(msci['as_of_date'], format='%d/%m/%Y', errors='coerce')
@@ -634,7 +629,7 @@ def _coverage_snp_exact_year(usa_universe, row_universe, japan_universe=None):
     MSCI/Refinitiv merges. Here a score counts only when the firm's own fiscal year
     (``last_year``) has a raw S&P observation. NOT used by the pipeline.
     """
-    sp = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp = pd.read_parquet('./data/ESG/SP_ESG_20231231.parquet')
     sp['gvkey'] = sp['gvkey'].astype(float).astype(str)   # same gvkey form as the pipeline merge
     sp = sp.dropna(subset=['esg_sp'])
     # one row per exact (gvkey, fiscal year); mean resolves the quarterly observations
@@ -709,7 +704,7 @@ def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_u
     """DEPRECATED / BACKUP: original RIC-based Refinitiv merge.
 
     Kept verbatim so we can revert to the old ESG source. Reads the old files
-    ``esg_table.csv`` + ``identifiers_table.parquet`` and joins RIC -> CUSIP/ISIN.
+    ``esg_table.parquet`` + ``identifiers_table.parquet`` and joins RIC -> CUSIP/ISIN.
     Not called by the pipeline; swap the call in Main.ipynb to use it.
     """
 
@@ -717,7 +712,7 @@ def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_u
     def last_non_nan(series):
         return series.dropna().iloc[-1] if not series.dropna().empty else np.nan
 
-    refinitiv_esg_table = pd.read_csv('./data/ESG/esg_table.csv')
+    refinitiv_esg_table = pd.read_parquet('./data/ESG/esg_table.parquet')
     refinitiv_identifiers_table = pd.read_parquet('./data/ESG/identifiers_table.parquet')[['RIC', 'CUSIP', 'ISIN']]
 
     # Join identifiers into `refinitiv_esg_table`
@@ -818,51 +813,53 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
         else:
             if factors_number == 3:
                 if region == "Developed":
-                    ff_file = "./data/FAMA/Developed_3_Factors.csv"
+                    ff_file = "./data/FAMA/Developed_3_Factors.parquet"
                 elif region == "Europe":
-                    ff_file = "./data/FAMA/Europe_3_Factors.csv"
+                    ff_file = "./data/FAMA/Europe_3_Factors.parquet"
                 elif region == "Japan":
-                    ff_file = "./data/FAMA/Japan_3_Factors.csv"
+                    ff_file = "./data/FAMA/Japan_3_Factors.parquet"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_3_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_3_Factors.parquet"
                 elif region == "United_States":
-                    ff_file = "./data/FAMA/United_States_3_Factors.csv"
+                    ff_file = "./data/FAMA/United_States_3_Factors.parquet"
                 else:
                     raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             elif factors_number == 5:
                 if region == "Developed":
-                    ff_file = "./data/FAMA/Developed_5_Factors.csv"
+                    ff_file = "./data/FAMA/Developed_5_Factors.parquet"
                 elif region == "Europe":
-                    ff_file = "./data/FAMA/Europe_5_Factors.csv"
+                    ff_file = "./data/FAMA/Europe_5_Factors.parquet"
                 elif region == "Japan":
-                    ff_file = "./data/FAMA/Japan_5_Factors.csv"
+                    ff_file = "./data/FAMA/Japan_5_Factors.parquet"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_5_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_5_Factors.parquet"
                 elif region == "United_States":
-                    ff_file = "./data/FAMA/United_States_5_Factors.csv"
+                    ff_file = "./data/FAMA/United_States_5_Factors.parquet"
                 else:
                     raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             else:
                 raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
 
-            # Fail here rather than inside pd.read_csv: the message has to say what to do,
-            # because a raw Ken French download is NOT a drop-in. The parser below is
+            # Fail here rather than inside pd.read_parquet: the message has to say what to
+            # do, because a raw Ken French download is NOT a drop-in. The parser below is
             # strict ("%Y%m") and dies on the annual-data block those files carry after
-            # the monthly one, so the file must be trimmed to a single monthly section
-            # with one clean header row first. data/FAMA/Original/ holds a
-            # Developed_5_Factors.csv, but with pre-lowercased headers, so the rename
-            # below would miss every column -- it is not a substitute either.
+            # the monthly one, so the source CSV must be trimmed to a single monthly
+            # section with one clean header row before being converted to this parquet.
+            # data/FAMA/Original/ holds a Developed_5_Factors csv, but with
+            # pre-lowercased headers, so the rename below would miss every column -- it
+            # is not a substitute either.
             if not os.path.exists(ff_file):
                 raise FileNotFoundError(
                     f"Fama-French {factors_number}-factor file not found for region "
                     f"{region!r}: {ff_file}\n"
-                    "Download the monthly series from Ken French's data library and trim "
-                    "it to a single monthly block with one clean header row -- the loader "
-                    'parses strictly with format="%Y%m" and will die on an annual trailer '
-                    "section."
+                    "Download the monthly series from Ken French's data library, trim it "
+                    "to a single monthly block with one clean header row, and convert it "
+                    "to this parquet path (pd.read_csv(...).to_parquet(...)) -- the "
+                    'loader parses dates strictly with format="%Y%m" and will die on an '
+                    "annual trailer section."
                 )
 
-            ff = pd.read_csv(ff_file)
+            ff = pd.read_parquet(ff_file)
             
             if factors_number == 3:
                 ff= ff.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
@@ -900,18 +897,17 @@ def get_momentum_factor(start_year, end_year, region):
     than returning nothing, so a run can never print "+ Mom" column headers over a plain 3-
     or 5-factor fit.
 
-    The files are NOT the same shape. Europe and Developed ship trimmed (`Date,WML`); the US
-    one is a raw Ken French download with a 13-line text preamble, a `,Mom` header, an
-    "Annual Factors:" block and a copyright footer. Keeping only the lines whose first
-    field is a 6-digit YYYYMM handles all three without anyone hand-editing the data -- and
-    note that dropping blank lines would NOT be enough, because the annual rows
+    The raw files are NOT the same shape. Europe and Developed ship trimmed (`Date,WML`);
+    the US one is a raw Ken French download with a 13-line text preamble, a `,Mom` header,
+    an "Annual Factors:" block and a copyright footer. The parquet twin at ``mom_file``
+    below is built by keeping only the lines whose first field is a 6-digit YYYYMM --
+    dropping blank lines alone would NOT be enough, because the annual rows
     ("  1927,  24.52") parse as perfectly valid numbers and would then blow up the strict
-    "%Y%m" parse below. The header is discarded with everything else and the columns are
-    named positionally, which also absorbs the WML/Mom disagreement.
+    "%Y%m" parse further down -- then reading that filtered text as a headerless
+    (date, mom) frame, which also absorbs the WML/Mom column-name disagreement. That
+    cleaning happens once, when the parquet is (re)built from a fresh Ken French download;
+    this loader just reads the result.
     """
-    import io
-    import re
-
     if region not in MOMENTUM_REGIONS:
         raise ValueError(
             f"No momentum factor file for region {region!r}. Add_Momentum_Factor is "
@@ -919,25 +915,17 @@ def get_momentum_factor(start_year, end_year, region):
             "momentum series for the other regions this pipeline loads."
         )
 
-    mom_file = f"./data/FAMA/{region}_Momentum_Factor.csv"
+    mom_file = f"./data/FAMA/{region}_Momentum_Factor.parquet"
     if not os.path.exists(mom_file):
         raise FileNotFoundError(
             f"Momentum factor file not found for region {region!r}: {mom_file}\n"
-            "Download the monthly momentum series from Ken French's data library and "
-            "save it there. It does NOT need trimming -- this loader keeps only the "
-            "YYYYMM rows -- but it must be the monthly file, not the daily one."
+            "Download the monthly momentum series from Ken French's data library, keep "
+            "only the YYYYMM rows, and convert to this parquet path as a headerless "
+            "(date, mom) frame -- see the docstring above. Must be the monthly file, not "
+            "the daily one."
         )
 
-    with open(mom_file) as fh:
-        rows = [ln for ln in fh if re.match(r"^\s*\d{6}\s*,", ln)]
-    if not rows:
-        raise ValueError(
-            f"{mom_file} contains no monthly (YYYYMM,value) rows. Expected Ken French's "
-            "monthly momentum file; a daily file or an annual-only excerpt would look "
-            "like this."
-        )
-
-    mom = pd.read_csv(io.StringIO("".join(rows)), header=None, names=["date", "mom"])
+    mom = pd.read_parquet(mom_file)
 
     # Same tail as get_famafrench_factors, so units (decimals) and the Period[M] `date`
     # dtype match the FF3/FF5 frames this gets merged onto.
@@ -1012,11 +1000,11 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
 
         # Save to disk
         print('Downloaded Fresh Accounting Data and Saving to disk!')
-        dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv', index=False)
-        
+        dt.to_parquet(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.parquet', index=False)
+
     else:
-        print("Read CSV")
-        dt = pd.read_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv')
+        print("Read parquet")
+        dt = pd.read_parquet(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.parquet')
 
     #Remove the ".0" In GVKEY
     dt['gvkey'] = dt['gvkey'].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -1082,7 +1070,7 @@ def get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_
     """
     import os
     os.makedirs("./data/GICS", exist_ok=True)
-    path = f"./data/GICS/gics_comp_{region_analysis}_{end_year}.csv"
+    path = f"./data/GICS/gics_comp_{region_analysis}_{end_year}.parquet"
     _rename = {
         "gsector": "GICS_level_1",   # sector (coarsest)
         "ggroup": "GICS_level_2",    # industry group
@@ -1118,10 +1106,10 @@ def get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_
         gics = gics.dropna(subset=["gvkey"]).drop_duplicates(subset=["gvkey"])
 
         print("Downloaded Fresh GICS Data and Saving to disk!")
-        gics.to_csv(path, index=False)
+        gics.to_parquet(path, index=False)
     else:
-        print("Read GICS CSV")
-        gics = pd.read_csv(path)
+        print("Read GICS parquet")
+        gics = pd.read_parquet(path)
 
     gics["gvkey"] = (
         gics["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
