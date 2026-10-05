@@ -84,11 +84,13 @@ CLIMATE_VS_REST = {
 _check_groups_disjoint(CLIMATE_VS_REST)
 
 
-# The 8 action families process_materiality.py loads per SDG. Kept in sync with
-# MATERIALITY_SDG_ACTIONS there and _SDG_ACTIONS in signal_definitions_materiality.py.
-ACTIONS: tuple[str, ...] = ("adaptation", "advocacy_new_def", "advocacy_old_def",
-                            "innovation", "preparation", "transformation", "upskilling",
-                            "total")
+# The action families process_materiality.py loads per SDG: 7 behaviour buckets + total, and
+# the 14 individual action types. ALIASED to the loader's tuple rather than restated -- this
+# was a hand-maintained copy, and parse_numerator rejecting an action the loader does carry
+# would fail the decomposition PDF on a design whose columns are all present.
+from functions.data_functions.process_materiality import MATERIALITY_SDG_ACTIONS
+
+ACTIONS: tuple[str, ...] = MATERIALITY_SDG_ACTIONS
 
 ALL_SDGS: frozenset[int] = frozenset(range(1, 18))
 

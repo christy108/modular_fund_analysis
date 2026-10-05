@@ -51,16 +51,9 @@ MATERIALITY_COLUMNS = [
 # `unmapped__*__SDG_n` column -- the only unmapped consumers are node 07's `_wb_total`
 # denominator and its coverage table, both of which use the NON-per-SDG `unmapped__total`
 # that MATERIALITY_COLUMNS still supplies. Carrying the per-SDG unmapped cube would add 136
-# columns nothing reads. 2 groups x 8 actions x 17 SDGs = 272 columns.
-MATERIALITY_SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
+# columns nothing reads. 2 groups x 22 actions x 17 SDGs = 748 columns.
+MATERIALITY_SDG_BUCKETS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
                            "preparation", "transformation", "upskilling", "total")
-
-MATERIALITY_SDG_COLUMNS = [
-    f"{grp}__{act}__SDG_{n}"
-    for grp in ("immaterial", "material")
-    for act in MATERIALITY_SDG_ACTIONS
-    for n in range(1, 18)          # range(1, 18) == SDGs 1..17
-]
 
 
 # The 14 INDIVIDUAL action types, one level below the behaviour buckets above. The workbook
@@ -87,6 +80,25 @@ MATERIALITY_ACTION_COLUMNS = [
     f"{grp}__{act}"
     for grp in ("immaterial", "material", "unmapped")
     for act in MATERIALITY_ACTION_TYPES
+]
+
+
+# Everything that has a PER-SDG cube: the 7 behaviour buckets + total, and the 14 individual
+# action types. One tuple rather than two because every consumer asks the same question of it
+# -- "may a design name material__<act>__SDG_n?" -- and the answer is yes for both families.
+#
+# This is THE authority for that question. _SDG_ACTIONS in signal_definitions_materiality.py
+# and ACTIONS in New_Pipeline/initiative_brackets.py both import it rather than restating it:
+# all three used to be hand-maintained copies, and a design validating against a wider list
+# than the loader selects asks for a column that was never merged, which hands every firm-year
+# a NaN signal and empties the sort with no error anywhere.
+MATERIALITY_SDG_ACTIONS = MATERIALITY_SDG_BUCKETS + MATERIALITY_ACTION_TYPES
+
+MATERIALITY_SDG_COLUMNS = [
+    f"{grp}__{act}__SDG_{n}"
+    for grp in ("immaterial", "material")
+    for act in MATERIALITY_SDG_ACTIONS
+    for n in range(1, 18)          # range(1, 18) == SDGs 1..17
 ]
 
 

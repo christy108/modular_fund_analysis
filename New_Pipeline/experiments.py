@@ -236,9 +236,9 @@ def build_cfg(**overrides) -> dict:
         # `New_Pipeline.sweep --jobs N` needs this off. Turn on to inspect one run by hand.
         write_debug_csv=False,
         drop_suspicious_gvkeys=True,
-        drop_real_estate=True,
+        drop_real_estate=False,
         drop_fin=False,
-        drop_utilities=True,
+        drop_utilities=False,
         drop_health_care=False,
         anlayse_fashion_only=False,
         msci_score_column="weighted",
@@ -1959,11 +1959,15 @@ _register_single_sdg_experiments()
 # Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
 # these sorts, and never report an alpha without its coverage_pct neighbour.
 def _register_pp_action_experiments():
-    # The signal module is the authority on which actions exist, so this loop and
-    # Materiality_People_Plus_Prosperity_Action_SDG's validation share one source.
-    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+    # BUCKETS only, not every action the designs will ACCEPT. _SDG_ACTIONS was widened to
+    # include the 14 individual action types so a design may name one, but looping this
+    # registration over it too would silently turn these 7 named experiments into 21 and
+    # the Planet pair into 44 -- a registry three times its documented size, where
+    # `base_materiality_pp_<action>` no longer means what the docstring above says.
+    # The action types get their own family, _register_aggregate_action_experiments.
+    from functions.data_functions.process_materiality import MATERIALITY_SDG_BUCKETS
 
-    for a in _SDG_ACTIONS:
+    for a in MATERIALITY_SDG_BUCKETS:
         if a == "total":
             continue
         EXPERIMENTS[f"base_materiality_pp_{a}"] = (lambda a=a: base_materiality_pp_action(a))
@@ -1980,10 +1984,33 @@ _register_pp_action_experiments()
 # there is no "total" among the 14, and `pricing` is a real action type here even though no
 # bucket design isolates it.
 #
-# EXPECT MANY OF THESE TO BE TOO THIN TO SORT. The measured BUCKET-level density table above
-# already puts innovation at 81.6% of firm-years zero on a median denominator of 1, and every
-# action here is a strict subset of its bucket. Read each run's signal_sparsity and
-# materiality_split_floor audits before reporting an alpha; a degenerate sort is a finding
+# MEASURED DENSITY, v_2A1 workbook, 72,412 firm-years. "% zero" is firm-years where
+# material + immaterial is 0 (no usable signal at all); "denom" is the median of that sum
+# over the firm-years that remain; "distinct" counts distinct material-share values in the
+# whole panel.
+#
+#   action                             % zero   denom   distinct
+#   donation_funding                     12.5       7       1295
+#   training                             24.9       3        416
+#   modification_of_procedures           26.6       3        393
+#   communication                        35.1       3        406
+#   asset_modification                   39.0       2        209
+#   association                          39.8       2        408
+#   assessment_and_measurement           46.6       2        199
+#   volunteerism                         48.8       2        315
+#   new_products                         70.4       2        126
+#   organizational_structuring           70.7       1         43
+#   r_d_investments                      74.1       1        119
+#   incentives                           83.2       1         32
+#   adoption_of_standards_and_rules      89.7       1         20
+#   pricing                              94.2       1         39
+#
+# Only the top eight are real sorts. From new_products down the median denominator is 1 or 2,
+# so the "material share" is mostly 0/1 or 1/1 and a quantile sort is cutting ties rather than
+# ranking; incentives, adoption_of_standards_and_rules and pricing have fewer than 40 distinct
+# values in the entire panel and should be treated as degenerate. Registered anyway so the
+# density is measurable rather than assumed — but read each run's signal_sparsity and
+# materiality_split_floor audits before reporting an alpha. A degenerate sort is a finding
 # about the data, not a result.
 def _register_aggregate_action_experiments():
     # The signal module validates against this same tuple, so the loop and the design cannot
@@ -2054,11 +2081,12 @@ _register_aggregate_action_experiments()
 # Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
 # these sorts, and never report an alpha without its coverage_pct neighbour.
 def _register_planet_action_experiments():
+    # BUCKETS only -- see the note in _register_pp_action_experiments.
     from functions.signal_design.signal_definitions import PLANET_SDGS_Groups
-    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+    from functions.data_functions.process_materiality import MATERIALITY_SDG_BUCKETS
 
     for w in PLANET_SDGS_Groups:
-        for a in _SDG_ACTIONS:
+        for a in MATERIALITY_SDG_BUCKETS:
             if a == "total":
                 continue
             slug = "narrow_planet" if w == "Narrow_Planet" else "planet"

@@ -6,7 +6,10 @@
 # The loader owns the action-type spelling: a name it does not select is never on lc, so
 # Materiality_Action_Aggregate validates against the same tuple the merge is built from and a
 # design can never ask for a column that was never loaded.
-from functions.data_functions.process_materiality import MATERIALITY_ACTION_TYPES
+from functions.data_functions.process_materiality import (
+    MATERIALITY_ACTION_TYPES,
+    MATERIALITY_SDG_ACTIONS,
+)
 
 from functions.signal_design.signal_definitions import (  # noqa: F401
     CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG,
@@ -33,11 +36,12 @@ def Materiality_Signals(signal_0_name="Material", signal_1_name="Immaterial"):
 
 
 
-# Which per-SDG ACTION families process_materiality.py brings onto lc. Kept in sync with
-# MATERIALITY_SDG_ACTIONS there -- a design naming an action outside this set would ask for a
-# column that was never loaded, and the sort would come back empty rather than raise.
-_SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
-                "preparation", "transformation", "upskilling", "total")
+# Which per-SDG ACTION families process_materiality.py brings onto lc: the 7 behaviour buckets
+# + total, and the 14 individual action types. ALIASED to the loader's tuple rather than
+# restated -- a design naming an action outside the loader's set would ask for a column that
+# was never merged, and the sort would come back empty rather than raise. Kept under the
+# private name every design in this module already validates against.
+_SDG_ACTIONS = MATERIALITY_SDG_ACTIONS
 
 
 def _action_tag(action):
