@@ -14,6 +14,148 @@ Stakeholders:
 
 
 
+# ---------------------------------------------------------------------------- #
+# SDG groupings — the single source of truth for "which SDGs sit in which group".
+#
+# Both the plain-SDG signal designs below and the material/immaterial ones in
+# signal_definitions_materiality.py are generated from these dicts, so editing a
+# group here changes every design that uses it and the two families can never
+# drift apart. To re-cut a split, edit only these dicts.
+#
+# The plain-SDG designs key on the LC columns 'SDG: 1' .. 'SDG: 17'; the materiality
+# ones key on 'material__total__SDG_N' / 'immaterial__total__SDG_N'. Same groups,
+# different column namespace.
+# ---------------------------------------------------------------------------- #
+
+PEOPLE_PLANET_PROSPERITY = {
+    "People":     [1, 2, 3, 4, 5, 8, 10],
+    "Prosperity": [9, 11, 16, 17],
+    "Planet":     [6, 7, 12, 13, 14, 15],
+}
+
+
+# The Planet cut at two widths. SEPARATE from PEOPLE_PLANET_PROSPERITY on purpose:
+# that dict is a PARTITION of all 17 SDGs and gets passed WHOLE to
+# _check_groups_disjoint -- by dict_SDG_3_groups_people_planet_prosperity, by
+# Materiality_Signals_3_groups_people_planet_prosperity_SDG, and (at IMPORT time) by
+# New_Pipeline/initiative_brackets.py's "sdg3" scheme. Adding an overlapping band to it
+# raises before any config is built and takes down every experiment in the repo,
+# base_none included.
+#
+# This dict is a MENU of alternative cuts instead, the same shape as Health_SDGS_Groups:
+# the groups deliberately nest, and no caller ever passes it whole -- each function picks
+# ONE key and wraps it in a one-entry dict.
+#
+# Narrow_Planet is exactly SDG_5_BRACKETS["Climate & Natural Capital"]; kept spelled out
+# here so the two Planet widths sit together and read as one choice.
+PLANET_SDGS_Groups = {
+    "Planet":        [6, 7, 12, 13, 14, 15],
+    "Narrow_Planet": [13, 14, 15],
+}
+
+
+PEOPLE_Plus_PROSPERITY_VS_PLANET= {
+    "People_Plus_Prosperity":     [1, 2, 3, 4, 5, 8, 10, 9, 11, 16, 17],
+    "Planet":     [6, 7, 12, 13, 14, 15],
+}
+
+
+
+Health_SDGS_Groups = {
+    "One_Health": [3, 6, 8, 11, 14, 15],
+    "One_Health_Ex_SDG_8": [3, 6, 11, 14, 15], 
+    "Narrow_Health": [3, 6, 11],
+    "Health_and_Work": [3, 6, 8, 11],
+}
+
+
+SDG_5_BRACKETS = {
+    "Social Equity & Inclusion":            [1, 2, 5, 10],
+    "Human Development & Basic Needs":        [3, 4, 6, 7],
+    "Sustainable Industry & Production":       [8, 9, 12],
+    "Institutions & Communities":            [11, 16, 17],
+    "Climate & Natural Capital":             [13, 14, 15],
+}
+
+
+def _one_group_vs_each_sdg(groups, group_name):
+    """`group_name` kept as one group; every OTHER SDG becomes its own group.
+
+    Both the focus group and the individual SDGs are derived from `groups`, so the
+    split always covers exactly the same SDG universe as the dict it came from.
+    """
+    focus = groups[group_name]
+    rest = sorted(sdg for sdgs in groups.values() for sdg in sdgs if sdg not in focus)
+    return {group_name: focus, **{f"SDG_{sdg}": [sdg] for sdg in rest}}
+
+
+CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG = _one_group_vs_each_sdg(SDG_5_BRACKETS, "Climate & Natural Capital")
+
+
+def _group_slug(group_name):
+    return group_name.replace(" & ", "_").replace(" ", "_")
+
+
+def _check_groups_disjoint(groups):
+    """Raise if an SDG is listed in two groups.
+
+    A duplicate SDG would become a duplicate dict key downstream, where the last write
+    silently wins and leaves the earlier group short (or empty) — exactly the bug the
+    hand-written versions of these dicts had.
+    """
+    seen = {}
+    for group_name, sdgs in groups.items():
+        for sdg in sdgs:
+            if sdg in seen:
+                raise ValueError(
+                    f"SDG_{sdg} appears in both {seen[sdg]!r} and {group_name!r}; "
+                    "each SDG must belong to exactly one group"
+                )
+            seen[sdg] = group_name
+    return seen
+
+
+def _sdg_signals_from_groups(groups):
+    """Expand {group_name: [sdg, ...]} into ({'SDG: n': signal_index}, *signal_names).
+
+    One signal per group — no material/immaterial doubling (that lives in
+    signal_definitions_materiality.py). Indices run 0..len(groups)-1 in group order,
+    matching the (dict, s0, s1, ...) tuple the callers unpack.
+    """
+    _check_groups_disjoint(groups)
+
+    categories = {}
+    names = []
+    for group_name, sdgs in groups.items():
+        index = len(names)
+        names.append(_group_slug(group_name))
+        for sdg in sdgs:
+            categories[f"SDG: {sdg}"] = index
+    return (categories, *names)
+
+
+def dict_SDG_3_groups_people_planet_prosperity():
+    """3 signals: People, Prosperity, Planet — no materiality split.
+
+    Same SDG membership as `dict_all_SDG_1D`, but generated from
+    PEOPLE_PLANET_PROSPERITY and therefore in that dict's order
+    (People=0, Prosperity=1, Planet=2, vs people/planet/prosperity there) with
+    capitalised names. `dict_all_SDG_1D` is left untouched for parity.
+    """
+    return _sdg_signals_from_groups(PEOPLE_PLANET_PROSPERITY)
+
+
+def dict_SDG_5_groups_brackets():
+    """5 signals: one per SDG_5_BRACKETS group — no materiality split."""
+    return _sdg_signals_from_groups(SDG_5_BRACKETS)
+
+
+def dict_SDG_Climate_Natural_Capital_vs_All_SDGS():
+    """15 signals: Climate & Natural Capital as one group, then each of the 14
+    non-climate SDGs on its own (NOT pooled) — no materiality split."""
+    return _sdg_signals_from_groups(CLIMATE_NATURAL_CAPITAL_VS_EACH_SDG)
+
+
 def dict_all_SDG_1D(signal_0_name="people", signal_1_name="planet", signal_2_name="prosperity"):
     return { 
         #people
@@ -87,7 +229,7 @@ def dict_2d_actions_stakeholders_original_matteo(signal_0_name="advocacy", signa
 
 
 
-
+#
 # Sectors, then Stakeholders (alphas)
 def dict_all_SDG_1D_prosperity_into_people(signal_0_name="people plus prosperity", signal_1_name="planet"):
     """
@@ -165,4 +307,7 @@ def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_
             "SREC: suppliers": 2,
             "SREC: customers": 3,
             }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
+
+
+
 

@@ -1,6 +1,91 @@
+import os
 import pandas as pd
 import numpy as np
 import wrds
+
+
+# --------------------------------------------------------------------------- #
+# Security status (survivorship) handling
+# --------------------------------------------------------------------------- #
+# One on-disk extract per region, ALWAYS the unfiltered all-secstat frame: a single
+# download serves both the survivor-only and the all-firms sample, so the two can never
+# differ by data vintage. (Two separately-timed WRDS pulls would confound the survivorship
+# effect with vintage drift -- measured at 79 vanished gvkeys and retroactive split
+# rescaling across six weeks on the Japan extract.) Write path and read path share these
+# constants so they cannot drift apart.
+USA_UNIVERSE_PATH = "./data/usa_universe_all_secstat.parquet"
+ROW_UNIVERSE_PATH = "./data/row_universe_all_secstat_new.parquet"
+JAPAN_UNIVERSE_PATH = "./data/japan_universe_all_secstat.parquet"
+
+SECURITY_STATUS_CHOICES = ("active_only", "all_firms_even_delisted")
+
+
+def _require_universe_file(path, region):
+    """Return ``path``, or raise a directive error naming how to produce it."""
+    import os
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"[{region}] universe extract not found: {path}\n"
+            f"This extract carries a 'secstat' column and is produced by the WRDS download "
+            f"branch of get_{region}_universe(...). Run it once with download_wrds_data=True "
+            f"(needs WRDS credentials) to create it. Pre-secstat extracts are not "
+            f"interchangeable: they were filtered to secstat='A' in SQL, so the delisted "
+            f"securities are not recoverable from them."
+        )
+    return path
+
+
+def _apply_security_status(df, security_status, region):
+    """Apply the ``secstat`` sample choice to a freshly loaded/downloaded universe.
+
+    Compustat's ``secstat`` is the security's status **as of the extract date**, stamped onto
+    every historical row -- so filtering it to 'A' in SQL erases the entire price history of
+    any security that is inactive today, not merely its post-delisting rows. The queries
+    below therefore SELECT it as a column rather than filtering on it, and the sample choice
+    is made here:
+
+    * ``"active_only"`` -- keep ``secstat == 'A'``. Bit-exact with the old SQL predicate
+      ``AND (secstat='A')``, NULLs included: SQL ``secstat='A'`` is false for NULL, and
+      pandas ``== 'A'`` is False for NaN.
+    * ``"all_firms_even_delisted"`` -- keep every row, so delisted / acquired / bankrupt
+      securities retain their full history.
+
+    NOTE this removes the whole-firm erasure channel ONLY. The ``cshtrd``/``exchg``/``curcdd``
+    screens still eject a surviving firm's worst months (volume dries up and listings move to
+    OTC precisely around distress), and Compustat carries no delisting return, so a security's
+    terminal loss is still absent from both samples. Neither is "survivorship-bias free".
+    """
+    if security_status not in SECURITY_STATUS_CHOICES:
+        raise ValueError(
+            f"security_status must be one of {list(SECURITY_STATUS_CHOICES)}, "
+            f"got {security_status!r}"
+        )
+
+    if "secstat" not in df.columns:
+        if security_status == "active_only":
+            raise KeyError(
+                f"[{region}] security_status='active_only' needs a 'secstat' column, but the "
+                f"loaded frame has none. Extracts downloaded before secstat was SELECTed were "
+                f"already filtered to secstat='A' in SQL; re-download to get the column."
+            )
+        raise KeyError(
+            f"[{region}] security_status='all_firms_even_delisted' is impossible on an extract "
+            f"with no 'secstat' column: it was filtered to secstat='A' in SQL, so the delisted "
+            f"securities are gone and cannot be recovered by reading it. Re-download."
+        )
+
+    counts = df["secstat"].value_counts(dropna=False).to_dict()
+    if security_status == "all_firms_even_delisted":
+        print(f"[{region}] security_status=all_firms_even_delisted -> all {len(df):,} rows "
+              f"kept; secstat distribution: {counts}")
+        return df
+
+    before = len(df)
+    out = df[df["secstat"] == "A"]
+    print(f"[{region}] security_status=active_only -> {len(out):,} of {before:,} rows kept, "
+          f"{before - len(out):,} dropped as secstat != 'A'; secstat distribution: {counts}")
+    return out.reset_index(drop=True)
 
 
 #### 2.2.1 Recover dollar returns from Compustat
@@ -19,7 +104,37 @@ import wrds
 
 # This can be aggregated to compute monthly figures.
 
-def get_usa_universe(start_year, end_year, download_wrds_data=False):
+def _drop_legacy_index_column(df):
+    """Drop the unnamed index column carried over from the old CSV extracts, if present."""
+    if len(df.columns) and df.columns[0] in ("", "Unnamed: 0"):
+        return df.iloc[:, 1:]
+    return df
+
+
+def _read_universe_csv(path, label, load_rows):
+    """Read a universe extract from disk -- or only its SCHEMA when it is not analysed.
+
+    ``load_rows=False`` reads a handful of rows and slices to zero, so the caller gets a
+    frame with the exact columns AND dtypes a full read would give, for ~0 bytes instead
+    of GBs. The schema has to be real on both counts: process_global_universe uses
+    ``usa_universe.columns`` as the template every other region is reindexed onto, and
+    pd.concat resolves each column's dtype across all its parts -- a stub built by an
+    empty read (which types every column as object) would not concat identically.
+
+    Skipping is decided by the CALLER from currency_filter; see nodes/03_load_universes.py.
+    """
+    f = _require_universe_file(path, label)
+    if not load_rows:
+        import pyarrow.parquet as pq
+
+        batch = next(pq.ParquetFile(f).iter_batches(batch_size=5))
+        stub = batch.to_pandas()
+        return _drop_legacy_index_column(stub).iloc[0:0]
+    return _drop_legacy_index_column(pd.read_parquet(f))
+
+
+def get_usa_universe(start_year, end_year, download_wrds_data=False,
+                     security_status="active_only", load_rows=True):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -38,6 +153,7 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
                 secd.datadate AS date, 
                 secd.gvkey, 
                 secd.iid, 
+                secd.secstat, 
                 secd.cusip, 
                 (secd.prccd * secd.cshoc) as mktcap, 
                 CASE WHEN secd.ajexdi <> 0 THEN (secd.trfd * secd.prccd / secd.ajexdi) ELSE NULL END AS tri
@@ -48,7 +164,6 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
                 ON (secd.gvkey=usa_listings.gvkey AND secd.iid=usa_listings.priusa)
             WHERE
                 (secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}')
-                AND (secd.secstat='A')
                 AND (secd.tpci='0')
                 AND (secd.prccd>0)
                 AND (secd.cshtrd>0)
@@ -62,25 +177,27 @@ def get_usa_universe(start_year, end_year, download_wrds_data=False):
         usa_universe['year'] = pd.to_datetime(usa_universe['date']).dt.year
         usa_universe = usa_universe[usa_universe['year'] <= end_year]
         usa_universe = usa_universe.drop(columns=['year'])
-        # Save to disk
+        # Save to disk. The saved extract is ALWAYS the unfiltered all-secstat frame;
+        # the sample choice is applied to what we RETURN, not to what we persist.
         print('Saving to disk!')
-        usa_universe.to_csv('./data/usa_universe.csv')
-        return usa_universe
+        usa_universe.to_parquet(USA_UNIVERSE_PATH, index=False)
+        return _apply_security_status(usa_universe, security_status, 'usa')
 
     # Load from file
     else:
-        usa_universe = pd.read_csv('./data/usa_universe.csv').iloc[:, 1:]
+        usa_universe = _read_universe_csv(USA_UNIVERSE_PATH, 'usa', load_rows)
         usa_universe['year'] = pd.to_datetime(usa_universe['date']).dt.year
         usa_universe = usa_universe[usa_universe['year'] <= end_year]
 
-        return usa_universe
+        return _apply_security_status(usa_universe, security_status, 'usa')
 
 
 
 
 
 
-def get_row_universe(start_year, end_year, download_wrds_data=False):
+def get_row_universe(start_year, end_year, download_wrds_data=False,
+                     security_status="active_only", load_rows=True):
     if download_wrds_data:
 
         conn=wrds.Connection(wrds_username='cbruce1')
@@ -98,6 +215,7 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
                 g_secd.datadate AS date, 
                 g_secd.gvkey, 
                 g_secd.iid, 
+                g_secd.secstat, 
                 g_secd.isin, 
                 g_secd.curcdd, 
                 (g_secd.prccd * g_secd.cshoc / g_secd.qunit) as mktcap_lcu, 
@@ -109,12 +227,12 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
                 ON (g_secd.gvkey=row_listings.gvkey AND g_secd.iid=row_listings.prirow)
             WHERE
                 (g_secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}')
-                AND (g_secd.secstat='A')
                 AND (g_secd.tpci='0')
                 AND (g_secd.prccd>0)
                 AND (g_secd.cshtrd>0)
-                AND (g_secd.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 286, 154, 171, 107, 172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194))
-                AND (g_secd.curcdd IN ('CHF', 'GBP', 'EUR'))
+                AND (g_secd.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 154, 171, 107,
+                 172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194, 144, 228, 256))
+                AND (g_secd.curcdd IN ('CHF', 'GBP', 'EUR', 'NOK', 'SEK', 'DKK'))
             ORDER BY 
                 date;
         """, date_cols=['date'])
@@ -127,18 +245,19 @@ def get_row_universe(start_year, end_year, download_wrds_data=False):
         row_universe = row_universe.drop(columns=['year'])
         # Save to disk
         print('Saving to disk!')
-        row_universe.to_csv('./data/row_universe.csv')
+        row_universe.to_parquet(ROW_UNIVERSE_PATH, index=False)
 
-        return row_universe
+        return _apply_security_status(row_universe, security_status, 'row')
     # Load from file
     else:
-        row_universe = pd.read_csv('./data/row_universe.csv').iloc[:, 1:]
+        row_universe = _read_universe_csv(ROW_UNIVERSE_PATH, 'row', load_rows)
         row_universe['year'] = pd.to_datetime(row_universe['date']).dt.year
         row_universe = row_universe[row_universe['year'] <= end_year]
-    return row_universe
+    return _apply_security_status(row_universe, security_status, 'row')
 
 
-def get_japan_universe(start_year, end_year, download_wrds_data=False):
+def get_japan_universe(start_year, end_year, download_wrds_data=False,
+                       security_status="active_only", load_rows=True):
     if download_wrds_data:
         conn = wrds.Connection(wrds_username="cbruce1")  # or pass username like RoW/US do
         print("Connecting to WRDS...")
@@ -154,6 +273,7 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
                 g_secd.datadate AS date,
                 g_secd.gvkey,
                 g_secd.iid,
+                g_secd.secstat,
                 g_secd.isin,
                 g_secd.curcdd,
                 g_secd.prccd,
@@ -168,7 +288,6 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
               ON (g_secd.gvkey = japan_listings.gvkey AND g_secd.iid = japan_listings.prirow)
             WHERE
                 g_secd.datadate BETWEEN '01/01/{start_year}' AND '12/31/{end_year}'
-                AND g_secd.secstat = 'A'
                 AND g_secd.tpci = '0'
                 AND g_secd.prccd > 0
                 AND g_secd.cshtrd > 0
@@ -185,14 +304,14 @@ def get_japan_universe(start_year, end_year, download_wrds_data=False):
         japan_universe = japan_universe.drop(columns=["year"])
 
         print("Saving to disk!")
-        japan_universe.to_csv("./data/japan_universe_new.csv")
-        return japan_universe
+        japan_universe.to_parquet(JAPAN_UNIVERSE_PATH, index=False)
+        return _apply_security_status(japan_universe, security_status, "japan")
 
     else:
-        japan_universe = pd.read_csv("./data/japan_universe.csv").iloc[:, 1:]
+        japan_universe = _read_universe_csv(JAPAN_UNIVERSE_PATH, "japan", load_rows)
         japan_universe["year"] = pd.to_datetime(japan_universe["date"]).dt.year
         japan_universe = japan_universe[japan_universe["year"] <= end_year]
-        return japan_universe
+        return _apply_security_status(japan_universe, security_status, "japan")
 
 
 
@@ -207,7 +326,7 @@ def get_processed_fx_rates(end_year):
     #https://www.federalreserve.gov/datadownload/Download.aspx?rel=H10&series=2525778bbd3442ab095d4c1f1b4dd2ab&filetype=csv&label=include&layout=seriescolumn&from=01/01/2009&to=12/31/2024
     try:
         # Load exchange rate data
-        FRB_H10 = pd.read_csv(f'./data/FRB/FRB_H10_2024.csv')
+        FRB_H10 = pd.read_parquet('./data/FRB/FRB_H10_2024.parquet')
         FRB_H10.replace('ND', np.nan, inplace=True)
         FRB_H10.columns = ['date', 'EUR', 'GBP','DKK','JPY', 'NOK', 'SEK', 'CHF']
 
@@ -240,7 +359,7 @@ def get_processed_fx_rates(end_year):
     
     except Exception as e:
         print(f"Error retrieving FX rates: {e}")
-        print("Make sure you have the FRB_H10_{end_year}.csv file in the data/FRB folder")
+        print("Make sure you have the FRB_H10_{end_year}.parquet file in the data/FRB folder")
 
 
 
@@ -249,7 +368,7 @@ def get_processed_fx_rates(end_year):
 
 def get_snp_esg_merge_to_universe(usa_universe, row_universe, japan_universe=None):
 
-    sp_esg_table = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp_esg_table = pd.read_parquet('./data/ESG/SP_ESG_20231231.parquet')
     sp_esg_table['gvkey'] = sp_esg_table['gvkey'].astype(float).astype(str)
     #sp_esg_table = sp_esg_table.rename(columns={"esg_sp": "esg"})
 
@@ -352,10 +471,8 @@ def get_refinitive_snp_merge_to_universe(usa_universe, row_universe, japan_unive
     """
 
     # --- Load new LSEG / Refinitiv export (cusip + isin already inline) ---
-    refinitiv_esg_table = pd.read_csv(
-        './data/ESG/ESG Ratings/LSEG ESG Score.csv',
-        dtype={'cusip': str, 'isin': str},
-    )
+    # cusip/isin are stored as string in the parquet twin itself, so no dtype= needed here.
+    refinitiv_esg_table = pd.read_parquet('./data/ESG/ESG Ratings/LSEG ESG Score.parquet')
 
     # --- Keep usable ESG score rows only ---
     # ``.copy()`` so the subsequent column assignments operate on an owned frame
@@ -443,11 +560,8 @@ def get_msci_esg_merge_to_universe(usa_universe, row_universe, japan_universe=No
     raw_col = _MSCI_COLS[score_column]
 
     # --- Load MSCI monthly panel (ISIN inline; no identifier crosswalk needed) ---
-    msci = pd.read_csv(
-        './data/ESG/ESG Ratings/MSCI ESG Updated.csv',
-        dtype={'issuer_isin': str},
-        low_memory=False,
-    )
+    # issuer_isin is stored as string in the parquet twin itself, so no dtype= needed here.
+    msci = pd.read_parquet('./data/ESG/ESG Ratings/MSCI ESG Updated.parquet')
 
     # --- Standardise types and keep usable score rows only ---
     msci['as_of_date'] = pd.to_datetime(msci['as_of_date'], format='%d/%m/%Y', errors='coerce')
@@ -515,7 +629,7 @@ def _coverage_snp_exact_year(usa_universe, row_universe, japan_universe=None):
     MSCI/Refinitiv merges. Here a score counts only when the firm's own fiscal year
     (``last_year``) has a raw S&P observation. NOT used by the pipeline.
     """
-    sp = pd.read_csv('./data/ESG/SP_ESG_20231231.csv')
+    sp = pd.read_parquet('./data/ESG/SP_ESG_20231231.parquet')
     sp['gvkey'] = sp['gvkey'].astype(float).astype(str)   # same gvkey form as the pipeline merge
     sp = sp.dropna(subset=['esg_sp'])
     # one row per exact (gvkey, fiscal year); mean resolves the quarterly observations
@@ -590,7 +704,7 @@ def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_u
     """DEPRECATED / BACKUP: original RIC-based Refinitiv merge.
 
     Kept verbatim so we can revert to the old ESG source. Reads the old files
-    ``esg_table.csv`` + ``identifiers_table.parquet`` and joins RIC -> CUSIP/ISIN.
+    ``esg_table.parquet`` + ``identifiers_table.parquet`` and joins RIC -> CUSIP/ISIN.
     Not called by the pipeline; swap the call in Main.ipynb to use it.
     """
 
@@ -598,7 +712,7 @@ def get_refinitive_snp_merge_to_universe_OLD(usa_universe, row_universe, japan_u
     def last_non_nan(series):
         return series.dropna().iloc[-1] if not series.dropna().empty else np.nan
 
-    refinitiv_esg_table = pd.read_csv('./data/ESG/esg_table.csv')
+    refinitiv_esg_table = pd.read_parquet('./data/ESG/esg_table.parquet')
     refinitiv_identifiers_table = pd.read_parquet('./data/ESG/identifiers_table.parquet')[['RIC', 'CUSIP', 'ISIN']]
 
     # Join identifiers into `refinitiv_esg_table`
@@ -699,36 +813,53 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
         else:
             if factors_number == 3:
                 if region == "Developed":
-                    ff_file = "./data/FAMA/Developed_3_Factors.csv"
+                    ff_file = "./data/FAMA/Developed_3_Factors.parquet"
                 elif region == "Europe":
-                    ff_file = "./data/FAMA/Europe_3_Factors.csv"
+                    ff_file = "./data/FAMA/Europe_3_Factors.parquet"
                 elif region == "Japan":
-                    ff_file = "./data/FAMA/Japan_3_Factors.csv"
+                    ff_file = "./data/FAMA/Japan_3_Factors.parquet"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_3_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_3_Factors.parquet"
                 elif region == "United_States":
-                    ff_file = "./data/FAMA/United_States_3_Factors.csv"
+                    ff_file = "./data/FAMA/United_States_3_Factors.parquet"
                 else:
-                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada")
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             elif factors_number == 5:
                 if region == "Developed":
-                    ff_file = "./data/FAMA/Developed_5_Factors.csv"
+                    ff_file = "./data/FAMA/Developed_5_Factors.parquet"
                 elif region == "Europe":
-                    ff_file = "./data/FAMA/Europe_5_Factors.csv"
+                    ff_file = "./data/FAMA/Europe_5_Factors.parquet"
                 elif region == "Japan":
-                    ff_file = "./data/FAMA/Japan_5_Factors.csv"
+                    ff_file = "./data/FAMA/Japan_5_Factors.parquet"
                 elif region == "North_America_and_Canada":
-                    ff_file = "./data/FAMA/North_America_5_Factors.csv"
+                    ff_file = "./data/FAMA/North_America_5_Factors.parquet"
                 elif region == "United_States":
-                    ff_file = "./data/FAMA/United_States_5_Factors.csv"
+                    ff_file = "./data/FAMA/United_States_5_Factors.parquet"
                 else:
-                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America")
+                    raise ValueError(f"Invalid region: {region}, try one of the following: Developed, Europe, Japan, North_America_and_Canada, United_States")
             else:
                 raise ValueError(f"Invalid factors number: {factors_number}, try one of the following: 3, 5")
 
+            # Fail here rather than inside pd.read_parquet: the message has to say what to
+            # do, because a raw Ken French download is NOT a drop-in. The parser below is
+            # strict ("%Y%m") and dies on the annual-data block those files carry after
+            # the monthly one, so the source CSV must be trimmed to a single monthly
+            # section with one clean header row before being converted to this parquet.
+            # data/FAMA/Original/ holds a Developed_5_Factors csv, but with
+            # pre-lowercased headers, so the rename below would miss every column -- it
+            # is not a substitute either.
+            if not os.path.exists(ff_file):
+                raise FileNotFoundError(
+                    f"Fama-French {factors_number}-factor file not found for region "
+                    f"{region!r}: {ff_file}\n"
+                    "Download the monthly series from Ken French's data library, trim it "
+                    "to a single monthly block with one clean header row, and convert it "
+                    "to this parquet path (pd.read_csv(...).to_parquet(...)) -- the "
+                    'loader parses dates strictly with format="%Y%m" and will die on an '
+                    "annual trailer section."
+                )
 
-
-            ff = pd.read_csv(ff_file)
+            ff = pd.read_parquet(ff_file)
             
             if factors_number == 3:
                 ff= ff.rename(columns={'Date':'date','Mkt-RF': 'mktrf', 'SMB': 'smb', 'HML': 'hml', 'RF': 'rf'})
@@ -751,6 +882,58 @@ def get_famafrench_factors(start_year, end_year, region, factors_number, downloa
         # Scale factor returns from percent to decimal without touching the date column
         fama_french = ff.set_index("date").div(100).reset_index()
         return fama_french
+
+
+# Momentum lives in its own file, so it gets its own loader rather than a
+# `factors_number=4/6` branch above: those branches pick ONE file, and a momentum spec is
+# always some base model PLUS this series. Node 05 joins the two on `date`.
+MOMENTUM_REGIONS = ("Europe", "United_States", "Developed")
+
+
+def get_momentum_factor(start_year, end_year, region):
+    """Monthly momentum factor for `region` as a `date` + `mom` frame, in decimals.
+
+    Only Europe, United_States and Developed have a file. Every other region raises rather
+    than returning nothing, so a run can never print "+ Mom" column headers over a plain 3-
+    or 5-factor fit.
+
+    The raw files are NOT the same shape. Europe and Developed ship trimmed (`Date,WML`);
+    the US one is a raw Ken French download with a 13-line text preamble, a `,Mom` header,
+    an "Annual Factors:" block and a copyright footer. The parquet twin at ``mom_file``
+    below is built by keeping only the lines whose first field is a 6-digit YYYYMM --
+    dropping blank lines alone would NOT be enough, because the annual rows
+    ("  1927,  24.52") parse as perfectly valid numbers and would then blow up the strict
+    "%Y%m" parse further down -- then reading that filtered text as a headerless
+    (date, mom) frame, which also absorbs the WML/Mom column-name disagreement. That
+    cleaning happens once, when the parquet is (re)built from a fresh Ken French download;
+    this loader just reads the result.
+    """
+    if region not in MOMENTUM_REGIONS:
+        raise ValueError(
+            f"No momentum factor file for region {region!r}. Add_Momentum_Factor is "
+            f"supported for {list(MOMENTUM_REGIONS)} only -- Ken French publishes no "
+            "momentum series for the other regions this pipeline loads."
+        )
+
+    mom_file = f"./data/FAMA/{region}_Momentum_Factor.parquet"
+    if not os.path.exists(mom_file):
+        raise FileNotFoundError(
+            f"Momentum factor file not found for region {region!r}: {mom_file}\n"
+            "Download the monthly momentum series from Ken French's data library, keep "
+            "only the YYYYMM rows, and convert to this parquet path as a headerless "
+            "(date, mom) frame -- see the docstring above. Must be the monthly file, not "
+            "the daily one."
+        )
+
+    mom = pd.read_parquet(mom_file)
+
+    # Same tail as get_famafrench_factors, so units (decimals) and the Period[M] `date`
+    # dtype match the FF3/FF5 frames this gets merged onto.
+    mom["date"] = pd.to_datetime(mom["date"].astype("int64").astype(str), format="%Y%m")
+    year = mom["date"].dt.year
+    mom = mom[(year <= end_year) & (year > start_year - 1)].copy()
+    mom["date"] = mom["date"].dt.to_period("M")
+    return mom.set_index("date").div(100).reset_index()
 
 
     
@@ -800,7 +983,7 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
         # Concatenate output
         dt = pd.concat([df, df2])
 
-        #select only profitable stocks
+      
         dt = dt[(dt['at']>0) & (dt['sale']>0)]
 
         dt['roa0'] = dt['ebitda']/dt['at']
@@ -817,11 +1000,11 @@ def get_accounting_data(global_universe, region_analysis, start_year, end_year, 
 
         # Save to disk
         print('Downloaded Fresh Accounting Data and Saving to disk!')
-        dt.to_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv', index=False)
-        
+        dt.to_parquet(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.parquet', index=False)
+
     else:
-        print("Read CSV")
-        dt = pd.read_csv(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.csv')
+        print("Read parquet")
+        dt = pd.read_parquet(f'./data/ACC/acc_comp_{region_analysis}_{end_year}.parquet')
 
     #Remove the ".0" In GVKEY
     dt['gvkey'] = dt['gvkey'].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -887,7 +1070,7 @@ def get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_
     """
     import os
     os.makedirs("./data/GICS", exist_ok=True)
-    path = f"./data/GICS/gics_comp_{region_analysis}_{end_year}.csv"
+    path = f"./data/GICS/gics_comp_{region_analysis}_{end_year}.parquet"
     _rename = {
         "gsector": "GICS_level_1",   # sector (coarsest)
         "ggroup": "GICS_level_2",    # industry group
@@ -923,10 +1106,10 @@ def get_gics_by_gvkey(global_universe, region_analysis, end_year, download_gics_
         gics = gics.dropna(subset=["gvkey"]).drop_duplicates(subset=["gvkey"])
 
         print("Downloaded Fresh GICS Data and Saving to disk!")
-        gics.to_csv(path, index=False)
+        gics.to_parquet(path, index=False)
     else:
-        print("Read GICS CSV")
-        gics = pd.read_csv(path)
+        print("Read GICS parquet")
+        gics = pd.read_parquet(path)
 
     gics["gvkey"] = (
         gics["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)

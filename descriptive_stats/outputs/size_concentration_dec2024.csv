@@ -1,0 +1,4 @@
+region,n_firms,bottom 25% of firms hold,bottom 50% of firms hold,bottom 60% of firms hold,bottom 70% of firms hold,bottom 75% of firms hold,bottom 80% of firms hold,bottom 90% of firms hold,firms below the 5%-of-value line,cap of the largest firm dropped ($m)
+United_States,2628,0.158,1.237,2.438,4.598,6.331,8.78,19.023,71.3,6144.1
+Europe,5120,0.064,0.489,1.015,2.128,3.163,4.787,12.687,80.5,1337.3
+Japan,3905,0.325,1.405,2.412,4.14,5.519,7.493,15.652,73.3,484.5

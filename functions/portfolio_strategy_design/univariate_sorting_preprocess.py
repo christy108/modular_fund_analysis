@@ -146,6 +146,79 @@ def align_fama_french_to_returns(
     return ff.drop(columns=["date"])
 
 
+FF5_COLUMNS = ("mktrf", "smb", "hml", "rmw", "cma", "rf")
+
+
+def align_ff5_to_aligned_ff3(
+    ff5: pd.DataFrame, ff3_aligned: pd.DataFrame, *, rf_tol: float = 1e-9
+) -> pd.DataFrame:
+    """Reindex a raw FF5 frame onto an already-aligned FF3 frame's index, BY CALENDAR MONTH.
+
+    Returns a frame indexed exactly like `ff3_aligned`, carrying mktrf/smb/hml/rmw/cma/rf
+    all taken from the FF5 file. FF5's mktrf/smb/hml are deliberately NOT replaced with
+    FF3's: Ken French builds the FF5 SMB from the size x value, size x profitability AND
+    size x investment sorts, so it is a different series (US 2026-01: 2.12 in the
+    3-factor file vs 3.21 in the 5-factor one). Each specification must be estimated from
+    its own file or the regression is a chimera.
+
+    Why a month join rather than `align_fama_french_to_returns`: that function assigns the
+    index POSITIONALLY, which is safe for FF3 only because
+    `prepare_univariate_sorting_inputs` first hard-raises unless the FF3 months equal the
+    returns months exactly. The ESG path instead INTERSECTS months, so a positional
+    assignment on a second frame is a silent off-by-N there. The two files also genuinely
+    differ in length (Europe_3 ends 202602, Europe_5 ends 202603; United_States_3 starts
+    192607, United_States_5 starts 196307), so row counts cannot be assumed equal even
+    before any alignment. Joining on Period[M] is correct on both paths.
+    """
+    missing_cols = [c for c in FF5_COLUMNS if c not in ff5.columns]
+    if missing_cols:
+        raise ValueError(
+            f"FF5 frame is missing required columns {missing_cols}; "
+            f"got {list(ff5.columns)}. Expected a *_5_Factors.csv load."
+        )
+
+    # `mom` is optional and rides along when node 05 joined it (Add_Momentum_Factor).
+    # It is NOT in FF5_COLUMNS because that tuple is the required set -- but it must be
+    # carried through both the coverage check and the final selection below, or the
+    # momentum column would be silently dropped here and FF5 + Mom would quietly
+    # regress on five factors under a six-factor header.
+    cols = list(FF5_COLUMNS) + (["mom"] if "mom" in ff5.columns else [])
+
+    months = pd.PeriodIndex(pd.to_datetime(ff3_aligned.index), freq="M")
+    src = ff5.copy()
+    src_months = pd.PeriodIndex(_fama_french_dates_as_timestamps(src["date"]), freq="M")
+    if src_months.duplicated().any():
+        dupes = src_months[src_months.duplicated()].unique()
+        raise ValueError(f"FF5 frame has duplicate months: {list(dupes[:10])}")
+
+    src = src.drop(columns=["date"]).set_index(src_months)
+    out = src.reindex(months)
+
+    missing = months[out[cols].isna().any(axis=1)]
+    if len(missing):
+        raise ValueError(
+            f"FF5 factors do not cover {len(missing)} month(s) present in the returns "
+            f"panel. First missing: {[str(m) for m in missing[:10]]}. The FF5 file for "
+            "this region is shorter than the FF3 one -- refresh it from Ken French."
+        )
+
+    # The two files carry the SAME risk-free series (the US T-bill), so a divergence here
+    # is not a modelling choice -- it means the FF3 and FF5 files are different vintages,
+    # which would silently shift every excess return between the two specifications.
+    dev = (out["rf"].to_numpy() - ff3_aligned["rf"].to_numpy())
+    worst = int(abs(dev).argmax()) if len(dev) else None
+    if worst is not None and abs(dev[worst]) > rf_tol:
+        raise ValueError(
+            "FF3 and FF5 risk-free series disagree -- the two factor files are different "
+            f"vintages. Worst month {months[worst]}: FF3 rf={ff3_aligned['rf'].iloc[worst]!r} "
+            f"vs FF5 rf={out['rf'].iloc[worst]!r} (diff {dev[worst]:.3g}, tol {rf_tol:g})."
+        )
+
+    out = out.loc[:, cols]
+    out.index = ff3_aligned.index
+    return out
+
+
 
 
 def dropna_std_cols_and_build_pivots(
@@ -291,6 +364,9 @@ def prepare_univariate_sorting_inputs(
     gu = merge_lc_into_global_universe(gu, lc, category_columns, list(lc_signals.keys()))
     gu = add_gvkey_iid_sort_clean(gu)
     gu = to_monthly_last_trading_date(gu)
+
+
+    6
     gu = compute_monthly_returns_long(gu)
     gu = normalize_category_shares(gu, category_columns)
     if apply_geo_filter:
@@ -397,7 +473,7 @@ def prepare_esg_universe_sorting_inputs(
 
     signal_columns = list(universe_signals)
     signal_names = dict(universe_signals)
-    cols_standardization = [year_col, "curcdd", "Industry"]
+    cols_standardization = [year_col, "Industry"]
 
     gu = global_universe.copy()
     missing_sig = [c for c in signal_columns if c not in gu.columns]

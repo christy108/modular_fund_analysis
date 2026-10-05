@@ -162,43 +162,30 @@ def output_images_other_dir(
     ) / "Other"
 
 
+# Exhaustive list of run parameters — keep in sync with the parameters cells
+# (Main.ipynb cell 2 + the region-derived cell 3). Every parameter defined there
+# should appear here so parameters.txt and the printed summary are complete.
 RUN_PARAM_NAMES = [
     # --- core run ---
+    "ff_factors_number",
+    # --- Data & universe ---
     "golden_data",
     "region_analysis",
+    "fama_factors_currency_if_Japan",
+    "RF_JAPAN_PATH",
     "action_characterization",
-    "signal_denominator",
+    "Add_Momentum_Factor",
     "start_year",
     "end_year",
     "no_simple_quantiles",
-    # --- factors / currency ---
-    "ff_factors_number",
-    "fama_factor_region",
-    "fama_factors_currency",
-    "RF_JAPAN_PATH",
-    "currency_filter",
-    "convert_to_USD",
-    "region_filter",
-    "execute_region_filters",
-    # --- ESG ---
-    "esg_choice",
-    "msci_score_column",
-    "esg_full_universe",
-    "download_gics_data",
-    "esg_min_group_size",
-    "drop_real_estate_Full_ESG",
-    "drop_utilities_Full_ESG",
-    "show_esg_corr_matricies",
-    "esg_corr_method",
-    "show_esg_coverage",
-    # --- thresholds / trimming ---
+    "signal_denominator",
+    # --- Thresholds & filters ---
     "alpha_bound",
     "use_alpha_bound",
     "mktcap_covered",
     "add_accounting_data",
     "industry_level",
     "japan_year_adjustment_split_month_for_two_or_one",
-    # --- LC sample filters ---
     "execute_3_filters",
     "min_available_fyears",
     "min_initatives_annual_reports",
@@ -208,12 +195,32 @@ RUN_PARAM_NAMES = [
     "drop_utilities",
     "drop_health_care",
     "anlayse_fashion_only",
-    # --- sector / portfolios / display ---
     "top_x_by_industry_even_split",
+    # --- ESG ---
+    "esg_choice",
+    "esg_full_universe",
+    "esg_min_group_size",
+    "esg_corr_method",
+    "show_esg_corr_matricies",
+    "drop_real_estate_Full_ESG",
+    "drop_utilities_Full_ESG",
+    "download_gics_data",
+    "msci_score_column",
+    # --- Diagnostics / display ---
     "show_sector_portfolio",
     "show_sample_portfolio",
     "plot_coverage",
+    "show_esg_coverage",
+    "security_status",
+    "include_all_signals_in_cum_risk_table",
+    # --- Long-short spreads ---
     "hml_directions",
+    # --- Region-derived (cell 3) ---
+    "fama_factor_region",
+    "currency_filter",
+    "convert_to_USD",
+    "region_filter",
+    "execute_region_filters",
 ]
 
 

@@ -119,9 +119,9 @@ def esg_coverage_table(cov1, cov2, country="JPN"):
 
 
 # Raw provider source files (same paths the get_data.py merges read from).
-_SP_PATH = "./data/ESG/SP_ESG_20231231.csv"
-_RF_PATH = "./data/ESG/ESG Ratings/LSEG ESG Score.csv"
-_MSCI_PATH = "./data/ESG/ESG Ratings/MSCI ESG Updated.csv"
+_SP_PATH = "./data/ESG/SP_ESG_20231231.parquet"
+_RF_PATH = "./data/ESG/ESG Ratings/LSEG ESG Score.parquet"
+_MSCI_PATH = "./data/ESG/ESG Ratings/MSCI ESG Updated.parquet"
 _MSCI_SCORE_COLS = {
     "industry": "industry_adjusted_score",
     "weighted": "weighted_average_score",
@@ -151,14 +151,14 @@ def firms_with_esg_data_by_year(region_universe, *, msci_score_column="industry"
     region_gvkeys = set(_norm_gvkey(region_universe["gvkey"]).dropna().tolist())
 
     # --- S&P (matched on gvkey against the region universe) ---
-    sp = pd.read_csv(_SP_PATH).dropna(subset=["esg_sp"])
+    sp = pd.read_parquet(_SP_PATH).dropna(subset=["esg_sp"])
     sp["_gv"] = _norm_gvkey(sp["gvkey"])
     sp["year"] = sp["year"].astype(int)
     sp = sp[sp["_gv"].isin(region_gvkeys)]
     sp_y = sp.groupby("year")["_gv"].nunique()
 
     # --- Refinitiv / LSEG (scoped by ISIN country prefix) ---
-    rf = pd.read_csv(_RF_PATH, dtype={"isin": str})
+    rf = pd.read_parquet(_RF_PATH)
     rf = rf[rf["fieldname"] == "ESGScore"].dropna(subset=["valuescore"])
     rf["year"] = rf["year"].astype(int)
     rf = rf[rf["isin"].fillna("").str.startswith(isin_country_prefix)]
@@ -166,7 +166,7 @@ def firms_with_esg_data_by_year(region_universe, *, msci_score_column="industry"
 
     # --- MSCI (scoped by issuer_isin country prefix) ---
     raw_col = _MSCI_SCORE_COLS[msci_score_column]
-    ms = pd.read_csv(_MSCI_PATH, dtype={"issuer_isin": str}, low_memory=False)
+    ms = pd.read_parquet(_MSCI_PATH)
     ms["as_of_date"] = pd.to_datetime(ms["as_of_date"], format="%d/%m/%Y", errors="coerce")
     ms[raw_col] = pd.to_numeric(ms[raw_col], errors="coerce")
     ms = ms.dropna(subset=["issuer_isin", "as_of_date", raw_col])
