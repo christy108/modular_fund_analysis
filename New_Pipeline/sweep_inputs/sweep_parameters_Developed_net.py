@@ -2,7 +2,7 @@
 
 Run it with:
 
-    python -m New_Pipeline.sweep --params New_Pipeline.sweep_parameters_Developed_net --jobs 1
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_Developed_net --jobs 1
 
 ``--jobs 1`` IS NOT OPTIONAL. ~30 GB RSS per worker on a 64 GB machine; see "MEMORY" below.
 

@@ -1105,7 +1105,7 @@ def base_none_Developed():
 def base_net_materiality_People_advocacy_Developed():
     """Net materiality, People SDGs, advocacy_old_def behaviour, on Developed.
 
-    ONE CELL of sweep_parameters_Developed_net.py, lifted out as a named experiment so the
+    ONE CELL of sweep_inputs/sweep_parameters_Developed_net.py, lifted out as a named experiment so the
     design can be inspected (dashboard, decomposition PDF, sort_cutpoint audit) without
     running the 64-cell grid. Every knob below matches that file's FIXED block, so this IS
     the grid's (People, advocacy_old_def, mktcap-weighted, 0.95) cell -- not a lookalike.
@@ -1771,7 +1771,7 @@ EXPERIMENTS = {
     # Pooled US + Canada(US-listed) + FF-Europe-16 + Japan, on the Developed factors.
     # Not comparable to the three above -- the size screen pools across currency areas.
     "base_none_Developed": base_none_Developed,
-    # One cell of sweep_parameters_Developed_net.py: net materiality, People SDGs,
+    # One cell of sweep_inputs/sweep_parameters_Developed_net.py: net materiality, People SDGs,
     # advocacy_old_def, mktcap-weighted at 0.95. For inspecting the design on its own.
     "base_net_materiality_People_advocacy_Developed": base_net_materiality_People_advocacy_Developed,
 

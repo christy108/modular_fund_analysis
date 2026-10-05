@@ -7,12 +7,15 @@
     python -m New_Pipeline.sweep --only base_none     # a single named EXPERIMENTS entry
     python -m New_Pipeline.sweep --dry-run            # list what would run, run nothing
     python -m New_Pipeline.sweep --rebuild            # rebuild PDF/CSV from the ledger only
-    python -m New_Pipeline.sweep --params New_Pipeline.sweep_params_a
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_Developed_net
                                                        # read GRID/EXPLICIT/FIXED/
                                                        # SWEEP_NAME from THAT module
-                                                       # instead of sweep_parameters.py,
+                                                       # instead of sweep_parameters_US.py,
                                                        # so several sweeps can be queued
-                                                       # back to back unattended
+                                                       # back to back unattended. Every
+                                                       # sweep_parameters_*.py file lives in
+                                                       # New_Pipeline/sweep_inputs/ -- see
+                                                       # that package's docstring.
     python -m New_Pipeline.sweep --box                # also push results.{pdf,csv,xlsx}
                                                        # to Box once the sweep finishes
                                                        # (see New_Pipeline/box_upload.py
@@ -26,7 +29,10 @@ crashing, or being resumed tomorrow.
 **Nothing here changes the pipeline.** Each experiment goes through the ordinary
 ``New_Pipeline.run.run()``, and every number on the page is a dashboard widget payload
 this module reads back out of the run's manifest. See ``New_Pipeline/sweep_report.py``
-for the ledger/render/CSV layer and ``New_Pipeline/sweep_parameters.py`` for the inputs.
+for the ledger/render/CSV layer and ``New_Pipeline/sweep_inputs/`` for the inputs --
+every ``sweep_parameters_*.py`` file (one sweep's GRID/EXPLICIT/FIXED/SWEEP_NAME) lives
+there, so past and current sweep definitions sit in one place rather than scattered
+through New_Pipeline/.
 
 Output tree (all of it gitignored):
 
@@ -54,8 +60,10 @@ from pathlib import Path
 # This import is module-level and runs BEFORE any flag is read, so it has to name a
 # module that actually exists: it was `sweep_parameters`, which the rename to
 # sweep_parameters_{US,EU}.py removed, and every invocation died on the import with
-# `cannot import name 'sweep_parameters'` regardless of --params.
-from New_Pipeline import sweep_parameters_US as SP
+# `cannot import name 'sweep_parameters'` regardless of --params. All sweep_parameters_*
+# files were later moved into New_Pipeline/sweep_inputs/ (one sweep per file, kept for
+# reference as the sweep count grows) -- this default followed them.
+from New_Pipeline.sweep_inputs import sweep_parameters_US as SP
 
 
 def _load_params(argv: list[str]) -> None:

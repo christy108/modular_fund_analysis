@@ -1,21 +1,18 @@
-"""What `python -m New_Pipeline.sweep` should run — pure data, no logic.
+"""Alternate sweep definition — pure data, no logic. Run with:
 
-This file is meant to be edited between sweeps. Nothing imports it except
-``New_Pipeline/sweep.py``, and it never runs anything itself, so a bad edit here can
-only break the sweep runner — never a normal ``New_Pipeline.run`` / ``.dashboard``
-invocation.
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_EU
 
-Every key you put in ``GRID`` / ``EXPLICIT`` / ``FIXED`` must be a real ``build_cfg``
-knob (see the baseline dict at ``New_Pipeline/experiments.py:38``). The sweep validates
-every combination through ``build_cfg(**overrides)`` BEFORE the first pipeline run, so a
-typo raises in the first second rather than forty minutes in.
+Same contract as every file in ``New_Pipeline/sweep_inputs/``: every key in ``GRID`` /
+``EXPLICIT`` / ``FIXED`` must be a real ``build_cfg`` knob (baseline dict at
+``New_Pipeline/experiments.py:38``), and the sweep validates every combination through
+``build_cfg(**overrides)`` BEFORE the first pipeline run, so a typo raises in the first
+second rather than forty minutes in.
 
-THIS FILE IS THE **US** HALF. Its mirror is ``sweep_params_b.py``, which is the same
-worklist on Europe. The two are deliberately identical apart from ``region_analysis`` and
-the market-cap axis (see the header there) — keep any other edit here in step with that
-file, or the regions stop being comparable. Each file writes to its own
-``sweep_output/<stamp>_<name>/`` folder, so the US and EU results are always two separate
-PDFs/CSVs, never merged.
+THIS FILE IS THE **EUROPE** HALF. Its mirror is ``sweep_parameters_US.py``, the same
+worklist on the US. The two are deliberately identical apart from ``region_analysis`` and
+the market-cap axis (see below) — keep any other edit here in step with that file, or the
+regions stop being comparable. Each file writes to its own ``sweep_output/<stamp>_<name>/``
+folder, so the US and EU results are always two separate PDFs/CSVs, never merged.
 """
 
 from __future__ import annotations
@@ -27,27 +24,38 @@ from __future__ import annotations
 # and `--out DIR` overrides the whole thing.
 #
 # Previous sweeps in this file, for reference:
-#   "us_ff5_allsdg_pp_mcap_quantiles"      (8 cells, completed -- output in
-#                                           sweep_output/20260908T115744Z_*)
-#   "us_health_sdg_pre_post_2020"          (6 cells, completed -- committed at c5584ec)
-#   "us_health_sdgs_weighting_mcap_quantiles"
-#                                          (24 cells: the three health designs only,
-#                                           completed -- output in
-#                                           sweep_output/20260908T150454Z_*). THIS sweep
-#                                           is that worklist plus All-SDGs and
-#                                           People+Prosperity, under a new name, so the
-#                                           24 finished cells are NOT resumed -- all 40
-#                                           run fresh. The old folder stays readable.
+#   "eu_ff5_allsdg_pp_mcap_quantiles"  (8 cells requested, only 4 ever recorded -- see
+#                                       below).
+#   "us_mktcap_weighted_6designs"      (completed despite living in this file's slot at
+#                                       the time -- see sweep_output/20260908T010352Z_*).
+#   "eu_health_sdgs_weighting_mcap_quantiles"
+#                                      (24 cells: the three health designs only,
+#                                       completed -- output in
+#                                       sweep_output/20260908T170910Z_*). THIS sweep is
+#                                       that worklist plus All-SDGs and
+#                                       People+Prosperity, under a new name, so the 24
+#                                       finished cells are NOT resumed -- all 40 run
+#                                       fresh. The old folder stays readable.
 # To add cells to one of those, restore this file from git rather than editing the name
 # back: --resume can only recognise what already ran if the worklist still matches.
+#
+# WHAT HAPPENED TO THE PRIOR EU SWEEP. Its grid included mktcap_covered=0.99, which
+# panics the Rust polars binview allocator once Europe's universe at 99% coverage crosses
+# ~4.29 GB pickled (`pack_obj` stores the whole global_universe dict as one binary cell,
+# and that column type caps a single cell at u32::MAX bytes -- a structural limit,
+# unrelated to available RAM). Confirmed against every EU ledger ever produced: 0.85 and
+# 0.95 have both completed repeatedly; 0.99 never once has. Worse, a panic on one worker
+# breaks the WHOLE ProcessPoolExecutor pool, so none of that sweep's records -- including
+# cells that had already finished computing -- ever reached the ledger; results.csv came
+# out as a bare header. This file now keeps 0.99 out of the EU grid entirely.
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "us_material_planet_behaviours"
+SWEEP_NAME: str = "eu_material_planet_behaviours"
 
 
 # --------------------------------------------------------------------------- #
 # WHAT THIS SWEEP IS
 #
-# US half: the PLANET materiality designs at two SDG widths, each at four
+# EUROPE half: the PLANET materiality designs at two SDG widths, each at four
 # behavioural cuts, crossed with the weighting scheme, the sort granularity and the
 # market-cap screen, on the FULL 2016-2024 sample.
 #
@@ -56,7 +64,7 @@ SWEEP_NAME: str = "us_material_planet_behaviours"
 #   = 64 runs  (48 from GRID, 16 from EXPLICIT)
 #
 # This REPLACES the five-design People+Prosperity / health worklist this file used to
-# hold (SWEEP_NAME "us_momentum_people_prosperity", 40 cells). That sweep's output stays readable in its own
+# hold (SWEEP_NAME "eu_momentum_people_prosperity", 40 cells). That sweep's output stays readable in its own
 # sweep_output/ folder; nothing here resumes it.
 #
 # Everything else is the build_cfg baseline, pinned in FIXED below -- EXCEPT the sector
@@ -144,9 +152,9 @@ GRID: dict[str, list] = {
     "portfolio_weighting": ["mktcap", "equal"],
     # Sort granularity: coarse 3-way and finer 5-way.
     "no_simple_quantiles": [3, 5],
-    # Market-cap coverage of the screen. 0.95 is the baseline; 0.99 is the looser cut.
-    # Both are safe on the US -- see the header note.
-    "mktcap_covered_if_filter_by_cum_market_cap": [0.95, 0.99],
+    # Market-cap coverage of the screen. 0.85/0.95, NOT 0.95/0.99 -- see the header note
+    # on why 0.99 is out of scope for Europe.
+    "mktcap_covered_if_filter_by_cum_market_cap": [0.85, 0.95],
 }
 
 # --------------------------------------------------------------------------- #
@@ -179,7 +187,7 @@ EXPLICIT: list[dict] = [
                "Materiality_Narrow_Planet_SDG")    # SDGs 13, 14, 15
     for w in ("mktcap", "equal")
     for k in (3, 5)
-    for m in (0.95, 0.99)
+    for m in (0.85, 0.95)
 ]
 
 # --------------------------------------------------------------------------- #
@@ -188,21 +196,12 @@ EXPLICIT: list[dict] = [
 # An entry in GRID/EXPLICIT wins over FIXED for the same key.
 # --------------------------------------------------------------------------- #
 FIXED: dict = {
-    # ---- everything here EQUALS the build_cfg baseline -------------------- #
-    # None of it reaches the cfg diff, so none of it pollutes a run name. Pinned anyway:
-    # this file is the record of what the sweep was, and "it inherited whatever
-    # experiments.py said that week" is not a record.
-    #
-    # That cuts both ways: a pin OVERRIDES the baseline, so when experiments.py moves,
-    # a pin left behind silently freezes the sweep at the old value. Re-check this block
-    # against build_cfg() before launching, not after.
-
-    # THE REGION. Drives currency_filter=["USD"], region_filter=["United States and
-    # Canada"], convert_to_USD=False and fama_factor_region="United_States" via the region
-    # block at experiments.py:357. This is the ONLY line that differs from
-    # sweep_params_b.py, which runs the same worklist on Europe (plus its own, tighter
-    # market-cap axis).
-    "region_analysis": "United_States",
+    # THE REGION -- one of two lines that differ from sweep_parameters.py (the other
+    # being the mcap axis above). Drives currency_filter=["EUR","GBP","CHF","NOK","SEK",
+    # "DKK"], region_filter=["Europe"], convert_to_USD=True and
+    # fama_factor_region="Europe" (experiments.py:385). This is NOT at the build_cfg
+    # baseline, so it (and its two derived keys) appear in every run name.
+    "region_analysis": "Europe",
 
     # ---- THE SECTOR SCREEN: the one place this file departs from the baseline -------- #
     # ADD BACK Real Estate and Utilities, which the build_cfg baseline drops (both default
@@ -211,6 +210,15 @@ FIXED: dict = {
     # Estate stays dropped.
     "drop_real_estate": False,
     "drop_utilities": False,
+
+    # ---- everything below EQUALS the build_cfg baseline ------------------- #
+    # None of it reaches the cfg diff, so none of it pollutes a run name. Pinned anyway:
+    # this file is the record of what the sweep was, and "it inherited whatever
+    # experiments.py said that week" is not a record.
+    #
+    # That cuts both ways: a pin OVERRIDES the baseline, so when experiments.py moves,
+    # a pin left behind silently freezes the sweep at the old value. Re-check this block
+    # against build_cfg() before launching, not after.
 
     # Percentile trim on sum_activities (the firm-year's total initiative count), applied
     # per tail. Requested at 0.05, which is also the current baseline, so it does not
@@ -235,8 +243,8 @@ FIXED: dict = {
 
     # The thin-portfolio gate, at baseline. A High/Low leg is HIDDEN unless it holds at
     # least min_stocks_per_portfolio names in at least min_portfolio_coverage of formation
-    # months. Under cap weighting this is a count test on a weighted portfolio -- the
-    # effective N is lower than the raw count implies.
+    # months. This is the knob most likely to hide a leg on Europe, which is the smaller
+    # of the two regions.
     "min_stocks_per_portfolio": 25,
     "min_portfolio_coverage": 0.8,
 
@@ -270,14 +278,11 @@ OUTPUT_DIR: str = "sweep_output"
 #
 # Each worker is a separate PROCESS running one full pipeline, so this scales with cores
 # AND with RAM -- every worker independently loads the Golden LC panel and the Compustat
-# universe. On this machine (10 cores / 64 GB) 2 is demonstrated: two concurrent runs on
-# the current 1.5 GB row extract completed comfortably. 3 is probably fine and untested.
-#
-# 1 = the old serial behaviour.
+# universe. On this machine (10 cores / 64 GB) 2 is demonstrated.
 #
 # NOTE this requires cfg.write_debug_csv=False (the default). Those dumps go to FIXED
 # paths under ./data/debug/, so parallel workers would clobber each other's files.
-# Do NOT run this file and sweep_params_b.py concurrently at JOBS=2 each: that is four
+# Do NOT run this file and sweep_parameters.py concurrently at JOBS=2 each: that is four
 # pipelines, each holding its own copy of the Golden panel and the Compustat universe.
 # --------------------------------------------------------------------------- #
 JOBS: int = 2
@@ -289,10 +294,8 @@ JOBS: int = 2
 # The ledger stays in completion order (it is append-only, and under --jobs N that order
 # is not even deterministic), but the PDF and CSV are SORTED by these cfg keys before
 # being written -- and by the same function, so "CSV row N describes PDF page N" holds.
-#
-# SORT_BY lists the cfg keys to sort on, outermost first.
-# VALUE_ORDER pins the order of specific values; anything not listed sorts after those
-# (numerically for numbers, alphabetically otherwise).
+# Identical to the US file, so page N here is the same cell as page N there (modulo the
+# different mcap values on the innermost axis).
 # --------------------------------------------------------------------------- #
 SORT_BY: list[str] = [
     # Outermost: the SDG width, so the wide block precedes the narrow one.
@@ -305,9 +308,8 @@ SORT_BY: list[str] = [
     "portfolio_weighting",
     # Then the sort granularity.
     "no_simple_quantiles",
-    # Innermost: the market-cap screen, so each design/weighting/K triple puts its 0.95
-    # page directly next to its 0.99 page -- the robustness comparison this axis exists
-    # to make.
+    # Innermost: the market-cap screen, so each design/weighting/K triple puts its 0.85
+    # page directly next to its 0.95 page.
     "mktcap_covered_if_filter_by_cum_market_cap",
 ]
 
