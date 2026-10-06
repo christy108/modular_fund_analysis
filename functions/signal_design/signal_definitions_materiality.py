@@ -17,7 +17,10 @@ from functions.signal_design.signal_definitions import (  # noqa: F401
     PEOPLE_Plus_PROSPERITY_VS_PLANET,
     Health_SDGS_Groups,
     PLANET_SDGS_Groups,
-    
+
+    ACTION_SLUG_TO_LC_TYPE,
+    KEVIN_4_BEHAVIOURS,
+
     SDG_5_BRACKETS,
     _check_groups_disjoint,
     _group_slug,
@@ -51,6 +54,77 @@ def _action_tag(action):
     spell the same action identically in portfolio labels and parity artifacts.
     """
     return action.replace("_", " ").title().replace(" ", "_")
+
+
+def _check_action_partition(groups, universe=MATERIALITY_ACTION_TYPES):
+    """Raise unless `groups` partitions `universe` exactly: no strays, no repeats, no gaps.
+
+    The action-space twin of _check_groups_disjoint, which is reused rather than copied
+    everywhere else in this module -- but not here, for two reasons. Its message is
+    SDG-flavoured ("SDG_donation_funding appears in both ...") and would send the reader to
+    the wrong file, and it checks DISJOINTNESS ONLY. Coverage is the part that matters for an
+    action cut: the 14 action types sum exactly to `{state}__total` by construction
+    (process_materiality.py), so a cut that silently drops one produces signals that no
+    longer reconstruct the total, with no error anywhere.
+
+    A STRAY action is the failure that actually bites. The loader selects the aggregate
+    action columns opportunistically, so a misspelled slug names a column that was never
+    merged; node 02 does now raise on that, but only at run time, twenty minutes in. Checked
+    at import instead, like initiative_brackets.py checks its own scheme dicts.
+    """
+    seen = {}
+    for group_name, actions in groups.items():
+        for action in actions:
+            if action not in universe:
+                raise ValueError(
+                    f"{action!r} in group {group_name!r} is not one of {sorted(universe)}; "
+                    f"the loader never selects a material__{action} column, so the design "
+                    f"would ask for a column that was never merged"
+                )
+            if action in seen:
+                raise ValueError(
+                    f"action {action!r} appears in both {seen[action]!r} and {group_name!r}; "
+                    f"each action must belong to exactly one bucket"
+                )
+            seen[action] = group_name
+    missing = sorted(set(universe) - set(seen))
+    if missing:
+        raise ValueError(
+            f"groups {sorted(groups)} cover {len(seen)}/{len(universe)} action types; missing "
+            f"{missing}. The 14 sum exactly to __total, so a partial cut's signals do not "
+            f"reconstruct it and its shares are not comparable with a bucket design's."
+        )
+    return seen
+
+
+def _derive_action_slug(lc_name):
+    """``'TYPE: r&d investments'`` -> ``'r_d_investments'`` -- the computable direction.
+
+    Slug -> LC name is NOT computable (the slug has lost the '&' and its position), which is
+    why ACTION_SLUG_TO_LC_TYPE is written out by hand. This derives the slug back out of the
+    LC name so the hand-written table can still be checked rather than trusted.
+    """
+    return (lc_name.removeprefix("TYPE: ")
+            .replace(" & ", "_").replace("&", "_").replace(" ", "_"))
+
+
+# Fail on IMPORT, not twenty minutes into a run: a bad cut should take the repo down before
+# any config is built, the same stance initiative_brackets.py takes for its scheme dicts.
+_check_action_partition(KEVIN_4_BEHAVIOURS)
+
+# ...and that the hand-written LC spellings really are those same 14 actions. Checked by
+# DERIVING the slug back out of each LC name -- the only direction that is computable -- so a
+# typo in either dict raises here rather than naming a column that is not on the lc frame.
+if set(ACTION_SLUG_TO_LC_TYPE) != set(MATERIALITY_ACTION_TYPES):
+    raise ValueError(
+        f"ACTION_SLUG_TO_LC_TYPE and MATERIALITY_ACTION_TYPES disagree on "
+        f"{sorted(set(ACTION_SLUG_TO_LC_TYPE) ^ set(MATERIALITY_ACTION_TYPES))}"
+    )
+for _slug, _lc in ACTION_SLUG_TO_LC_TYPE.items():
+    if not _lc.startswith("TYPE: ") or _derive_action_slug(_lc) != _slug:
+        raise ValueError(
+            f"ACTION_SLUG_TO_LC_TYPE[{_slug!r}] = {_lc!r} does not derive back to {_slug!r}"
+        )
 
 
 def _signals_from_groups(groups, action="total"):
@@ -498,6 +572,63 @@ def Materiality_Action_Aggregate(action):
         {f"material__{action}": 0, f"immaterial__{action}": 1},
         f"Material_{tag}",
         f"Immaterial_{tag}",
+    )
+
+
+def Materiality_Kevin4_Bucket(bucket):
+    """2 signals: Material_Kevin4_<Bucket>, Immaterial_Kevin4_<Bucket> -- one Kevin4 bucket.
+
+    The BUCKET-level sibling of ``Materiality_Action_Aggregate``: that reads ONE of the 14
+    flat aggregate columns, this maps the several belonging to one KEVIN_4_BEHAVIOURS bucket
+    onto one signal index and lets node 02 add them up (every column sharing an index is
+    accumulated into ``sum_with_i`` there -- no arithmetic happens in this module).
+
+    WHY THE 14 AND NOT THE PRE-AGGREGATED BUCKET COLUMNS. The workbook already ships
+    ``material__advocacy_new_def`` / ``__upskilling`` / ``__adaptation`` / ``__innovation``,
+    and ``material_4_Behavioural_Signals`` reads them -- but those bake in the Pre_Nikkei cut,
+    which is NOT this one: volunteerism, assessment_and_measurement, organizational_structuring
+    and pricing each sit in a different bucket here. Re-summing from the 14 is the only way to
+    express the Kevin4 cut, and it is exact, because the 14 sum to ``__total`` by construction.
+
+    FLAT columns, not the per-SDG cube, so like ``Materiality_Action_Aggregate`` this does not
+    go through ``_signals_from_groups`` (that helper hardcodes the ``__SDG_{n}`` suffix). The
+    denominator is therefore the bucket's whole material + immaterial count across every SDG,
+    including initiatives the workbook mapped to no SDG at all.
+
+    material is index 0 and immaterial index 1, not the other way round: ``net_materiality``
+    requires signal_0 to be wholly material and signal_1 wholly immaterial, and checks it.
+
+    ONE materiality_split_groups group (the two indices' stripped-suffix SETS are equal, one
+    side wholly material and the other wholly immaterial), so signal_0 is the bucket's material
+    share, signal_1 is its exact mirror (1 - signal_0), and both
+    ``minimum_initatives_needed_to_split_by_materiality`` and ``net_materiality=True`` apply.
+    Sort on signal_0 only.
+
+    *** area_material_initatives_plots_per_signal_to_PDF MUST BE FORCED OFF ***, for the same
+    reason ``Materiality_Action_Aggregate``'s factory forces it but via a DIFFERENT failure. It
+    defaults True. Being exactly one confirmed mirror pair, node 07's decomposition gate OPENS
+    and calls ``initiative_brackets.parse_numerator`` unguarded -- which raises
+    ``numerator mixes actions [...]`` whenever the numerator names more than one action, and a
+    Kevin4 bucket ALWAYS names between two and five. Every run would die at the final PDF.
+    ``base_materiality_kevin4`` forces it False; pass True only once initiative_brackets learns
+    to decompose a multi-action numerator.
+
+    Signal names carry the ``Kevin4_`` tag for the reason the per-action designs carry an
+    action tag: ``material_4_Behavioural_Signals`` already emits ``Material__Advocacy`` for the
+    OTHER cut, and two designs emitting one name collide in portfolio labels and parity
+    artifacts, where the later column silently overwrites the earlier.
+    """
+    if bucket not in KEVIN_4_BEHAVIOURS:
+        raise ValueError(f"bucket {bucket!r} is not one of {sorted(KEVIN_4_BEHAVIOURS)}")
+
+    categories = {}
+    for index, materiality in ((0, "material"), (1, "immaterial")):
+        for action in KEVIN_4_BEHAVIOURS[bucket]:
+            categories[f"{materiality}__{action}"] = index
+    return (
+        categories,
+        f"Material_Kevin4_{bucket}",
+        f"Immaterial_Kevin4_{bucket}",
     )
 
 

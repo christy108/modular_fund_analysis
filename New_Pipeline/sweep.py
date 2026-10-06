@@ -91,9 +91,11 @@ from New_Pipeline.sweep_report import (
     build_pdf,
     build_xlsx,
     experiment_name,
+    headline_title,
     ledger_names,
     page_title,
     param_diff,
+    rest_title,
 )
 
 
@@ -186,7 +188,7 @@ def _plan(worklist: list[dict]) -> list[tuple[str, str, dict]]:
     for overrides in worklist:
         cfg = build_cfg(**overrides)        # raises on an unknown key or a bad value
         diff = param_diff(cfg, base)
-        planned.append((experiment_name(diff), page_title(diff), cfg))
+        planned.append((experiment_name(diff), headline_title(cfg), cfg))
     return planned
 
 
@@ -196,9 +198,8 @@ def _named_plan(names: list[str]) -> list[tuple[str, str, dict]]:
     keeps the diff honest for configs whose overrides live in a function body."""
     import json
 
-    from New_Pipeline.experiments import EXPERIMENTS, build_cfg
+    from New_Pipeline.experiments import EXPERIMENTS
 
-    base = build_cfg()
     planned = []
     for name in names:
         if name not in EXPERIMENTS:
@@ -206,7 +207,7 @@ def _named_plan(names: list[str]) -> list[tuple[str, str, dict]]:
         exp = EXPERIMENTS[name]()
         frame = next(iter(exp.inputs.values()))
         cfg = json.loads(frame["json"][0])
-        planned.append((name, page_title(param_diff(cfg, base)), cfg))
+        planned.append((name, headline_title(cfg), cfg))
     return planned
 
 
@@ -253,6 +254,12 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
     _register(name, cfg)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    # `title` is the four-facet headline; these two are the rest of the story. Stored on
+    # the record rather than recomputed at render time so the ledger alone -- the one
+    # authoritative artifact -- still says exactly what made this cell.
+    diff = param_diff(cfg)
+    extra = {"rest_title": rest_title(diff), "param_diff": page_title(diff)}
+
     # End-to-end wall clock for this cell. The manifest's own created_at/finalised_at
     # bracket node execution only, so they miss run()'s export, dashboard.md and the
     # decomposition PDF/CSV -- real per-cell cost that any optimisation has to be
@@ -269,14 +276,14 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
         print(f"[sweep] FAILED {name}: {type(exc).__name__}: {exc}")
         print(f"[sweep]   traceback -> {paths['failures'] / f'{name}.log'}")
         return {
-            "experiment": name, "title": title, "timestamp": stamp,
+            "experiment": name, "title": title, **extra, "timestamp": stamp,
             "status": "failed", "error": f"{type(exc).__name__}: {exc}",
             "cfg": cfg, "payloads": {}, "run_dir": _latest_run_dir(name),
             "duration_s": time.perf_counter() - started,
         }
 
     return {
-        "experiment": name, "title": title, "timestamp": stamp,
+        "experiment": name, "title": title, **extra, "timestamp": stamp,
         "status": "ok", "cfg": cfg,
         "payloads": _collect_payloads(manifest),
         "run_dir": _latest_run_dir(name),

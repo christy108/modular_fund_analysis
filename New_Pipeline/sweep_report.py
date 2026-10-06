@@ -100,6 +100,23 @@ def _is_scalar(v) -> bool:
     return v is None or isinstance(v, (str, int, float, bool))
 
 
+_BASE_CFG: dict | None = None
+
+
+def _base_cfg() -> dict:
+    """The build_cfg() baseline, built once per process.
+
+    Cached because a PDF rebuild now diffs EVERY record (to re-derive its headline and
+    second line), and build_cfg re-runs the whole validation cascade on each call.
+    Read-only by contract: param_diff only compares against it.
+    """
+    global _BASE_CFG
+    if _BASE_CFG is None:
+        from New_Pipeline.experiments import build_cfg
+        _BASE_CFG = build_cfg()
+    return _BASE_CFG
+
+
 def param_diff(cfg: dict, base: dict | None = None) -> dict:
     """Scalar cfg keys where ``cfg`` differs from the ``build_cfg()`` baseline.
 
@@ -107,8 +124,7 @@ def param_diff(cfg: dict, base: dict | None = None) -> dict:
     it reads the resulting config, not the overrides that produced it.
     """
     if base is None:
-        from New_Pipeline.experiments import build_cfg
-        base = build_cfg()
+        base = _base_cfg()
     out = {}
     for k, v in cfg.items():
         if not _is_scalar(v):
@@ -126,8 +142,210 @@ def _fmt_value(v) -> str:
     return str(v)
 
 
+# --------------------------------------------------------------------------- #
+# The headline: the four facets that actually identify a design
+#
+# A page used to be titled with the WHOLE cfg diff, which on a typical sweep reads
+# "action_characterization=..., convert_to_USD=True, fama_factor_region=Developed,
+# golden_data=..., mktcap_covered_if_filter_by_cum_market_cap=0.99, region_analysis=...,
+# signal_denominator=..., signal_type=counts" -- eight clauses, of which seven are pinned
+# in FIXED and therefore identical on every page of that sweep. The one thing the reader
+# is scanning for is buried in the middle.
+#
+# So the headline carries only REGION / ACTION / SDG GROUP / SIGNAL, and everything else
+# in the diff drops to a smaller second line (`rest_title`). Nothing is lost -- the full
+# diff still reaches the CSV's `param_diff` column and the page's own Parameters panel --
+# but two pages that differ only in, say, start_year are still distinguishable, because
+# start_year lands on that second line rather than being dropped.
+# --------------------------------------------------------------------------- #
+_REGION_LABEL = {"United_States": "US"}        # the rest read fine as written
+
+# The cfg keys that say WHICH behavioural action, or behaviour bucket, a design sorts on. Each is read by
+# exactly one action_characterization (experiments.py:741-860), so at most one of these
+# is ever non-None -- first hit wins and the order is immaterial.
+_ACTION_KEYS = (
+    "materiality_all_action",
+    "materiality_people_action",
+    "materiality_planet_action",
+    "materiality_pp_action",
+    "materiality_aggregate_action",
+    "materiality_kevin4_bucket",
+)
+
+# SDG group for the characterizations that hard-code it in their name instead of reading
+# cfg["sdg_group"]. Only the group goes here; the material/immaterial dimension is part of
+# the SIGNAL facet below, not of the grouping.
+_AC_GROUP = {
+    "Materiality_All_Action_SDG": "All SDGs",
+    "Materiality_Action_Aggregate": "All SDGs",
+    "Materiality_Kevin4_Bucket": "All SDGs",
+    "Materiality_People_Action_SDG": "People",
+    "Materiality_People_SDG": "People",
+    "Materiality_Planet_Action_SDG": "Planet (wide)",
+    "Materiality_Planet_SDG": "Planet (wide)",
+    "Materiality_Narrow_Planet_Action_SDG": "Planet (narrow)",
+    "Materiality_Narrow_Planet_SDG": "Planet (narrow)",
+    "Materiality_PP_Action_SDG": "People+Prosperity",
+    "Materiality_People_Plus_Prosperity_SDG": "People+Prosperity",
+    "Materiality_People_Plus_Prosperity_VS_Planet_SDG": "People+Prosperity vs Planet",
+    "Materiality_3_groups_people_planet_prosperity_SDG": "People/Planet/Prosperity",
+    "SDG_3_groups_people_planet_prosperity": "People/Planet/Prosperity",
+    "Materiality_5_groups_SDG_brackets": "5 SDG brackets",
+    "SDG_5_groups_brackets": "5 SDG brackets",
+    "Materiality_Climate_Natural_Capital_vs_All_SDGS": "Climate+NatCap vs All",
+    "SDG_Climate_Natural_Capital_vs_All_SDGS": "Climate+NatCap vs All",
+    "Materiality_One_Health_SDGS": "Health",
+    "Materiality_One_Health_Ex_SDG_8_SDGS": "Health ex-SDG8",
+    "Materiality_Narrow_Health_SDGS": "Health (narrow)",
+    "Materiality_Health_and_Work_SDGS": "Health+Work",
+    "dict_all_SDG_1D": "All SDGs",
+    "dict_all_SDG_1D_prosperity_into_people": "All SDGs",
+}
+
+# behaviour_taxonomy -> how many behaviours that is. The counts are the lengths of
+# BEHAVIOUR_TAXONOMIES in signal_definitions_materiality.py:412; spelled out rather than
+# derived so this module keeps importing nothing from the analysis core.
+_TAXONOMY_LABEL = {
+    "matteo3": "3 behaviours",
+    "behavioural4": "4 behaviours",
+    "action13": "13 action types",
+}
+
+# What the sort is ON, for characterizations that fix their own signal shape rather than
+# taking a behaviour_taxonomy.
+_AC_SIGNAL = {
+    "original_matteo": "3 behaviours",
+    "4_signals_new": "4 actions",
+    "kevin4_behaviours": "4 behaviours (Kevin cut)",
+    "4_stakeholder_new": "4 stakeholders",
+    "Combined_Material_Immaterial_3_Matteo_Signals": "3 behaviours x material/immaterial",
+    "Combined_Material_Immaterial_4_Behavioural_Signals": "4 behaviours x material/immaterial",
+    "Material_Immaterial_only": "material share",
+    "total_material_minus_immaterial": "net material count",
+    "total_initiatives": "total initiatives",
+    "prop_cooperation": "prop_cooperation",
+    "Materiality_single_SDG": "material share",
+    # The plain-SDG splits: no material/immaterial dimension at all, so signal_i is the
+    # group's SHARE of the firm-year's initiatives. Spelled out rather than left to the
+    # fallback, which would echo the characterization name and repeat the group facet.
+    "SDG_3_groups_people_planet_prosperity": "SDG group share",
+    "SDG_5_groups_brackets": "SDG group share",
+    "SDG_Climate_Natural_Capital_vs_All_SDGS": "SDG group share",
+    "dict_all_SDG_1D": "SDG group share",
+    "dict_all_SDG_1D_prosperity_into_people": "SDG group share",
+}
+
+# Keys the headline consumes, so `rest_title` does not repeat them on the second line.
+# fama_factor_region / convert_to_USD / execute_region_filters are in here not because the
+# headline prints them but because region_analysis DERIVES them (experiments.py:386-500):
+# they are the same fact the region facet already states, and they are the bulk of what
+# made the old title unreadable.
+_HEADLINE_KEYS = frozenset(
+    ("region_analysis", "fama_factor_region", "convert_to_USD", "execute_region_filters",
+     "action_characterization", "sdg_group", "behaviour_taxonomy",
+     "materiality_single_sdg") + _ACTION_KEYS
+)
+
+
+def headline_facets(cfg: dict) -> list[str]:
+    """REGION / ACTION / SDG GROUP / SIGNAL for one config, empty facets dropped.
+
+    Reads the full cfg, not the diff: a facet pinned at its build_cfg default
+    (region_analysis="United_States", say) is absent from the diff but is still exactly
+    what the reader needs in the title.
+    """
+    ac = cfg.get("action_characterization") or ""
+    facets = []
+
+    region = cfg.get("region_analysis")
+    if region:
+        facets.append(_REGION_LABEL.get(region, str(region).replace("_", " ")))
+
+    # The action: the one non-None action key, if this design takes one.
+    action = next((cfg[k] for k in _ACTION_KEYS if cfg.get(k)), None)
+    if action:
+        facets.append(str(action))
+
+    # The grouping. Materiality_single_SDG names its group in a cfg key rather than in
+    # the characterization, so that one branch covers all 17 SDGs.
+    group = cfg.get("sdg_group") or _AC_GROUP.get(ac)
+    if group is None and ac == "Materiality_single_SDG" and cfg.get("materiality_single_sdg"):
+        group = f"SDG {cfg['materiality_single_sdg']}"
+    if group:
+        facets.append(str(group).replace("_", " "))
+
+    # The signal. A taxonomy added to BEHAVIOUR_TAXONOMIES without a label here falls
+    # back to its own name rather than to the characterization's generic signal, which
+    # would be wrong rather than merely unpolished.
+    tax = cfg.get("behaviour_taxonomy")
+    signal = _TAXONOMY_LABEL.get(tax, tax) if tax else _AC_SIGNAL.get(ac)
+    if signal is None and ac.startswith("Materiality"):
+        # Every remaining Materiality_* design sorts on the material share of its group.
+        signal = "material share"
+    if signal is None and ac:
+        signal = ac                      # unmapped characterization: say its name
+    if signal:
+        facets.append(signal)
+
+    return facets
+
+
+def headline_title(cfg: dict) -> str:
+    """The big bold page title: the facets, separated so they read as a path."""
+    facets = headline_facets(cfg)
+    return "  \u00b7  ".join(facets) if facets else "base_parameters"
+
+
+def rest_title(diff: dict, keys: set[str] | None = None) -> str:
+    """The diff keys the headline did NOT consume -- the page's small second line.
+
+    This is what keeps the short headline safe: a sweep whose cells differ only in
+    start_year or no_simple_quantiles still has a visibly different page, because those
+    knobs land here.
+
+    `keys`, when given, narrows it further to the knobs that actually VARY across the
+    sweep (see `varying_keys`). A value pinned in FIXED is the same on all 51 pages, so
+    printing it on each one distinguishes nothing -- and every page already carries the
+    full config in its own Parameters panel.
+    """
+    rest = {k: v for k, v in diff.items()
+            if k not in _HEADLINE_KEYS and (keys is None or k in keys)}
+    return ", ".join(f"{k}={_fmt_value(v)}" for k, v in sorted(rest.items()))
+
+
+def varying_title(cfg: dict, keys: set[str]) -> str:
+    """The second line for one page, given the sweep's varying knobs.
+
+    Reads `cfg`, not the diff, so a cell sitting at the build_cfg DEFAULT for a varying
+    knob still prints it: in a sweep crossing no_simple_quantiles 5 x 10, the K=5 cells
+    are at the default and would otherwise show a blank line while the K=10 cells showed
+    one -- readable only by inference. Every page of a sweep therefore shows the SAME key
+    list with its own values, which is what makes two pages comparable at a glance.
+    """
+    shown = sorted(k for k in keys if k not in _HEADLINE_KEYS and k in cfg)
+    return ", ".join(f"{k}={_fmt_value(cfg[k])}" for k in shown)
+
+
+_ABSENT = object()
+
+
+def varying_keys(diffs: list[dict]) -> set[str]:
+    """Diff keys that are not identical across every record of a sweep.
+
+    A key missing from one diff counts as varying: absent means "at the build_cfg
+    default", which is a different value from the one the other cells set.
+    """
+    names = {k for d in diffs for k in d}
+    return {k for k in names
+            if len({repr(d.get(k, _ABSENT)) for d in diffs}) > 1}
+
+
 def page_title(diff: dict) -> str:
-    """The bold headline for a page: the parameters that differ from build_cfg defaults."""
+    """The FULL cfg diff as one string -- every scalar that differs from build_cfg.
+
+    No longer the page headline (that is `headline_title`); it remains the CSV's
+    `param_diff` column and the ledger's complete record of what made this cell.
+    """
     if not diff:
         return "base_parameters"
     return ", ".join(f"{k}={_fmt_value(v)}" for k, v in sorted(diff.items()))
@@ -504,18 +722,65 @@ def _draw_page_number(fig, page_num: int | None, total: int | None) -> None:
              fontweight="bold", color="#444444")
 
 
-def render_page(record: dict, pdf, page_num: int | None = None, total: int | None = None) -> None:
-    """Draw one experiment as a single page and save it into an open PdfPages."""
+def _elide(text: str, limit: int = 72) -> str:
+    """`text` shortened to `limit` characters by dropping its MIDDLE.
+
+    Middle rather than tail because both strings this is used on -- the generated
+    experiment name and the run directory -- start with the design and end with the
+    blake2b suffix that disambiguates it; cutting the tail would throw away the half that
+    makes the name a key.
+    """
+    if len(text) <= limit:
+        return text
+    head = (limit - 3) // 2
+    return f"{text[:head]}...{text[-(limit - 3 - head):]}"
+
+
+def render_page(record: dict, pdf, page_num: int | None = None, total: int | None = None,
+                varying: set[str] | None = None) -> None:
+    """Draw one experiment as a single page and save it into an open PdfPages.
+
+    `varying` is the sweep-wide set of cfg knobs that actually differ between cells, which
+    build_pdf computes once over the whole ledger. It is what the second line is filtered
+    to; None means "no sweep context", and then the record's own stored line is used.
+    """
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
 
     fig = plt.figure(figsize=(_PAGE_W, _PAGE_H))
-    title = record.get("title") or record.get("experiment") or "(unnamed)"
-    fig.suptitle(title, fontsize=19, fontweight="bold", y=0.985)
-    subtitle = f"{record.get('experiment', '')}   ·   {record.get('timestamp', '')}"
+
+    # Headline recomputed from THIS record's cfg rather than read off record["title"], so
+    # `--rebuild` re-titles a ledger written before the facet headline existed. Falls back
+    # to the stored title only for a record carrying no cfg at all.
+    cfg = record.get("cfg") or {}
+    title = headline_title(cfg) if cfg else (
+        record.get("title") or record.get("experiment") or "(unnamed)")
+    fig.suptitle(title, fontsize=19, fontweight="bold", y=0.991)
+
+    # Line 2: the knobs this cell changed that the headline does not carry -- quantiles,
+    # start_year, weighting and so on. Without it a short headline would make two cells
+    # that differ only in start_year look like the same page. Blank when there are none,
+    # and then line 3 moves up into its place so the page has no gap.
+    if varying is not None and cfg:
+        rest = varying_title(cfg, varying)
+    else:
+        rest = record.get("rest_title")
+        if rest is None and cfg:
+            rest = rest_title(param_diff(cfg))
+    # 0.953 is the floor: the GridSpec below starts at top=0.935 and its panel titles
+    # sit just above that, so going lower makes line 3 collide with "2. Parameters".
+    y_ident = 0.966
+    if rest:
+        fig.text(0.5, 0.9655, rest, ha="center", fontsize=10, color="#333333")
+        y_ident = 0.9530
+    # Line 3: traceability only -- the registry name and the run directory. Both are
+    # ~150-character generated names and together they overran the page width and collided
+    # with the first panel's title, so each is elided in the middle: the head says which
+    # design and the tail keeps the hash that makes the name unique.
+    subtitle = f"{_elide(record.get('experiment', ''))}   ·   {record.get('timestamp', '')}"
     if record.get("run_dir"):
-        subtitle += f"   ·   {record['run_dir']}"
-    fig.text(0.5, 0.962, subtitle, ha="center", fontsize=9, color="#555555")
+        subtitle += f"   ·   {_elide(record['run_dir'])}"
+    fig.text(0.5, y_ident, subtitle, ha="center", fontsize=7.5, color="#888888")
     _draw_page_number(fig, page_num, total)
 
     if record.get("status") == "failed":
@@ -614,8 +879,12 @@ def build_pdf(ledger_path: str | Path, pdf_path: str | Path) -> int:
         # Page N = ledger record N (1-based) -- the same enumeration build_csv uses for
         # its 'page' column, so a CSV row always points at the matching PDF page.
         total = len(records)
+        # Which knobs actually move across this sweep. On a one-page PDF nothing can
+        # "vary", so fall back to the whole diff rather than printing an empty line.
+        diffs = [param_diff(r.get("cfg") or {}) if r.get("cfg") else {} for r in records]
+        varying = varying_keys(diffs) if total > 1 else None
         for i, rec in enumerate(records, start=1):
-            render_page(rec, pdf, page_num=i, total=total)
+            render_page(rec, pdf, page_num=i, total=total, varying=varying)
 
     os.replace(tmp, pdf_path)       # atomic: the old PDF stays valid until this instant
     return len(records)
@@ -646,7 +915,15 @@ def _row_for(record: dict, page_num: int) -> dict:
         "timestamp": record.get("timestamp", ""),
         "status": record.get("status", ""),
         "run_dir": record.get("run_dir", ""),
-        "param_diff": record.get("title", ""),
+        # `title` is the four-facet headline, `param_diff` the complete cfg diff. Both
+        # recomputed when the ledger predates them, so an old sweep's rebuilt CSV sorts
+        # and filters on the same columns a new one does.
+        "title": record.get("title") if record.get("rest_title") is not None
+                 else (headline_title(cfg) if cfg else record.get("title", "")),
+        "rest_params": record.get("rest_title") if record.get("rest_title") is not None
+                       else (rest_title(param_diff(cfg)) if cfg else ""),
+        "param_diff": record.get("param_diff")
+                      or (page_title(param_diff(cfg)) if cfg else record.get("title", "")),
         # Absent from ledgers written before run_one started timing cells; blank there.
         "duration_s": record.get("duration_s"),
     }
@@ -692,8 +969,8 @@ def _row_for(record: dict, page_num: int) -> dict:
 
 
 # Fixed leading (identifying) columns.
-_LEAD_COLS = ["experiment", "page", "timestamp", "duration_s", "status", "run_dir",
-              "param_diff"]
+_LEAD_COLS = ["title", "rest_params", "experiment", "page", "timestamp", "duration_s",
+              "status", "run_dir", "param_diff"]
 
 
 def _rows_and_cols(ledger_path: str | Path) -> tuple[list[dict], list[str]]:
