@@ -222,8 +222,22 @@ def process_lc_v1(cfg):
         "v_2B3": "LC_dataset_v_2B3_20260511.csv",
         "v_2B1": "LC_dataset_v_2B1_20260409.csv",
         # The HQ extract: firm-year LC aggregates joined to Compustat fundamentals and
-        # HQ-level identifiers (the *_hq columns). 68,187 x 1,287, converted from the
-        # delivered CSV with no value changes.
+        # HQ-level identifiers (the *_hq columns). 68,098 x 1,287.
+        #
+        # THE PARQUET IS NOT A STRAIGHT COPY OF THE CSV BESIDE IT. Values are unchanged,
+        # but 89 rows were dropped at conversion: every firm-year whose prop_cooperation
+        # exceeded 1. That column is a proportion by construction and the delivered CSV
+        # breaks the bound (max 4.60), so the filter is applied once here rather than on
+        # every run -- a 4.60 otherwise sorts into the top bucket ahead of every genuine
+        # high-cooperation firm. Nulls are untouched (NaN > 1 is False, so all 14,098
+        # survive), the 421 values at exactly 1.0 are kept, and no firm is lost entirely:
+        # 83 firms lose one firm-year each, spread over 2002-2021 and all five regions.
+        #
+        # So the CSV has 68,187 rows and the parquet has 68,098, and that gap is
+        # deliberate. The CSV is untouched and remains the source of record -- reconverting
+        # it without the filter restores the 89 rows. The drop applies to the WHOLE file,
+        # so it is not scoped to the prop_cooperation design: any experiment on this
+        # vintage runs on the filtered sample.
         #
         # Three of its columns are renamed onto this node's vocabulary immediately
         # after the read (year_lc -> rfyear, total_initiatives_count ->

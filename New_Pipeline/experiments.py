@@ -635,6 +635,31 @@ def build_cfg(**overrides) -> dict:
         categories_dict = {"n_predicted_initiatives": 0}
         lc_signals = {"signal_0": "Total_Initiatives"}
 
+    # ONE signal, the LC column `prop_cooperation` used as-is. Nothing is aggregated,
+    # ratio'd or rescaled: the column already IS the signal, so this rides the same
+    # single-column/single-group path total_initiatives uses and node 02's cell-21 loop
+    # under signal_type="counts" sets signal_0 = sum_with_0 = prop_cooperation exactly.
+    # Defined inline for the same reason total_initiatives is: one column, one group, and
+    # functions/signal_design/ is the frozen core.
+    #
+    # VINTAGE-BOUND. prop_cooperation ships only in the HQ extract -- it is absent from
+    # LC_dataset_v2A1 and every older vintage -- so this characterization requires
+    # golden_data="HQ_LC_dataseet_v_1_1O1". Enforced below, because the failure is
+    # otherwise a bare KeyError out of node 02's categories_dict check.
+    #
+    # As delivered the column is NOT bounded by 1 despite the name: 54,089 non-null
+    # firm-years, mean 0.31, median 0.28, min 0.006, but max 4.60 and 421 values at
+    # exactly 1.0. Nothing here clips it -- it is sorted as given, and the 4.60 tail sits
+    # in the top bucket. The remaining 20.7% of firm-years are null and drop out of the
+    # sort entirely, which is a larger coverage hole than the materiality designs carry.
+    #
+    # Only meaningful under signal_type="counts" (the column itself). "weights" is
+    # rejected below for the same reason it is on total_initiatives, and "per_revenue"
+    # would divide a proportion by revenue, which is not a quantity.
+    elif ac == "prop_cooperation":
+        categories_dict = {"prop_cooperation": 0}
+        lc_signals = {"signal_0": "Prop_Cooperation"}
+
     # elif ac == "immaterial_4_Behavioural_Signals":
     #     categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
     #     lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
@@ -924,6 +949,28 @@ def build_cfg(**overrides) -> dict:
             "signal_type='counts' (total initiatives) or 'per_revenue' (total initiatives "
             "/ revenue)."
         )
+    if ac == "prop_cooperation":
+        # Same degenerate case as total_initiatives above: one group covering the single
+        # column, so under "weights" signal_0 = sum_with_0 / sum_activities == 1.0 for
+        # every firm-year whenever signal_denominator="Sum_All_Signals" (the default) --
+        # a constant, which cannot be sorted.
+        if signal_type != "counts":
+            raise ValueError(
+                "action_characterization='prop_cooperation' uses the LC column as the "
+                f"signal directly, so signal_type must be 'counts'; got {signal_type!r}. "
+                "'weights' would give sum_with_0 / sum_activities == 1.0 for every firm, "
+                "and 'per_revenue' would divide a proportion by revenue."
+            )
+        # prop_cooperation exists only in the HQ extract. Checked here rather than left to
+        # node 02's categories_dict guard so the message names the cause (wrong vintage)
+        # instead of reporting a missing column.
+        if c["golden_data"] != "HQ_LC_dataseet_v_1_1O1":
+            raise ValueError(
+                "action_characterization='prop_cooperation' needs "
+                "golden_data='HQ_LC_dataseet_v_1_1O1' -- the prop_cooperation column "
+                f"ships only in that extract, and golden_data={c['golden_data']!r} does "
+                "not carry it."
+            )
     if signal_type == "per_revenue" and not c["add_sales"]:
         raise ValueError(
             "signal_type='per_revenue' needs add_sales=True -- the denominator is the "
@@ -1434,6 +1481,51 @@ def base_total_initiatives_counts():
     )
 
 
+def base_prop_cooperation():
+    # High/low portfolios sorted on the raw LC column prop_cooperation.
+    # signal_0 = prop_cooperation, unaggregated and unscaled.
+    #
+    # signal_denominator="Sum_All_Initiatives" is a DELIBERATE departure from the
+    # "Sum_All_Signals" baseline, and it does not touch the signal -- under
+    # signal_type="counts" nothing is divided. It picks what `sum_activities` is, and
+    # sum_activities is the variable node 02's alpha-bound trim cuts on. Left at the
+    # default, sum_activities would BE prop_cooperation (the single group's only column),
+    # so the trim would drop the top and bottom 2.5% of the signal within each fiscal
+    # year -- i.e. it would delete precisely the firm-years the high/low sort is built
+    # from, before the sort ever runs. Pointing it at n_predicted_initiatives makes the
+    # trim cut on total activity, as it does in every other design.
+    #
+    # THAT IS STILL NOT INDEPENDENT OF THE SIGNAL, and the distinction matters.
+    # prop_cooperation IS coop_initiatives_count / total_initiatives_count -- verified
+    # exactly, on 100% of non-null rows -- and total_initiatives_count is what
+    # n_predicted_initiatives renames to on this vintage. So the trim cuts on the signal's
+    # own DENOMINATOR. Measured on the 2016-2024 sample at alpha=0.05: the firm-years it
+    # removes carry a mean signal of 0.414 against 0.300 for those it keeps, with a median
+    # denominator of 3 against 11. Small denominators make coarse, extreme ratios (1/2,
+    # 1/3, 2/3), so the trim preferentially removes HIGH-signal, badly-estimated
+    # firm-years. Raising alpha removes more of them: the sample mean falls 0.3066 ->
+    # 0.2998 -> 0.2929 across alpha = 0, 0.05, 0.10.
+    #
+    # That is arguably the behaviour you want -- it is a precision floor on a ratio of two
+    # small counts -- but it is part of the SIGNAL DEFINITION, not an independent sample
+    # filter, and sweeping alpha varies the signal's measurement precision as well as the
+    # sample size. Do not read an alpha axis here as a clean robustness check.
+    #
+    # add_materiality=False: the signal needs no SASB workbook, and no materiality
+    # matching file exists for this vintage anyway (load_materiality builds its filename
+    # from golden_data). Note this means the sample is NOT the one the base_materiality_*
+    # experiments run on, so read results against another non-materiality design rather
+    # than against those.
+    return make_experiment(
+        "base_prop_cooperation",
+        build_cfg(golden_data="HQ_LC_dataseet_v_1_1O1",
+                  action_characterization="prop_cooperation",
+                  signal_type="counts",
+                  signal_denominator="Sum_All_Initiatives",
+                  add_materiality=False),
+    )
+
+
 def base_total_initiatives_per_revenue():
     # The same single total, scaled by revenue: signal_0 = n_predicted_initiatives / sale_usd.
     # Read against base_total_initiatives_counts -- identical numerator, the only
@@ -1869,6 +1961,7 @@ EXPERIMENTS = {
     "base_materiality_per_revenue": base_materiality_per_revenue,
     "base_total_initiatives_counts": base_total_initiatives_counts,
     "base_total_initiatives_per_revenue": base_total_initiatives_per_revenue,
+    "base_prop_cooperation": base_prop_cooperation,
 
 
     "base_materiality_v_2C":base_materiality_v_2C,
