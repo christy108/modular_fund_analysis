@@ -221,12 +221,78 @@ def process_lc_v1(cfg):
         "v_2C": "LC_dataset_v_2C_20260512.csv",
         "v_2B3": "LC_dataset_v_2B3_20260511.csv",
         "v_2B1": "LC_dataset_v_2B1_20260409.csv",
+        # The HQ extract: firm-year LC aggregates joined to Compustat fundamentals and
+        # HQ-level identifiers (the *_hq columns). 68,187 x 1,287, converted from the
+        # delivered CSV with no value changes.
+        #
+        # Three of its columns are renamed onto this node's vocabulary immediately
+        # after the read (year_lc -> rfyear, total_initiatives_count ->
+        # n_predicted_initiatives, predicted_report_type -> report_type); see the
+        # _HQ_RENAMES block below for what each mapping does and does not preserve.
+        #
+        # STILL NOT A LIKE-FOR-LIKE SUBSTITUTE, for two reasons the renames do not touch:
+        #   SDG_SREC: SDG n - <grp> : absent (all 119 crossed columns). The file carries
+        #                             `lc_sdgN_count` and `lc_stakeholders_*_count`, i.e.
+        #                             the two margins SEPARATELY, so the SDG x stakeholder
+        #                             cross cannot be reconstructed from it. This does NOT
+        #                             raise: add_srec_stakeholder_columns finds no matching
+        #                             columns, compares two empty frames, and adds no
+        #                             "SREC: " columns at all -- so any signal built on
+        #                             them downstream in 02_derive_signals comes out empty
+        #                             rather than wrong-and-loud.
+        #   materiality             : no Matched_SASB_GOLDEN_long_matchings_<this key>_...
+        #                             file exists in $MATERIALITY_LOCATION, and
+        #                             load_materiality builds that filename from this very
+        #                             key, so add_materiality must stay off for now.
+        # This key is also interpolated into run/output names by output_paths.
+        "HQ_LC_dataseet_v_1_1O1": "Master_GOLDEN_FINAL_with_HQ_LC_dataset_v_1_1O1.parquet",
     }
 
     try:
         lc = pd.read_csv(golden_location / golden_files[C["golden_data"]])
     except:
         lc = pd.read_parquet(golden_location / golden_files[C["golden_data"]])
+
+    # ---- HQ extract: map its column names onto the ones this node speaks ------------ #
+    # The HQ vintage names three load-bearing columns differently. The mapping is applied
+    # HERE, immediately after the read and before anything touches the frame, because the
+    # raw-descriptives and funnel-stage-1 blocks below already read lc["rfyear"] and
+    # lc["n_predicted_initiatives"] -- renaming any later would leave those two reporting
+    # on a frame that no longer matches what process_lc() goes on to filter.
+    #
+    # Scoped to this one vintage by key rather than applied by "rename if present": the
+    # older LC files carry none of these names, so a blanket rename would be dead code on
+    # them today and a silent re-interpretation the day one of the names reappears
+    # upstream meaning something else.
+    _HQ_RENAMES = {
+        # Verified equal to Compustat `fyear` on all 64,115 rows where both are present
+        # (the other 4,072 have a null fyear), range 1990-2024, no nulls. So the choice
+        # between the two LC date columns is not load-bearing -- they agree.
+        "year_lc": "rfyear",
+        # NOTE this is NOT the same count as the incumbent vintage's: it totals 1,239,501
+        # over the file (mean 18.2, median 11, max 601) against v_2A1's 2,328,025 (mean
+        # 31.1, median 19, max 783). The sibling `initiatives_count` is smaller still
+        # (326,680) and agrees with this one on 0.8% of rows, so the two are measuring
+        # different things and neither is a drop-in for the old column. Anything
+        # calibrated on the old scale -- above all
+        # min_initatives_annual_reports_if_execute_3_filters_true -- is therefore being
+        # applied to a different distribution and should be re-chosen, not inherited.
+        "total_initiatives_count": "n_predicted_initiatives",
+        # Values here are LOWERCASE ("sustainability report", "integrated report",
+        # "annual report") where every other vintage is title-case. The rename alone does
+        # not fix that, and the mismatch is silent rather than loud -- see the guard at
+        # the execute_3_filters annual-report cut below.
+        "predicted_report_type": "report_type",
+    }
+    if C["golden_data"] == "HQ_LC_dataseet_v_1_1O1":
+        _missing = [c for c in _HQ_RENAMES if c not in lc.columns]
+        if _missing:
+            raise KeyError(
+                f"HQ vintage is missing expected source columns {_missing}; "
+                f"the rename map in 01_process_lc needs updating for this file."
+            )
+        lc = lc.rename(columns=_HQ_RENAMES)
+        print(f"[HQ vintage] renamed {len(_HQ_RENAMES)} columns: {_HQ_RENAMES}")
     
 
   
@@ -404,6 +470,25 @@ def process_lc_v1(cfg):
                 lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports_if_execute_3_filters_true"]) & (lc["report_type_gpt2"] == "Annual Report"))]
 
             else:
+                # The comparison below is to the literal "Annual Report". Every vintage
+                # that reaches this branch has historically been title-case, but the HQ
+                # extract stores "annual report" lowercase, so after the rename above the
+                # mask matches NOTHING and this filter silently becomes a no-op -- the
+                # sample then carries low-initiative annual reports that every other run
+                # dropped, with no error and no visible difference except the numbers.
+                #
+                # Raised rather than case-folded on the fly: normalising the values here
+                # would be a fourth, unrequested transformation of the data, and which
+                # casing is canonical is a property of the extract, not of this node.
+                # Resolve it either by normalising the column upstream in the extract or
+                # by running this vintage with execute_3_filters off.
+                if "Annual Report" not in set(lc["report_type"].dropna().unique()):
+                    raise ValueError(
+                        "execute_3_filters is on, but report_type contains no "
+                        f"'Annual Report' value for golden_data={C['golden_data']!r} "
+                        f"(observed: {sorted(lc['report_type'].dropna().unique())[:6]}). "
+                        "The annual-report cut would match zero rows and pass silently."
+                    )
                 lc = lc[~((lc["n_predicted_initiatives"] < C["min_initatives_annual_reports_if_execute_3_filters_true"]) & (lc["report_type"] == "Annual Report"))]
 
             print("After filtering Annual Reports: ", lc.shape)
