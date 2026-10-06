@@ -557,6 +557,7 @@ def build_cfg(**overrides) -> dict:
         Materiality_Action_Aggregate,
         MATERIALITY_ACTION_TYPES,
         Materiality_Kevin4_Bucket,
+        Materiality_Kevin4_SDG,
         KEVIN_4_BEHAVIOURS,
         SDG_Behaviour_Signals,
         BEHAVIOUR_TAXONOMIES,
@@ -896,6 +897,26 @@ def build_cfg(**overrides) -> dict:
                 f"{sorted(KEVIN_4_BEHAVIOURS)}"
             )
         categories_dict, *names = Materiality_Kevin4_Bucket(_k4_bucket)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # The per-SDG form of the above, and the only Kevin4 design that CROSSES with an SDG
+    # group: it reads material__<action>__SDG_n, so (sdg_group, bucket) is a real two-axis
+    # grid. Reuses sdg_group rather than declaring a fourth group knob -- SDG_Behaviour_Signals
+    # already owns that key and means exactly the same thing by it (an _SDG_GROUPS key), so a
+    # second key would be the same fact under two spellings.
+    #
+    # NOT interchangeable with Materiality_Kevin4_Bucket at sdg_group="All_SDGs": a multi-SDG
+    # initiative is counted once per SDG here and once there, and an SDG-unmapped one is in the
+    # flat column and in no per-SDG column. Build a whole block from one or the other.
+    elif ac == "Materiality_Kevin4_SDG":
+        _k4_group, _k4_bucket = c["sdg_group"], c["materiality_kevin4_bucket"]
+        if _k4_group is None or _k4_bucket is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs sdg_group (one of "
+                f"{sorted(_SDG_GROUPS)}) and materiality_kevin4_bucket (one of "
+                f"{sorted(KEVIN_4_BEHAVIOURS)}); got {_k4_group!r} and {_k4_bucket!r}"
+            )
+        categories_dict, *names = Materiality_Kevin4_SDG(_k4_group, _k4_bucket)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     # One SDG group x one behaviour taxonomy, materiality SUMMED rather than split: signal_i
@@ -1909,6 +1930,26 @@ def base_materiality_kevin4(bucket: str, **overrides):
                             **overrides)
 
 
+def base_materiality_kevin4_sdg(group: str, bucket: str, **overrides):
+    """One Kevin4 bucket's material share WITHIN one SDG group.
+
+    Registered below as base_materiality_kevin4_sdg_<group>_<bucket> for the 3 x 4 cross of
+    _SDG_GROUPS and KEVIN_4_BEHAVIOURS. The crossable twin of base_materiality_kevin4, which
+    reads the flat columns and therefore has no SDG axis at all.
+
+    area_material_initatives_plots_per_signal_to_PDF is forced off for exactly the reason it
+    is on base_materiality_kevin4: one mirror-pair group whose numerator names 2-5 actions,
+    which parse_numerator refuses. A sweep that builds these cfgs directly rather than going
+    through this factory has to pin the same flag in its FIXED block.
+    """
+    return _sdg_materiality(f"base_materiality_kevin4_sdg_{group.lower()}_{bucket.lower()}",
+                            "Materiality_Kevin4_SDG",
+                            sdg_group=group,
+                            materiality_kevin4_bucket=bucket,
+                            area_material_initatives_plots_per_signal_to_PDF=False,
+                            **overrides)
+
+
 def base_materiality_planet_action(width: str, action: str, **overrides):
     """Planet material vs immaterial, restricted to ONE behavioural action.
 
@@ -2319,6 +2360,29 @@ def _register_kevin4_experiments():
 
 
 _register_kevin4_experiments()
+
+
+# base_materiality_kevin4_sdg_<group>_<bucket>: the 3 x 4 cross, 12 configs. Both loop
+# variables are bound as default args for the reason the planet loop binds two -- a bare
+# closure would leave all twelve pointing at the last (group, bucket) pair.
+#
+# THE SAMPLE NARROWS DOWN THE GRID, twice over. People is 7 of the 17 SDGs and Planet 6, so
+# a (People, Innovation) cell is thinner than the All_SDGs row above it AND thinner than the
+# flat base_materiality_kevin4_innovation (57.5% of firm-years zero) beside it. Expect the
+# bottom-right of the grid to hit the thin-portfolio gate and read each cell's
+# signal_sparsity audit before treating it as a result.
+def _register_kevin4_sdg_experiments():
+    from functions.signal_design.signal_definitions_materiality import (
+        KEVIN_4_BEHAVIOURS, _SDG_GROUPS)
+
+    for g in _SDG_GROUPS:
+        for b in KEVIN_4_BEHAVIOURS:
+            EXPERIMENTS[f"base_materiality_kevin4_sdg_{g.lower()}_{b.lower()}"] = (
+                lambda g=g, b=b: base_materiality_kevin4_sdg(g, b)
+            )
+
+
+_register_kevin4_sdg_experiments()
 
 
 # ---- the same, per Planet width -------------------------------------------- #

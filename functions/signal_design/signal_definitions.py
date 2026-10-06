@@ -287,10 +287,16 @@ def dict_all_SDG_1D_prosperity_into_people(signal_0_name="people plus prosperity
 # NOT the cut dict_4_signals_Action_1D_Pre_Nikkei uses, and NOT the one baked into the
 # workbook's pre-aggregated material__advocacy_new_def / __upskilling / __adaptation /
 # __innovation columns: volunteerism moves Upskilling -> Advocacy, assessment_and_measurement
-# and organizational_structuring move Adaptation -> Upskilling, and pricing (in no Pre_Nikkei
-# bucket at all) joins Adaptation. Those four pre-aggregated columns therefore CANNOT express
-# this cut -- it has to be re-summed from the 14 flat action columns, which is exactly what
-# Materiality_Kevin4_Bucket does.
+# and organizational_structuring move Adaptation -> Upskilling, and pricing moves Advocacy ->
+# Adaptation. Those four pre-aggregated columns therefore CANNOT express this cut -- it has to
+# be re-summed from the 14 flat action columns, which is exactly what Materiality_Kevin4_Bucket
+# does, and which is EXACT rather than approximate: each pre-aggregated bucket column equals
+# the sum of its own action members (verified on all 72,412 firm-years of v_2A1), so re-summing
+# is the same arithmetic the workbook already does, on a different membership.
+#
+# pricing is absent from dict_4_signals_Action_1D_Pre_Nikkei below, but NOT from the workbook's
+# material__advocacy_new_def, which is donation_funding + communication + association + pricing.
+# The LC-column design and the workbook column disagree about it; this cut follows the workbook.
 #
 # A PARTITION: all 14 action types, each exactly once. Checked on import of
 # signal_definitions_materiality.py, where the loader's MATERIALITY_ACTION_TYPES tuple is in

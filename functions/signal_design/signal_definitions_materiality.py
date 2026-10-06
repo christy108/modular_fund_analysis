@@ -632,6 +632,55 @@ def Materiality_Kevin4_Bucket(bucket):
     )
 
 
+def Materiality_Kevin4_SDG(group, bucket):
+    """2 signals: material/immaterial for ONE Kevin4 bucket within ONE SDG group.
+
+    The per-SDG form of ``Materiality_Kevin4_Bucket``, and the only form that can be CROSSED
+    with an SDG group: it reads ``{materiality}__{action}__SDG_{n}`` for every action in the
+    bucket and every SDG in the group, so (group, bucket) is a genuine two-axis grid.
+    ``group`` is an _SDG_GROUPS key (All_SDGs / People / Planet), ``bucket`` a
+    KEVIN_4_BEHAVIOURS key.
+
+    NOT NUMERICALLY EQUAL to Materiality_Kevin4_Bucket even at group="All_SDGs", and the gap
+    is the same one Materiality_All_Action_SDG's docstring describes against
+    Materiality_Signals. An initiative mapped to three SDGs is counted THREE times here and
+    once there; an initiative the workbook mapped to no SDG at all is in the flat column and
+    in NO per-SDG column (the loader also drops the ``unmapped__*__SDG_n`` cube entirely,
+    ~0.43% of initiatives). So build a whole group x bucket block out of THIS function --
+    including its All_SDGs row -- rather than mixing the two, or one row of the block sits on
+    a different denominator from the rest and the block is not internally comparable.
+
+    Written out rather than routed through _signals_from_groups because that helper takes
+    {group: [sdg, ...]} and emits ONE action per call: here the several actions of a bucket
+    have to land on the SAME index, which is the whole point of a bucket.
+
+    Same one-group mirror-pair shape as Materiality_Kevin4_Bucket, and the SAME decomposition
+    trap: the numerator names 2-5 actions, so parse_numerator raises `numerator mixes actions`
+    if node 07's gate opens. area_material_initatives_plots_per_signal_to_PDF MUST be False --
+    base_materiality_kevin4_sdg forces it, and any sweep that builds these cfgs directly has
+    to pin it in its FIXED block, because it defaults True.
+
+    Signal names carry BOTH axes (Material_Kevin4_Advocacy_People). The group is not optional
+    decoration: without it every group's Advocacy cell would emit Material_Kevin4_Advocacy and
+    the 12 cells would be indistinguishable in a sweep's cumulative_table and risk_table rows.
+    """
+    if group not in _SDG_GROUPS:
+        raise ValueError(f"group {group!r} is not one of {sorted(_SDG_GROUPS)}")
+    if bucket not in KEVIN_4_BEHAVIOURS:
+        raise ValueError(f"bucket {bucket!r} is not one of {sorted(KEVIN_4_BEHAVIOURS)}")
+
+    categories = {}
+    for index, materiality in ((0, "material"), (1, "immaterial")):
+        for action in KEVIN_4_BEHAVIOURS[bucket]:
+            for sdg in _SDG_GROUPS[group]:
+                categories[f"{materiality}__{action}__SDG_{sdg}"] = index
+    return (
+        categories,
+        f"Material_Kevin4_{bucket}_{group}",
+        f"Immaterial_Kevin4_{bucket}_{group}",
+    )
+
+
 def Combined_Material_Immaterial_4_Behavioural_Signals(signal_0_name="Immaterial__Advocacy", signal_1_name="Immaterial__Adaptation",
 signal_2_name="Immaterial__Upskilling", signal_3_name="Immaterial__Innovation", signal_4_name="Material__Advocacy", signal_5_name="Material__Adaptation", 
 signal_6_name="Material__Upskilling", signal_7_name="Material__Innovation"):

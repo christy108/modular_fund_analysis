@@ -16,7 +16,7 @@
                                                        # sweep_parameters_*.py file lives in
                                                        # New_Pipeline/sweep_inputs/ -- see
                                                        # that package's docstring.
-    python -m New_Pipeline.sweep --box                # also push results.{pdf,csv,xlsx}
+    python -m New_Pipeline.sweep --box                # also push the PDF/CSV/XLSX
                                                        # to Box once the sweep finishes
                                                        # (see New_Pipeline/box_upload.py
                                                        # for the one-time app setup)
@@ -38,7 +38,9 @@ Output tree (all of it gitignored):
 
     sweep_output/
       results.jsonl        append-only ledger -- the source of truth
-      results.pdf          one dense page per experiment, rebuilt from the ledger
+      <sweep>.pdf          one dense page per experiment, rebuilt from the ledger
+                           (named after this folder, so it stays identifiable once
+                           it is mailed or uploaded)
       results.csv          one row per experiment, rebuilt from the ledger
       artifacts/<name>/    that run's parquets
       failures/<name>.log  traceback, for experiments that raised
@@ -94,17 +96,28 @@ from New_Pipeline.sweep_report import (
     headline_title,
     ledger_names,
     page_title,
+    set_presentation_order,
     param_diff,
     rest_title,
 )
 
 
 def _paths(output_dir: str) -> dict:
+    """Every file this sweep reads or writes, derived from its output folder.
+
+    The PDF is named after the FOLDER (`<stamp>_<sweep_name>.pdf`) rather than
+    `results.pdf`: it is the artifact that leaves this directory -- mailed, dropped in
+    Box (box_upload.py uploads by `paths["pdf"].name`, so every sweep used to arrive
+    there as another "results.pdf"), or opened beside three others -- and a filename that
+    says which sweep it is is the whole difference. The ledger, CSV and XLSX keep their
+    fixed names: they are read by path from inside this folder, where the folder already
+    supplies the context.
+    """
     base = Path(output_dir)
     return {
         "base": base,
         "ledger": base / "results.jsonl",
-        "pdf": base / "results.pdf",
+        "pdf": base / f"{base.name}.pdf",
         "csv": base / "results.csv",
         "xlsx": base / "results.xlsx",
         "artifacts": base / "artifacts",
@@ -115,7 +128,7 @@ def _paths(output_dir: str) -> dict:
 def resolve_output_dir(parent: str, sweep_name: str, new_run: bool = False) -> Path:
     """Pick the folder this sweep writes to: ``<parent>/<UTC stamp>_<sweep_name>/``.
 
-    Each sweep gets its own folder so one can never overwrite another's results.pdf.
+    Each sweep gets its own folder so one can never overwrite another's results.
     But a bare timestamp per invocation would break --resume, which is the whole point of
     the ledger -- re-running the same command must CONTINUE the sweep, not start an empty
     one beside it. So an existing folder for this name is reused, and a new stamp is
@@ -295,8 +308,8 @@ def _rebuild(paths: dict, upload_to_box: bool = False) -> None:
     pages = build_pdf(paths["ledger"], paths["pdf"])
     rows = build_csv(paths["ledger"], paths["csv"])
     build_xlsx(paths["ledger"], paths["xlsx"])
-    print(f"[sweep] rebuilt {paths['base']}/results.{{pdf,csv,xlsx}} "
-          f"({pages} pages, {rows} rows)")
+    print(f"[sweep] rebuilt {paths['pdf']} ({pages} pages) "
+          f"and {paths['base']}/results.{{csv,xlsx}} ({rows} rows)")
     if upload_to_box:
         from New_Pipeline.box_upload import upload_sweep_results
         upload_sweep_results(paths)
@@ -368,6 +381,8 @@ def main(argv: list[str]) -> None:
 
     # Before ANY read of SP below -- this may repoint it at another module.
     _load_params(argv)
+    # Hand the derived views this sweep's page order, now that --params has been applied.
+    set_presentation_order(getattr(SP, "SORT_BY", None), getattr(SP, "VALUE_ORDER", None))
 
     def flag_value(flag, default):
         return argv[argv.index(flag) + 1] if flag in argv else default

@@ -247,6 +247,56 @@ _HEADLINE_KEYS = frozenset(
 )
 
 
+# The order SDG groups are presented in: all 17 first, then People, then Planet. Anything
+# unlisted sorts after these, alphabetically. This is a PRESENTATION order and nothing
+# else reads it -- it does not have to agree with any dict order upstream.
+_SDG_GROUP_ORDER = [
+    "All SDGs",
+    "People",
+    "People+Prosperity",
+    "Planet (wide)",
+    "Planet (narrow)",
+    # The multi-group designs, which carry more than one of the above on one page.
+    "People/Planet/Prosperity",
+    "People+Prosperity vs Planet",
+    "5 SDG brackets",
+    "Climate+NatCap vs All",
+    # The health cuts: a re-slicing of People rather than a fourth peer of the big three.
+    "Health",
+    "Health ex-SDG8",
+    "Health (narrow)",
+    "Health+Work",
+]
+
+
+def sdg_group_of(cfg: dict) -> str | None:
+    """The SDG group one config sorts on, or None for a design with no SDG dimension.
+
+    THE REASON THIS EXISTS: the group is carried in two different places depending on the
+    design family. SDG_Behaviour_Signals reads cfg["sdg_group"]; the Materiality_*_SDG
+    family hard-codes it in the characterization name, because each group there reads a
+    different cfg key (experiments.py:756-811) and so cannot be one shared axis. Sorting
+    or grouping on either raw key alone therefore covers only half the sweeps -- this
+    resolves both to one string, and the headline and the page order then agree by
+    construction.
+    """
+    group = cfg.get("sdg_group") or _AC_GROUP.get(cfg.get("action_characterization") or "")
+    if group is None and cfg.get("materiality_single_sdg"):
+        return f"SDG {cfg['materiality_single_sdg']}"
+    return str(group).replace("_", " ") if group else None
+
+
+def _sdg_group_rank(cfg: dict):
+    """Sort position for one config's SDG group. Unlisted groups follow, alphabetically;
+    a design with no SDG dimension at all sorts last."""
+    group = sdg_group_of(cfg)
+    if group is None:
+        return (2, "")
+    if group in _SDG_GROUP_ORDER:
+        return (0, _SDG_GROUP_ORDER.index(group))
+    return (1, group)
+
+
 def headline_facets(cfg: dict) -> list[str]:
     """REGION / ACTION / SDG GROUP / SIGNAL for one config, empty facets dropped.
 
@@ -266,13 +316,9 @@ def headline_facets(cfg: dict) -> list[str]:
     if action:
         facets.append(str(action))
 
-    # The grouping. Materiality_single_SDG names its group in a cfg key rather than in
-    # the characterization, so that one branch covers all 17 SDGs.
-    group = cfg.get("sdg_group") or _AC_GROUP.get(ac)
-    if group is None and ac == "Materiality_single_SDG" and cfg.get("materiality_single_sdg"):
-        group = f"SDG {cfg['materiality_single_sdg']}"
+    group = sdg_group_of(cfg)
     if group:
-        facets.append(str(group).replace("_", " "))
+        facets.append(group)
 
     # The signal. A taxonomy added to BEHAVIOUR_TAXONOMIES without a label here falls
     # back to its own name rather than to the characterization's generic signal, which
@@ -431,8 +477,18 @@ def _sort_key(record: dict, sort_by: list, value_order: dict):
     unlisted int both land in rank 1, so they are coerced to str before comparing.
     """
     key = []
+    cfg = record.get("cfg") or {}
     for k in sort_by:
-        v = (record.get("cfg") or {}).get(k)
+        # "@sdg_group" is a DERIVED key, not a cfg key: it resolves the group out of
+        # whichever place this design carries it (see sdg_group_of). Without it a sweep
+        # crossing both design families cannot be ordered by group at all.
+        if k == "@sdg_group":
+            group = sdg_group_of(cfg)
+            order = value_order.get(k) or _SDG_GROUP_ORDER
+            key.append((0, order.index(group), "") if group in order
+                       else (1, 0.0, str(group)) if group else (2, 0.0, ""))
+            continue
+        v = cfg.get(k)
         order = value_order.get(k) or []
         if v in order:
             key.append((0, order.index(v), ""))
@@ -449,26 +505,39 @@ def _sort_key(record: dict, sort_by: list, value_order: dict):
     return key
 
 
+# The active sweep's presentation order, pushed in by sweep.main() once --params has been
+# resolved. PUSHED rather than pulled: this module used to read it back off
+# `New_Pipeline.sweep.SP`, but under `python -m New_Pipeline.sweep` the running module is
+# `__main__` and that import built a SECOND copy of it -- one whose _load_params had never
+# run. So --params swapped the worklist while the sort silently stayed on the US sweep's
+# SORT_BY, for every sweep, on every rebuild.
+_ORDER: dict = {"sort_by": None, "value_order": None}
+
+
+def set_presentation_order(sort_by: list | None, value_order: dict | None = None) -> None:
+    """Declare the sort the derived views use. Called once, at startup."""
+    _ORDER["sort_by"] = sort_by
+    _ORDER["value_order"] = value_order
+
+
 def sorted_records(records: list, sort_by=None, value_order=None) -> list:
-    """Ledger records in presentation order. Falls back to ledger order if unconfigured.
+    """Ledger records in presentation order.
 
     build_pdf and build_csv BOTH call this, which is what keeps `row N <-> page N` true:
     the two derived views must enumerate the same records in the same sequence.
     """
-    if sort_by is None or value_order is None:
-        try:
-            # Whatever sweep.py is currently pointed at (--params swaps it), falling
-            # back to the US worklist. NOT `from New_Pipeline import sweep_parameters`:
-            # that module was renamed to sweep_parameters_{US,EU}.py, and the bare name
-            # now raises -- which this except swallows, silently dropping the sort and
-            # emitting the PDF in ledger order instead.
-            from New_Pipeline.sweep import SP
-            sort_by = SP.SORT_BY if sort_by is None else sort_by
-            value_order = getattr(SP, "VALUE_ORDER", None) if value_order is None else value_order
-        except Exception:
-            sort_by, value_order = [], {}
+    if sort_by is None:
+        sort_by = _ORDER["sort_by"]
+    if value_order is None:
+        value_order = _ORDER["value_order"]
     if not sort_by:
-        return list(records)
+        # No SORT_BY in the params module. Order by SDG group anyway -- All SDGs, then
+        # People, then Planet -- because that is the axis every one of these sweeps is
+        # read along. sorted() is stable, so records inside one group keep LEDGER order:
+        # the fallback adds a grouping without imposing an arbitrary order on sweeps that
+        # have no SDG dimension (prop_cooperation, total_initiatives), which all land in
+        # one bucket and come out exactly as before.
+        return sorted(records, key=lambda r: _sdg_group_rank(r.get("cfg") or {}))
     if value_order is None:
         value_order = {}
     return sorted(records, key=lambda r: _sort_key(r, sort_by, value_order))
