@@ -173,6 +173,13 @@ def build_cfg(**overrides) -> dict:
         # left here under a different design is inert rather than wrong.
         materiality_people_action=None,
         materiality_all_action=None,
+        # The two knobs SDG_Behaviour_Signals reads: which SDG group to cut on, and which
+        # behaviour taxonomy supplies its signals. That design does NOT split material from
+        # immaterial — it sums them — so unlike every other key in this block these two
+        # describe a non-materiality design that nevertheless needs add_materiality=True,
+        # because the workbook is where its per-SDG behaviour columns live.
+        sdg_group=None,
+        behaviour_taxonomy=None,
         # Which INDIVIDUAL action type Materiality_Action_Aggregate sorts on — one of the 14
         # MATERIALITY_ACTION_TYPES, a level finer than the action knobs above (those take the
         # 7 behaviour BUCKETS). Read only by that design, so a value left here under another
@@ -536,6 +543,9 @@ def build_cfg(**overrides) -> dict:
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
         Materiality_Action_Aggregate,
         MATERIALITY_ACTION_TYPES,
+        SDG_Behaviour_Signals,
+        BEHAVIOUR_TAXONOMIES,
+        _SDG_GROUPS,
         Combined_Material_Immaterial_4_Behavioural_Signals,
         Combined_Material_Immaterial_3_Matteo_Signals,
         immaterial_4_Behavioural_Signals,
@@ -822,6 +832,21 @@ def build_cfg(**overrides) -> dict:
                 f"{sorted(MATERIALITY_ACTION_TYPES)}"
             )
         categories_dict, *names = Materiality_Action_Aggregate(_agg_action)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One SDG group x one behaviour taxonomy, materiality SUMMED rather than split: signal_i
+    # is behaviour i's share of that group's initiatives. Both knobs are required for the
+    # same reason the action designs require theirs — there is no sensible default, and a
+    # silent one would sort on a different quantity than the experiment name claims.
+    elif ac == "SDG_Behaviour_Signals":
+        _grp, _tax = c["sdg_group"], c["behaviour_taxonomy"]
+        if _grp is None or _tax is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs sdg_group (one of "
+                f"{sorted(_SDG_GROUPS)}) and behaviour_taxonomy (one of "
+                f"{sorted(BEHAVIOUR_TAXONOMIES)}); got {_grp!r} and {_tax!r}"
+            )
+        categories_dict, *names = SDG_Behaviour_Signals(_grp, _tax)
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
     else:
@@ -2012,6 +2037,45 @@ _register_pp_action_experiments()
 # density is measurable rather than assumed — but read each run's signal_sparsity and
 # materiality_split_floor audits before reporting an alpha. A degenerate sort is a finding
 # about the data, not a result.
+def base_behaviour_group(taxonomy: str, group: str, **overrides):
+    """One SDG group's behaviour shares, materiality summed away.
+
+    Registered below as base_behaviour_<taxonomy>_<group>, 9 configs. The non-materiality
+    companion to base_materiality_{all,people,planet}_<action>: same sample, same SDG groups,
+    but each signal is a BEHAVIOUR's share of the group rather than the material share of one
+    behaviour.
+
+    Goes through _sdg_materiality despite not being a materiality design, because it reads
+    the workbook's per-SDG columns and so needs add_materiality=True and
+    materiality_version=2 exactly as that helper supplies them.
+
+    Unlike base_materiality_action, the decomposition PDF needs NO forcing off here: these
+    designs yield 0 materiality_split_groups, so node 07's gate never opens and
+    initiative_brackets is never reached.
+    """
+    return _sdg_materiality(f"base_behaviour_{taxonomy}_{group}",
+                            "SDG_Behaviour_Signals",
+                            sdg_group=group, behaviour_taxonomy=taxonomy, **overrides)
+
+
+# base_behaviour_<taxonomy>_<group>: 9 configs, the full 3 x 3 cross. Both loop variables are
+# bound as default args for the same reason the planet loop binds both -- a bare closure would
+# leave all nine pointing at the last (taxonomy, group) pair.
+def _register_behaviour_group_experiments():
+    from functions.signal_design.signal_definitions_materiality import (
+        BEHAVIOUR_TAXONOMIES, _SDG_GROUPS,
+    )
+
+    for t in BEHAVIOUR_TAXONOMIES:
+        for g in _SDG_GROUPS:
+            EXPERIMENTS[f"base_behaviour_{t}_{g}"] = (
+                lambda t=t, g=g: base_behaviour_group(t, g)
+            )
+
+
+_register_behaviour_group_experiments()
+
+
 def _register_aggregate_action_experiments():
     # The signal module validates against this same tuple, so the loop and the design cannot
     # disagree about which actions exist.

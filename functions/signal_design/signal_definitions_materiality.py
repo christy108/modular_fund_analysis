@@ -385,6 +385,84 @@ def Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS():
 
 
 
+# The three SDG groups the behaviour designs below are cut on. A SUBSET of the group dicts
+# re-exported at the top of this module, spelled out here because "All_SDGs" is not one of
+# them -- PEOPLE_PLANET_PROSPERITY partitions the 17 into People/Prosperity/Planet, and the
+# all-17 group is the union, which no dict there carries on its own.
+_SDG_GROUPS = {
+    "All_SDGs": list(range(1, 18)),
+    "People":   PEOPLE_PLANET_PROSPERITY["People"],
+    "Planet":   PEOPLE_PLANET_PROSPERITY["Planet"],
+}
+
+
+# The three behaviour taxonomies, as lists of WORKBOOK action names. Every entry is a key the
+# materiality merge already selects per SDG, which is why all three are reachable without
+# loading anything new -- including matteo3, whose buckets are defined over action x
+# STAKEHOLDER upstream and have no per-SDG form anywhere in the LC panel.
+#
+# `pricing` is excluded from action13 to match the materiality sweep. CONSEQUENCE: the three
+# taxonomies have DIFFERENT denominators under signal_denominator="Sum_All_Signals" --
+# behavioural4 spans all 14 actions, action13 omits pricing, and matteo3 omits both pricing
+# and association by construction upstream. Shares are comparable WITHIN a taxonomy, never
+# across two of them.
+#
+# Declaration ORDER is load-bearing: node 07 uses the last signal in insertion order as the
+# sort key for some audits, so reordering a list silently changes those tables.
+BEHAVIOUR_TAXONOMIES = {
+    "matteo3":      ["advocacy_old_def", "preparation", "transformation"],
+    "behavioural4": ["advocacy_new_def", "upskilling", "adaptation", "innovation"],
+    "action13":     [a for a in MATERIALITY_ACTION_TYPES if a != "pricing"],
+}
+
+
+def SDG_Behaviour_Signals(group, taxonomy):
+    """One signal per behaviour within one SDG group — materiality SUMMED, not split.
+
+    The companion to the Materiality_*_Action_SDG family: those ask "of this group's
+    <behaviour> initiatives, what share is material?"; this asks "of this group's
+    initiatives, what share is <behaviour>?". `group` is an _SDG_GROUPS key, `taxonomy` a
+    BEHAVIOUR_TAXONOMIES key, so the nine designs are two strings apiece.
+
+    HOW MATERIALITY IS REMOVED: both the material__ and immaterial__ columns of an action
+    land on the SAME signal index, and node 02 sums every column sharing an index into
+    sum_with_i. So no new column namespace and no new machinery -- the split is undone by
+    where the columns point, not by reading somewhere else.
+
+    WHY THE WORKBOOK AND NOT LC's OWN "<action> - SDG n" COLUMNS, which would need no
+    materiality merge at all: matteo3 is unreachable from them. Its buckets are action x
+    stakeholder, and LC's TYPE_SREC columns carry no SDG dimension -- that cube is a separate
+    1,666-column file this repo never loads, whereas the workbook already carries
+    advocacy_old_def/preparation/transformation per SDG, pre-aggregated upstream. The merge
+    also costs nothing in sample here: it is an inner join, but the workbook covers 100% of
+    LC firm-years on this vintage (72,412 -> 72,412), so these designs sit on exactly the
+    sample the material-share designs sit on and the two sets of results are comparable.
+
+    So add_materiality MUST still be True. The workbook is the DATA SOURCE here, not the
+    split -- which is the one genuinely confusing thing about this design.
+
+    NOT a materiality design by materiality_split_groups' definition: an index holding both
+    prefixes is not wholly material, so it returns 0 groups. Everything materiality-flavoured
+    downstream is therefore inert -- the decomposition PDF gate needs exactly 1 group and
+    skips, and minimum_initatives_needed_to_split_by_materiality must stay 0.
+
+    Excludes `unmapped__*__SDG_n` (~0.43% of initiatives), which the loader does not select.
+    """
+    if group not in _SDG_GROUPS:
+        raise ValueError(f"group {group!r} is not one of {sorted(_SDG_GROUPS)}")
+    if taxonomy not in BEHAVIOUR_TAXONOMIES:
+        raise ValueError(f"taxonomy {taxonomy!r} is not one of {sorted(BEHAVIOUR_TAXONOMIES)}")
+
+    categories, names = {}, []
+    for action in BEHAVIOUR_TAXONOMIES[taxonomy]:
+        index = len(names)
+        names.append(f"{_action_tag(action)}_{group}")
+        for materiality in ("material", "immaterial"):
+            for sdg in _SDG_GROUPS[group]:
+                categories[f"{materiality}__{action}__SDG_{sdg}"] = index
+    return (categories, *names)
+
+
 def Materiality_Action_Aggregate(action):
     """2 signals: Material_<Action>, Immaterial_<Action> — ONE action type, material vs immaterial.
 
