@@ -209,6 +209,7 @@ _TAXONOMY_LABEL = {
     "matteo3": "3 behaviours",
     "behavioural4": "4 behaviours",
     "action13": "13 action types",
+    "kevin4": "4 behaviours (Kevin cut)",
 }
 
 # What the sort is ON, for characterizations that fix their own signal shape rather than
@@ -269,6 +270,18 @@ _SDG_GROUP_ORDER = [
 ]
 
 
+# cfg["sdg_group"] values -> the vocabulary _AC_GROUP uses, so one group spelled two ways
+# renders and sorts as ONE group. The behaviour designs' "Planet" IS the wide Planet:
+# _SDG_GROUPS["Planet"] is PEOPLE_PLANET_PROSPERITY["Planet"] = 6, 7, 12, 13, 14, 15, the
+# same six SDGs Materiality_Planet_Action_SDG cuts on (Narrow_Planet is 13, 14, 15 and is
+# a different group). Without this they sorted into two separate blocks.
+_SDG_GROUP_ALIAS = {
+    "All_SDGs": "All SDGs",
+    "People": "People",
+    "Planet": "Planet (wide)",
+}
+
+
 def sdg_group_of(cfg: dict) -> str | None:
     """The SDG group one config sorts on, or None for a design with no SDG dimension.
 
@@ -280,10 +293,13 @@ def sdg_group_of(cfg: dict) -> str | None:
     resolves both to one string, and the headline and the page order then agree by
     construction.
     """
-    group = cfg.get("sdg_group") or _AC_GROUP.get(cfg.get("action_characterization") or "")
+    raw = cfg.get("sdg_group")
+    if raw:
+        return _SDG_GROUP_ALIAS.get(raw, str(raw).replace("_", " "))
+    group = _AC_GROUP.get(cfg.get("action_characterization") or "")
     if group is None and cfg.get("materiality_single_sdg"):
         return f"SDG {cfg['materiality_single_sdg']}"
-    return str(group).replace("_", " ") if group else None
+    return group
 
 
 def _sdg_group_rank(cfg: dict):

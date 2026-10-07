@@ -1,4 +1,11 @@
-"""Developed: (All SDGs / People / Planet) x (the 4 Kevin4 behaviour buckets).
+"""Kevin4 MATERIAL SHARE: (All SDGs / People / Planet) x (the 4 Kevin4 buckets), Developed.
+
+Sorts on MATERIALITY. Each cell asks "of this group's <bucket> initiatives, what share is
+material?" -- 2 signals, material vs immaterial, a mirror pair.
+
+The twin file sweep_parameters_Developed_kevin4_no_materiality.py sorts on BEHAVIOUR
+instead and has no materiality dimension at all. Same sample, same groups, same Kevin4
+cut, same FIXED block bar one knob -- read the two together.
 
 12 cells. The same grid shape as sweep_parameters_Developed_action_types_4_behaviours.py,
 cut on the KEVIN4 buckets instead of the workbook's pre-aggregated ones:
@@ -86,7 +93,7 @@ EXPLICIT: list[dict] = [
 ]
 
 
-SWEEP_NAME: str = "developed_materiality_sdg_groups_x_kevin4_behaviour_buckets"
+SWEEP_NAME: str = "kevin4_MATERIAL_SHARE_by_sdg_group"
 
 
 # --------------------------------------------------------------------------- #

@@ -483,10 +483,29 @@ _SDG_GROUPS = {
 #
 # Declaration ORDER is load-bearing: node 07 uses the last signal in insertion order as the
 # sort key for some audits, so reordering a list silently changes those tables.
+# A behaviour is one or more ACTIONS. Every entry of the three original taxonomies below is a
+# single pre-aggregated workbook action and resolves to itself; a Kevin4 bucket resolves to
+# its member action types. One lookup, so SDG_Behaviour_Signals needs no per-taxonomy branch
+# and the Kevin4 cut is defined in exactly one place (KEVIN_4_BEHAVIOURS) for all three
+# families that read it.
+#
+# Keys are NAMESPACED "Kevin4_<Bucket>", and that is load-bearing rather than decoration:
+# behavioural4 and Kevin4 BOTH have an Upskilling, an Adaptation and an Innovation, cut
+# differently, and _action_tag would spell them identically. Two designs emitting one signal
+# name collide in cumulative_table and risk_table rows, where the later column silently
+# overwrites the earlier -- so base_behaviour_kevin4_People would be indistinguishable from
+# base_behaviour_behavioural4_People on three of its four signals.
+_KEVIN4_BEHAVIOUR_ACTIONS = {f"Kevin4_{b}": acts for b, acts in KEVIN_4_BEHAVIOURS.items()}
+
+
 BEHAVIOUR_TAXONOMIES = {
     "matteo3":      ["advocacy_old_def", "preparation", "transformation"],
     "behavioural4": ["advocacy_new_def", "upskilling", "adaptation", "innovation"],
     "action13":     [a for a in MATERIALITY_ACTION_TYPES if a != "pricing"],
+    # The Kevin4 re-cut. Spans all 14 actions (pricing included), so its denominator matches
+    # behavioural4's and NOT action13's -- the two 4-bucket taxonomies are comparable to each
+    # other cell for cell, which is the whole point of running both.
+    "kevin4":       list(_KEVIN4_BEHAVIOUR_ACTIONS),
 }
 
 
@@ -528,12 +547,16 @@ def SDG_Behaviour_Signals(group, taxonomy):
         raise ValueError(f"taxonomy {taxonomy!r} is not one of {sorted(BEHAVIOUR_TAXONOMIES)}")
 
     categories, names = {}, []
-    for action in BEHAVIOUR_TAXONOMIES[taxonomy]:
+    for behaviour in BEHAVIOUR_TAXONOMIES[taxonomy]:
         index = len(names)
-        names.append(f"{_action_tag(action)}_{group}")
-        for materiality in ("material", "immaterial"):
-            for sdg in _SDG_GROUPS[group]:
-                categories[f"{materiality}__{action}__SDG_{sdg}"] = index
+        names.append(f"{_action_tag(behaviour)}_{group}")
+        # A behaviour is one or more actions (see _KEVIN4_BEHAVIOUR_ACTIONS): the single-action
+        # taxonomies resolve to themselves, so this loop runs once for them and the three
+        # original taxonomies are bit-identical to their pre-generalisation selves.
+        for action in _KEVIN4_BEHAVIOUR_ACTIONS.get(behaviour, [behaviour]):
+            for materiality in ("material", "immaterial"):
+                for sdg in _SDG_GROUPS[group]:
+                    categories[f"{materiality}__{action}__SDG_{sdg}"] = index
     return (categories, *names)
 
 
