@@ -173,6 +173,30 @@ def build_cfg(**overrides) -> dict:
         # left here under a different design is inert rather than wrong.
         materiality_people_action=None,
         materiality_all_action=None,
+        # The two knobs SDG_Behaviour_Signals reads: which SDG group to cut on, and which
+        # behaviour taxonomy supplies its signals. That design does NOT split material from
+        # immaterial — it sums them — so unlike every other key in this block these two
+        # describe a non-materiality design that nevertheless needs add_materiality=True,
+        # because the workbook is where its per-SDG behaviour columns live.
+        sdg_group=None,
+        behaviour_taxonomy=None,
+        # Which INDIVIDUAL action type Materiality_Action_Aggregate sorts on — one of the 14
+        # MATERIALITY_ACTION_TYPES, a level finer than the action knobs above (those take the
+        # 7 behaviour BUCKETS). Read only by that design, so a value left here under another
+        # action_characterization is inert rather than wrong.
+        materiality_aggregate_action=None,
+        # Which KEVIN_4_BEHAVIOURS bucket action_characterization="Materiality_Kevin4_Bucket"
+        # sorts on -- "Advocacy", "Upskilling", "Adaptation" or "Innovation". One level
+        # COARSER than materiality_aggregate_action above, which takes one of the 14 action
+        # types: a bucket sums several of them onto one signal.
+        #
+        # NOT interchangeable with the pre-aggregated workbook buckets that
+        # material_4_Behavioural_Signals reads -- the Kevin4 cut moves volunteerism,
+        # assessment_and_measurement, organizational_structuring and pricing relative to
+        # advocacy_new_def/upskilling/adaptation/innovation, so these are re-summed from the
+        # flat action columns instead. Read only by that design, so a value left here under
+        # another action_characterization is inert rather than wrong.
+        materiality_kevin4_bucket=None,
         # Turn ANY two-signal mirror-pair design into its NET form: signal_0 becomes
         # material - immaterial (a signed LEVEL) instead of material / (material +
         # immaterial) (a share). A modifier, not a design: it composes with the group and
@@ -231,9 +255,9 @@ def build_cfg(**overrides) -> dict:
         # `New_Pipeline.sweep --jobs N` needs this off. Turn on to inspect one run by hand.
         write_debug_csv=False,
         drop_suspicious_gvkeys=True,
-        drop_real_estate=True,
+        drop_real_estate=False,
         drop_fin=False,
-        drop_utilities=True,
+        drop_utilities=False,
         drop_health_care=False,
         anlayse_fashion_only=False,
         msci_score_column="weighted",
@@ -501,6 +525,7 @@ def build_cfg(**overrides) -> dict:
     from functions.signal_design.signal_definitions import (
         dict_2d_actions_stakeholders_original_matteo,
         dict_4_signals_Action_1D_Pre_Nikkei,
+        dict_4_signals_Action_1D_kevin_people,
         dict_4_stakeholder_signals_Pre_Nikkei,
         dict_all_SDG_1D,
         dict_all_SDG_1D_prosperity_into_people,
@@ -529,6 +554,14 @@ def build_cfg(**overrides) -> dict:
         Materiality_SDG_X,
         Materiality_Signals_5_groups_SDG_brackets,
         Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS,
+        Materiality_Action_Aggregate,
+        MATERIALITY_ACTION_TYPES,
+        Materiality_Kevin4_Bucket,
+        Materiality_Kevin4_SDG,
+        KEVIN_4_BEHAVIOURS,
+        SDG_Behaviour_Signals,
+        BEHAVIOUR_TAXONOMIES,
+        _SDG_GROUPS,
         Combined_Material_Immaterial_4_Behavioural_Signals,
         Combined_Material_Immaterial_3_Matteo_Signals,
         immaterial_4_Behavioural_Signals,
@@ -543,6 +576,14 @@ def build_cfg(**overrides) -> dict:
     elif ac == "4_signals_new":
         categories_dict, s0, s1, s2, s3 = dict_4_signals_Action_1D_Pre_Nikkei()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
+    # The Kevin4 re-cut of the same 14 action types "4_signals_new" buckets differently --
+    # LC's own 'TYPE: ...' columns, no material/immaterial dimension. Star-unpack like the
+    # SDG group designs, so KEVIN_4_BEHAVIOURS can be re-cut in signal_definitions.py
+    # without touching this branch.
+    elif ac == "kevin4_behaviours":
+        categories_dict, *names = dict_4_signals_Action_1D_kevin_people()
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
     elif ac == "4_stakeholder_new":
         categories_dict, s0, s1, s2, s3 = dict_4_stakeholder_signals_Pre_Nikkei()
         lc_signals = {"signal_0": s0, "signal_1": s1, "signal_2": s2, "signal_3": s3}
@@ -617,6 +658,31 @@ def build_cfg(**overrides) -> dict:
     elif ac == "total_initiatives":
         categories_dict = {"n_predicted_initiatives": 0}
         lc_signals = {"signal_0": "Total_Initiatives"}
+
+    # ONE signal, the LC column `prop_cooperation` used as-is. Nothing is aggregated,
+    # ratio'd or rescaled: the column already IS the signal, so this rides the same
+    # single-column/single-group path total_initiatives uses and node 02's cell-21 loop
+    # under signal_type="counts" sets signal_0 = sum_with_0 = prop_cooperation exactly.
+    # Defined inline for the same reason total_initiatives is: one column, one group, and
+    # functions/signal_design/ is the frozen core.
+    #
+    # VINTAGE-BOUND. prop_cooperation ships only in the HQ extract -- it is absent from
+    # LC_dataset_v2A1 and every older vintage -- so this characterization requires
+    # golden_data="HQ_LC_dataseet_v_1_1O1". Enforced below, because the failure is
+    # otherwise a bare KeyError out of node 02's categories_dict check.
+    #
+    # As delivered the column is NOT bounded by 1 despite the name: 54,089 non-null
+    # firm-years, mean 0.31, median 0.28, min 0.006, but max 4.60 and 421 values at
+    # exactly 1.0. Nothing here clips it -- it is sorted as given, and the 4.60 tail sits
+    # in the top bucket. The remaining 20.7% of firm-years are null and drop out of the
+    # sort entirely, which is a larger coverage hole than the materiality designs carry.
+    #
+    # Only meaningful under signal_type="counts" (the column itself). "weights" is
+    # rejected below for the same reason it is on total_initiatives, and "per_revenue"
+    # would divide a proportion by revenue, which is not a quantity.
+    elif ac == "prop_cooperation":
+        categories_dict = {"prop_cooperation": 0}
+        lc_signals = {"signal_0": "Prop_Cooperation"}
 
     # elif ac == "immaterial_4_Behavioural_Signals":
     #     categories_dict, s0, s1, s2, s3 = immaterial_4_Behavioural_Signals()
@@ -803,6 +869,71 @@ def build_cfg(**overrides) -> dict:
         categories_dict, *names = Materiality_Signals_Climate_Natural_Capital_vs_All_SDGS()
         lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
 
+    # One INDIVIDUAL action type, material vs immaterial — the flat aggregate columns, not
+    # the per-SDG cube. Raises on a missing action rather than defaulting to one: there is no
+    # natural default among the 14, and a silent choice would sort on a different quantity
+    # than the experiment name claims.
+    elif ac == "Materiality_Action_Aggregate":
+        _agg_action = c["materiality_aggregate_action"]
+        if _agg_action is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs materiality_aggregate_action, one of "
+                f"{sorted(MATERIALITY_ACTION_TYPES)}"
+            )
+        categories_dict, *names = Materiality_Action_Aggregate(_agg_action)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One KEVIN_4_BEHAVIOURS bucket, material vs immaterial, summed from the FLAT aggregate
+    # action columns. One level COARSER than Materiality_Action_Aggregate above (several of
+    # the 14 land on each signal) and a DIFFERENT cut from the pre-aggregated workbook
+    # buckets material_4_Behavioural_Signals reads. Required rather than defaulted, same
+    # reasoning as the action knobs: there is no natural default among the four, and a silent
+    # choice would sort on a different quantity than the experiment name claims.
+    elif ac == "Materiality_Kevin4_Bucket":
+        _k4_bucket = c["materiality_kevin4_bucket"]
+        if _k4_bucket is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs materiality_kevin4_bucket, one of "
+                f"{sorted(KEVIN_4_BEHAVIOURS)}"
+            )
+        categories_dict, *names = Materiality_Kevin4_Bucket(_k4_bucket)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # The per-SDG form of the above, and the only Kevin4 design that CROSSES with an SDG
+    # group: it reads material__<action>__SDG_n, so (sdg_group, bucket) is a real two-axis
+    # grid. Reuses sdg_group rather than declaring a fourth group knob -- SDG_Behaviour_Signals
+    # already owns that key and means exactly the same thing by it (an _SDG_GROUPS key), so a
+    # second key would be the same fact under two spellings.
+    #
+    # NOT interchangeable with Materiality_Kevin4_Bucket at sdg_group="All_SDGs": a multi-SDG
+    # initiative is counted once per SDG here and once there, and an SDG-unmapped one is in the
+    # flat column and in no per-SDG column. Build a whole block from one or the other.
+    elif ac == "Materiality_Kevin4_SDG":
+        _k4_group, _k4_bucket = c["sdg_group"], c["materiality_kevin4_bucket"]
+        if _k4_group is None or _k4_bucket is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs sdg_group (one of "
+                f"{sorted(_SDG_GROUPS)}) and materiality_kevin4_bucket (one of "
+                f"{sorted(KEVIN_4_BEHAVIOURS)}); got {_k4_group!r} and {_k4_bucket!r}"
+            )
+        categories_dict, *names = Materiality_Kevin4_SDG(_k4_group, _k4_bucket)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
+    # One SDG group x one behaviour taxonomy, materiality SUMMED rather than split: signal_i
+    # is behaviour i's share of that group's initiatives. Both knobs are required for the
+    # same reason the action designs require theirs — there is no sensible default, and a
+    # silent one would sort on a different quantity than the experiment name claims.
+    elif ac == "SDG_Behaviour_Signals":
+        _grp, _tax = c["sdg_group"], c["behaviour_taxonomy"]
+        if _grp is None or _tax is None:
+            raise ValueError(
+                f"action_characterization={ac!r} needs sdg_group (one of "
+                f"{sorted(_SDG_GROUPS)}) and behaviour_taxonomy (one of "
+                f"{sorted(BEHAVIOUR_TAXONOMIES)}); got {_grp!r} and {_tax!r}"
+            )
+        categories_dict, *names = SDG_Behaviour_Signals(_grp, _tax)
+        lc_signals = {f"signal_{i}": n for i, n in enumerate(names)}
+
     else:
         raise ValueError(f"unknown action_characterization {ac!r}")
 
@@ -878,6 +1009,28 @@ def build_cfg(**overrides) -> dict:
             "signal_type='counts' (total initiatives) or 'per_revenue' (total initiatives "
             "/ revenue)."
         )
+    if ac == "prop_cooperation":
+        # Same degenerate case as total_initiatives above: one group covering the single
+        # column, so under "weights" signal_0 = sum_with_0 / sum_activities == 1.0 for
+        # every firm-year whenever signal_denominator="Sum_All_Signals" (the default) --
+        # a constant, which cannot be sorted.
+        if signal_type != "counts":
+            raise ValueError(
+                "action_characterization='prop_cooperation' uses the LC column as the "
+                f"signal directly, so signal_type must be 'counts'; got {signal_type!r}. "
+                "'weights' would give sum_with_0 / sum_activities == 1.0 for every firm, "
+                "and 'per_revenue' would divide a proportion by revenue."
+            )
+        # prop_cooperation exists only in the HQ extract. Checked here rather than left to
+        # node 02's categories_dict guard so the message names the cause (wrong vintage)
+        # instead of reporting a missing column.
+        if c["golden_data"] != "HQ_LC_dataseet_v_1_1O1":
+            raise ValueError(
+                "action_characterization='prop_cooperation' needs "
+                "golden_data='HQ_LC_dataseet_v_1_1O1' -- the prop_cooperation column "
+                f"ships only in that extract, and golden_data={c['golden_data']!r} does "
+                "not carry it."
+            )
     if signal_type == "per_revenue" and not c["add_sales"]:
         raise ValueError(
             "signal_type='per_revenue' needs add_sales=True -- the denominator is the "
@@ -1105,7 +1258,7 @@ def base_none_Developed():
 def base_net_materiality_People_advocacy_Developed():
     """Net materiality, People SDGs, advocacy_old_def behaviour, on Developed.
 
-    ONE CELL of sweep_parameters_Developed_net.py, lifted out as a named experiment so the
+    ONE CELL of sweep_inputs/sweep_parameters_Developed_net.py, lifted out as a named experiment so the
     design can be inspected (dashboard, decomposition PDF, sort_cutpoint audit) without
     running the 64-cell grid. Every knob below matches that file's FIXED block, so this IS
     the grid's (People, advocacy_old_def, mktcap-weighted, 0.95) cell -- not a lookalike.
@@ -1388,6 +1541,51 @@ def base_total_initiatives_counts():
     )
 
 
+def base_prop_cooperation():
+    # High/low portfolios sorted on the raw LC column prop_cooperation.
+    # signal_0 = prop_cooperation, unaggregated and unscaled.
+    #
+    # signal_denominator="Sum_All_Initiatives" is a DELIBERATE departure from the
+    # "Sum_All_Signals" baseline, and it does not touch the signal -- under
+    # signal_type="counts" nothing is divided. It picks what `sum_activities` is, and
+    # sum_activities is the variable node 02's alpha-bound trim cuts on. Left at the
+    # default, sum_activities would BE prop_cooperation (the single group's only column),
+    # so the trim would drop the top and bottom 2.5% of the signal within each fiscal
+    # year -- i.e. it would delete precisely the firm-years the high/low sort is built
+    # from, before the sort ever runs. Pointing it at n_predicted_initiatives makes the
+    # trim cut on total activity, as it does in every other design.
+    #
+    # THAT IS STILL NOT INDEPENDENT OF THE SIGNAL, and the distinction matters.
+    # prop_cooperation IS coop_initiatives_count / total_initiatives_count -- verified
+    # exactly, on 100% of non-null rows -- and total_initiatives_count is what
+    # n_predicted_initiatives renames to on this vintage. So the trim cuts on the signal's
+    # own DENOMINATOR. Measured on the 2016-2024 sample at alpha=0.05: the firm-years it
+    # removes carry a mean signal of 0.414 against 0.300 for those it keeps, with a median
+    # denominator of 3 against 11. Small denominators make coarse, extreme ratios (1/2,
+    # 1/3, 2/3), so the trim preferentially removes HIGH-signal, badly-estimated
+    # firm-years. Raising alpha removes more of them: the sample mean falls 0.3066 ->
+    # 0.2998 -> 0.2929 across alpha = 0, 0.05, 0.10.
+    #
+    # That is arguably the behaviour you want -- it is a precision floor on a ratio of two
+    # small counts -- but it is part of the SIGNAL DEFINITION, not an independent sample
+    # filter, and sweeping alpha varies the signal's measurement precision as well as the
+    # sample size. Do not read an alpha axis here as a clean robustness check.
+    #
+    # add_materiality=False: the signal needs no SASB workbook, and no materiality
+    # matching file exists for this vintage anyway (load_materiality builds its filename
+    # from golden_data). Note this means the sample is NOT the one the base_materiality_*
+    # experiments run on, so read results against another non-materiality design rather
+    # than against those.
+    return make_experiment(
+        "base_prop_cooperation",
+        build_cfg(golden_data="HQ_LC_dataseet_v_1_1O1",
+                  action_characterization="prop_cooperation",
+                  signal_type="counts",
+                  signal_denominator="Sum_All_Initiatives",
+                  add_materiality=False),
+    )
+
+
 def base_total_initiatives_per_revenue():
     # The same single total, scaled by revenue: signal_0 = n_predicted_initiatives / sale_usd.
     # Read against base_total_initiatives_counts -- identical numerator, the only
@@ -1452,6 +1650,22 @@ def base_3_signals():
     return make_experiment("3_signals_new", build_cfg(add_materiality=True, action_characterization = "original_matteo"))
 
 
+
+
+def base_4_signals_kevin4():
+    """4 signals: the Kevin4 buckets' shares of the firm-year's initiatives.
+
+    The plain twin of the base_materiality_kevin4_* family -- same cut (both read
+    KEVIN_4_BEHAVIOURS), no material/immaterial dimension, LC's own 'TYPE: ...' columns.
+
+    add_materiality=True is not needed for the COLUMNS (those are LC-native) but is passed
+    anyway, exactly as base_4_signals passes it: the SASB merge is an inner join, so it is
+    what puts this run on the SAME firm-year sample as the four materiality Kevin4 runs.
+    Drop it and the plain-vs-material comparison stops being like-for-like.
+    """
+    return make_experiment("base_4_signals_kevin4",
+                           build_cfg(add_materiality=True,
+                                     action_characterization="kevin4_behaviours"))
 
 
 def base_materiality_4_Signals():
@@ -1654,6 +1868,88 @@ def base_materiality_pp_action(action: str, **overrides):
                             materiality_pp_action=action, **overrides)
 
 
+def base_materiality_action(action: str, **overrides):
+    """Material vs immaterial for ONE individual action type, across all SDGs.
+
+    Registered below as base_materiality_action_<action> for all 14 MATERIALITY_ACTION_TYPES.
+    One level finer than base_materiality_pp_<action> and its siblings, which take the seven
+    behaviour BUCKETS: this reads the flat `material__<action>` aggregate columns.
+
+    area_material_initatives_plots_per_signal_to_PDF IS FORCED OFF, and that is load-bearing
+    rather than tidiness. It defaults True, and these designs are exactly one
+    materiality_split_groups group whose two signals are a perfect mirror, so node 07's
+    decomposition gate PASSES and calls into initiative_brackets.parse_numerator -- which
+    knows only the 8 bucket ACTIONS and raises `unknown action 'training'`. Adding the 14
+    there would not help either: an SDG-free column is then read as all 17 SDGs and
+    bands_for_numerator demands material__<action>__SDG_n, which the loader does not select,
+    turning the ValueError into a KeyError. Teaching initiative_brackets about aggregate-only
+    actions is a separate change; until then every run of these would die at the final PDF.
+
+    Pass area_material_initatives_plots_per_signal_to_PDF=True in overrides only once that
+    follow-up lands.
+    """
+    return _sdg_materiality(f"base_materiality_action_{action}",
+                            "Materiality_Action_Aggregate",
+                            materiality_aggregate_action=action,
+                            area_material_initatives_plots_per_signal_to_PDF=False,
+                            **overrides)
+
+
+def base_materiality_kevin4(bucket: str, **overrides):
+    """Material vs immaterial for ONE Kevin4 behaviour bucket, across all SDGs.
+
+    Registered below as base_materiality_kevin4_<bucket> for all four KEVIN_4_BEHAVIOURS
+    keys. One level COARSER than base_materiality_action_<action>: that reads one flat
+    `material__<action>` column, this sums the several belonging to the bucket. Reaches no
+    per-SDG column, so the denominator is the bucket's whole material + immaterial count
+    across every SDG, including initiatives the workbook mapped to no SDG at all.
+
+    Goes through _sdg_materiality despite not being an SDG design, exactly as
+    base_materiality_action does. All that helper supplies is add_materiality=True (needed
+    -- the material__ columns arrive with the SASB merge) and materiality_version=2, which
+    is already the build_cfg default above and so redundant rather than wrong. It is also
+    the only correct value: a pre-section-8b workbook carries no aggregate action columns
+    at all (the loader prints "0/42"), and node 02 would raise on the missing columns.
+
+    area_material_initatives_plots_per_signal_to_PDF IS FORCED OFF, and that is load-bearing
+    for the same reason it is on base_materiality_action, by a different route. It defaults
+    True. These designs are exactly one materiality_split_groups group whose two signals are
+    a perfect mirror, so node 07's decomposition gate PASSES and calls
+    initiative_brackets.parse_numerator -- which raises `numerator mixes actions [...]` on
+    any numerator naming more than one action, and a Kevin4 bucket always names between two
+    and five. Not the same error base_materiality_action hits (`unknown action 'training'`)
+    but the same outcome: every run would die at the final PDF.
+
+    Pass area_material_initatives_plots_per_signal_to_PDF=True in overrides only once
+    initiative_brackets learns to decompose a MULTI-action numerator.
+    """
+    return _sdg_materiality(f"base_materiality_kevin4_{bucket.lower()}",
+                            "Materiality_Kevin4_Bucket",
+                            materiality_kevin4_bucket=bucket,
+                            area_material_initatives_plots_per_signal_to_PDF=False,
+                            **overrides)
+
+
+def base_materiality_kevin4_sdg(group: str, bucket: str, **overrides):
+    """One Kevin4 bucket's material share WITHIN one SDG group.
+
+    Registered below as base_materiality_kevin4_sdg_<group>_<bucket> for the 3 x 4 cross of
+    _SDG_GROUPS and KEVIN_4_BEHAVIOURS. The crossable twin of base_materiality_kevin4, which
+    reads the flat columns and therefore has no SDG axis at all.
+
+    area_material_initatives_plots_per_signal_to_PDF is forced off for exactly the reason it
+    is on base_materiality_kevin4: one mirror-pair group whose numerator names 2-5 actions,
+    which parse_numerator refuses. A sweep that builds these cfgs directly rather than going
+    through this factory has to pin the same flag in its FIXED block.
+    """
+    return _sdg_materiality(f"base_materiality_kevin4_sdg_{group.lower()}_{bucket.lower()}",
+                            "Materiality_Kevin4_SDG",
+                            sdg_group=group,
+                            materiality_kevin4_bucket=bucket,
+                            area_material_initatives_plots_per_signal_to_PDF=False,
+                            **overrides)
+
+
 def base_materiality_planet_action(width: str, action: str, **overrides):
     """Planet material vs immaterial, restricted to ONE behavioural action.
 
@@ -1771,7 +2067,7 @@ EXPERIMENTS = {
     # Pooled US + Canada(US-listed) + FF-Europe-16 + Japan, on the Developed factors.
     # Not comparable to the three above -- the size screen pools across currency areas.
     "base_none_Developed": base_none_Developed,
-    # One cell of sweep_parameters_Developed_net.py: net materiality, People SDGs,
+    # One cell of sweep_inputs/sweep_parameters_Developed_net.py: net materiality, People SDGs,
     # advocacy_old_def, mktcap-weighted at 0.95. For inspecting the design on its own.
     "base_net_materiality_People_advocacy_Developed": base_net_materiality_People_advocacy_Developed,
 
@@ -1796,6 +2092,7 @@ EXPERIMENTS = {
     "base_materiality_per_revenue": base_materiality_per_revenue,
     "base_total_initiatives_counts": base_total_initiatives_counts,
     "base_total_initiatives_per_revenue": base_total_initiatives_per_revenue,
+    "base_prop_cooperation": base_prop_cooperation,
 
 
     "base_materiality_v_2C":base_materiality_v_2C,
@@ -1803,6 +2100,7 @@ EXPERIMENTS = {
     "base_materiality_including_delisted": base_materiality_including_delisted,
  
     "4_signals_new": base_4_signals,
+    "base_4_signals_kevin4": base_4_signals_kevin4,
     "base_materiality_combined_4_Signals_counts": base_materiality_combined_4_Signals_counts,
 
     "base_3_signals": base_3_signals,
@@ -1911,17 +2209,180 @@ _register_single_sdg_experiments()
 # Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
 # these sorts, and never report an alpha without its coverage_pct neighbour.
 def _register_pp_action_experiments():
-    # The signal module is the authority on which actions exist, so this loop and
-    # Materiality_People_Plus_Prosperity_Action_SDG's validation share one source.
-    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+    # BUCKETS only, not every action the designs will ACCEPT. _SDG_ACTIONS was widened to
+    # include the 14 individual action types so a design may name one, but looping this
+    # registration over it too would silently turn these 7 named experiments into 21 and
+    # the Planet pair into 44 -- a registry three times its documented size, where
+    # `base_materiality_pp_<action>` no longer means what the docstring above says.
+    # The action types get their own family, _register_aggregate_action_experiments.
+    from functions.data_functions.process_materiality import MATERIALITY_SDG_BUCKETS
 
-    for a in _SDG_ACTIONS:
+    for a in MATERIALITY_SDG_BUCKETS:
         if a == "total":
             continue
         EXPERIMENTS[f"base_materiality_pp_{a}"] = (lambda a=a: base_materiality_pp_action(a))
 
 
 _register_pp_action_experiments()
+
+
+# base_materiality_action_<action>: 14 configs, one per INDIVIDUAL action type.
+#
+# The same loop shape as the bucket families above, with two differences. The action list
+# comes from MATERIALITY_ACTION_TYPES (the loader's tuple) rather than _SDG_ACTIONS, because
+# these read the flat aggregate columns and not the per-SDG cube. And nothing is excluded:
+# there is no "total" among the 14, and `pricing` is a real action type here even though no
+# bucket design isolates it.
+#
+# MEASURED DENSITY, v_2A1 workbook, 72,412 firm-years. "% zero" is firm-years where
+# material + immaterial is 0 (no usable signal at all); "denom" is the median of that sum
+# over the firm-years that remain; "distinct" counts distinct material-share values in the
+# whole panel.
+#
+#   action                             % zero   denom   distinct
+#   donation_funding                     12.5       7       1295
+#   training                             24.9       3        416
+#   modification_of_procedures           26.6       3        393
+#   communication                        35.1       3        406
+#   asset_modification                   39.0       2        209
+#   association                          39.8       2        408
+#   assessment_and_measurement           46.6       2        199
+#   volunteerism                         48.8       2        315
+#   new_products                         70.4       2        126
+#   organizational_structuring           70.7       1         43
+#   r_d_investments                      74.1       1        119
+#   incentives                           83.2       1         32
+#   adoption_of_standards_and_rules      89.7       1         20
+#   pricing                              94.2       1         39
+#
+# Only the top eight are real sorts. From new_products down the median denominator is 1 or 2,
+# so the "material share" is mostly 0/1 or 1/1 and a quantile sort is cutting ties rather than
+# ranking; incentives, adoption_of_standards_and_rules and pricing have fewer than 40 distinct
+# values in the entire panel and should be treated as degenerate. Registered anyway so the
+# density is measurable rather than assumed — but read each run's signal_sparsity and
+# materiality_split_floor audits before reporting an alpha. A degenerate sort is a finding
+# about the data, not a result.
+def base_behaviour_group(taxonomy: str, group: str, **overrides):
+    """One SDG group's behaviour shares, materiality summed away.
+
+    Registered below as base_behaviour_<taxonomy>_<group>, 9 configs. The non-materiality
+    companion to base_materiality_{all,people,planet}_<action>: same sample, same SDG groups,
+    but each signal is a BEHAVIOUR's share of the group rather than the material share of one
+    behaviour.
+
+    Goes through _sdg_materiality despite not being a materiality design, because it reads
+    the workbook's per-SDG columns and so needs add_materiality=True and
+    materiality_version=2 exactly as that helper supplies them.
+
+    Unlike base_materiality_action, the decomposition PDF needs NO forcing off here: these
+    designs yield 0 materiality_split_groups, so node 07's gate never opens and
+    initiative_brackets is never reached.
+    """
+    return _sdg_materiality(f"base_behaviour_{taxonomy}_{group}",
+                            "SDG_Behaviour_Signals",
+                            sdg_group=group, behaviour_taxonomy=taxonomy, **overrides)
+
+
+# base_behaviour_<taxonomy>_<group>: 9 configs, the full 3 x 3 cross. Both loop variables are
+# bound as default args for the same reason the planet loop binds both -- a bare closure would
+# leave all nine pointing at the last (taxonomy, group) pair.
+def _register_behaviour_group_experiments():
+    from functions.signal_design.signal_definitions_materiality import (
+        BEHAVIOUR_TAXONOMIES, _SDG_GROUPS,
+    )
+
+    for t in BEHAVIOUR_TAXONOMIES:
+        for g in _SDG_GROUPS:
+            EXPERIMENTS[f"base_behaviour_{t}_{g}"] = (
+                lambda t=t, g=g: base_behaviour_group(t, g)
+            )
+
+
+_register_behaviour_group_experiments()
+
+
+def _register_aggregate_action_experiments():
+    # The signal module validates against this same tuple, so the loop and the design cannot
+    # disagree about which actions exist.
+    from functions.signal_design.signal_definitions_materiality import MATERIALITY_ACTION_TYPES
+
+    for a in MATERIALITY_ACTION_TYPES:
+        EXPERIMENTS[f"base_materiality_action_{a}"] = (lambda a=a: base_materiality_action(a))
+
+
+_register_aggregate_action_experiments()
+
+
+# base_materiality_kevin4_<bucket>: 4 configs, one per KEVIN_4_BEHAVIOURS bucket.
+#
+# The bucket list comes from the dict the DESIGN validates against, so the loop and
+# Materiality_Kevin4_Bucket cannot disagree about which buckets exist -- the same contract
+# the action loop above has with MATERIALITY_ACTION_TYPES. `bucket` is bound as a default
+# arg like every other loop here; a bare closure would leave all four pointing at
+# "Innovation".
+#
+# MEASURED DENSITY, v_2A1 workbook, 72,412 firm-years -- same basis and same definitions as
+# the per-action table above, so the two can be read together. "% zero" is firm-years where
+# the bucket's material + immaterial is 0; "denom" is the median of that sum over the rest;
+# "at 1.0" is the share of the remainder whose material share is exactly 1.
+#
+#   bucket        % zero   denom   distinct   at 0.0   at 1.0
+#   Advocacy         5.4      11       2428      6.0     20.3
+#   Upskilling      16.3       5        723     10.7     36.7
+#   Adaptation      15.3       5        676      6.6     51.9
+#   Innovation      57.5       2        222     14.9     63.5
+#
+# Every bucket is DENSER than its own densest member (Advocacy 5.4 vs donation_funding's 12.5,
+# Innovation 57.5 vs new_products' 70.4): pooling can only add initiatives to the denominator,
+# so a bucket is never sparser than the actions in it. That is the whole case for sorting on
+# buckets rather than on single action types.
+#
+# Advocacy is the strongest sort in the repo's action space -- denser than any individual
+# action, 2,428 distinct shares. Upskilling and Adaptation are comfortably usable.
+#
+# INNOVATION IS NOT, and the reason is worth stating: 57.5% of firm-years have no innovation
+# initiative at all, and of those that do the median firm has TWO, so the share is mostly 0/1,
+# 1/1, 1/2 or 2/2 -- 222 distinct values in the whole panel. Registered so the density is
+# measurable rather than assumed, as with the degenerate action types above.
+#
+# THE TIE BLOCK IS AT THE TOP HERE, unlike the per-action designs. These are bounded shares, so
+# mass piles up at 1.0 as well as at 0.0, and the "at 1.0" column is the larger one for every
+# bucket -- 51.9% for Adaptation, 63.5% for Innovation. The sort keeps a tie block on the bottom
+# cutpoint and drops one on the top, so it is the HIGH bucket that loses names. Read pct_at_max
+# and quantiles_of_pure_max alongside pct_zero in signal_sparsity, not pct_zero alone.
+def _register_kevin4_experiments():
+    from functions.signal_design.signal_definitions_materiality import KEVIN_4_BEHAVIOURS
+
+    for b in KEVIN_4_BEHAVIOURS:
+        EXPERIMENTS[f"base_materiality_kevin4_{b.lower()}"] = (
+            lambda b=b: base_materiality_kevin4(b)
+        )
+
+
+_register_kevin4_experiments()
+
+
+# base_materiality_kevin4_sdg_<group>_<bucket>: the 3 x 4 cross, 12 configs. Both loop
+# variables are bound as default args for the reason the planet loop binds two -- a bare
+# closure would leave all twelve pointing at the last (group, bucket) pair.
+#
+# THE SAMPLE NARROWS DOWN THE GRID, twice over. People is 7 of the 17 SDGs and Planet 6, so
+# a (People, Innovation) cell is thinner than the All_SDGs row above it AND thinner than the
+# flat base_materiality_kevin4_innovation (57.5% of firm-years zero) beside it. Expect the
+# bottom-right of the grid to hit the thin-portfolio gate and read each cell's
+# signal_sparsity audit before treating it as a result.
+def _register_kevin4_sdg_experiments():
+    from functions.signal_design.signal_definitions_materiality import (
+        KEVIN_4_BEHAVIOURS, _SDG_GROUPS)
+
+    for g in _SDG_GROUPS:
+        for b in KEVIN_4_BEHAVIOURS:
+            EXPERIMENTS[f"base_materiality_kevin4_sdg_{g.lower()}_{b.lower()}"] = (
+                lambda g=g, b=b: base_materiality_kevin4_sdg(g, b)
+            )
+
+
+_register_kevin4_sdg_experiments()
 
 
 # ---- the same, per Planet width -------------------------------------------- #
@@ -1981,11 +2442,12 @@ _register_pp_action_experiments()
 # Read each run's signal_sparsity and materiality_split_floor audits before trusting any of
 # these sorts, and never report an alpha without its coverage_pct neighbour.
 def _register_planet_action_experiments():
+    # BUCKETS only -- see the note in _register_pp_action_experiments.
     from functions.signal_design.signal_definitions import PLANET_SDGS_Groups
-    from functions.signal_design.signal_definitions_materiality import _SDG_ACTIONS
+    from functions.data_functions.process_materiality import MATERIALITY_SDG_BUCKETS
 
     for w in PLANET_SDGS_Groups:
-        for a in _SDG_ACTIONS:
+        for a in MATERIALITY_SDG_BUCKETS:
             if a == "total":
                 continue
             slug = "narrow_planet" if w == "Narrow_Planet" else "planet"

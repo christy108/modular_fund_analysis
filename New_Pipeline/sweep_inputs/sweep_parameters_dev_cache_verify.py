@@ -32,7 +32,7 @@ holds 0.95 and 0.99 together without evicting.
 
 Run with:
     SWEEP_CACHE_VERIFY=1 .venv/bin/python -m New_Pipeline.sweep \\
-        --params New_Pipeline.sweep_parameters_dev_cache_verify --new-run
+        --params New_Pipeline.sweep_inputs.sweep_parameters_dev_cache_verify --new-run
 
 JOBS=1 is not a style choice here -- see sweep_parameters_Developed.py's own "MEMORY"
 section: the Developed universe keeps all three regional extracts resident

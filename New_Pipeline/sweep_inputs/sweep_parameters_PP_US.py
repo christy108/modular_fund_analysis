@@ -1,14 +1,14 @@
-"""What ``python -m New_Pipeline.sweep --params New_Pipeline.sweep_parameters_PP_EU``
+"""What ``python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_PP_US``
 should run -- pure data, no logic.
 
-Same contract as the Planet files (sweep_parameters_EU.py): every key in ``GRID`` /
+Same contract as the Planet files (sweep_parameters_US.py): every key in ``GRID`` /
 ``EXPLICIT`` / ``FIXED`` must be a real ``build_cfg`` knob (baseline dict at
 ``New_Pipeline/experiments.py:38``), and the sweep validates every combination through
 ``build_cfg(**overrides)`` BEFORE the first pipeline run, so a typo raises in the first
 second rather than forty minutes in.
 
-THIS FILE IS THE **EUROPE** HALF of the PEOPLE+PROSPERITY worklist. Its mirror is
-sweep_parameters_PP_US.py. The two are deliberately identical apart from
+THIS FILE IS THE **US** HALF of the PEOPLE+PROSPERITY worklist. Its mirror is
+sweep_parameters_PP_EU.py. The two are deliberately identical apart from
 ``region_analysis`` and the market-cap axis -- keep any edit here in step with that file,
 or the regions stop being comparable.
 """
@@ -20,20 +20,20 @@ from __future__ import annotations
 # Change it to start a NEW sweep; re-running with the same name RESUMES the existing
 # folder (that is what makes --resume work).
 # --------------------------------------------------------------------------- #
-SWEEP_NAME: str = "eu_material_pp_behaviours_momentum"
+SWEEP_NAME: str = "us_material_pp_behaviours_momentum"
 
 
 # --------------------------------------------------------------------------- #
 # WHAT THIS SWEEP IS
 #
-# EUROPE half: People+Prosperity on its own and at each of three behavioural cuts,
+# US half: People+Prosperity on its own and at each of three behavioural cuts,
 # crossed with the weighting scheme, the sort granularity and the market-cap screen, on the
 # FULL 2016-2024 sample.
 #
 #   4 signals x 2 weighting schemes x 2 quantile counts x 2 mcap screens
 #   = 32 runs  (24 from GRID, 8 from EXPLICIT)
 #
-# THE PEOPLE+PROSPERITY COUNTERPART of sweep_parameters_EU.py, which runs the same
+# THE PEOPLE+PROSPERITY COUNTERPART of sweep_parameters_US.py, which runs the same
 # shape on the two Planet widths. Same axes, same FIXED block -- with ONE deliberate
 # difference, the sector screen (see FIXED).
 #
@@ -104,10 +104,9 @@ GRID: dict[str, list] = {
     "portfolio_weighting": ["mktcap", "equal"],
     # Sort granularity: coarse 3-way and finer 5-way.
     "no_simple_quantiles": [3, 5],
-    # Market-cap coverage of the screen. 0.85/0.95, NOT 0.95/0.99 -- 0.99 panics the polars
-    # binview allocator on Europe's universe (a hard ~4.29 GB pickling ceiling, not a RAM
-    # question) and has never once completed. Same axis as sweep_parameters_EU.py.
-    "mktcap_covered_if_filter_by_cum_market_cap": [0.85, 0.95],
+    # Market-cap coverage of the screen. 0.95 is the baseline; 0.99 is the looser cut.
+    # Both are safe on the US.
+    "mktcap_covered_if_filter_by_cum_market_cap": [0.95, 0.99],
 }
 
 # --------------------------------------------------------------------------- #
@@ -132,7 +131,7 @@ EXPLICIT: list[dict] = [
      "mktcap_covered_if_filter_by_cum_market_cap": m}
     for w in ("mktcap", "equal")
     for k in (3, 5)
-    for m in (0.85, 0.95)
+    for m in (0.95, 0.99)
 ]
 
 FIXED: dict = {
@@ -145,11 +144,12 @@ FIXED: dict = {
     # a pin left behind silently freezes the sweep at the old value. Re-check this block
     # against build_cfg() before launching, not after.
 
-    # THE REGION. Drives currency_filter=["EUR","GBP","CHF","NOK","SEK","DKK"],
-    # region_filter=["Europe"], convert_to_USD=True and fama_factor_region="Europe"
-    # (experiments.py:385). NOT at the build_cfg baseline, so it and its two derived keys
-    # appear in every run name here.
-    "region_analysis": "Europe",
+    # THE REGION. Drives currency_filter=["USD"], region_filter=["United States and
+    # Canada"], convert_to_USD=False and fama_factor_region="United_States" via the region
+    # block at experiments.py:357. This is the ONLY line that differs from
+    # sweep_parameters_PP_EU.py, which runs the same worklist on Europe (plus its own,
+    # tighter market-cap axis).
+    "region_analysis": "United_States",
 
     # ---- THE SECTOR SCREEN: the one line that differs from the Planet sweep ---------- #
     # Real Estate and Utilities stay DROPPED here. Both equal the build_cfg baseline, so

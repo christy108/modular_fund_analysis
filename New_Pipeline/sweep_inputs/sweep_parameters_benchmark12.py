@@ -1,6 +1,8 @@
 """The 12-cell BENCHMARK worklist — a fixed, repeatable sweep used to measure the
 pipeline, not to answer a research question.
 
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_benchmark12
+
 Run it, freeze the result with ``python -m New_Pipeline.benchmark capture``, change the
 pipeline, run it again, and ``benchmark compare`` tells you whether every number is
 bit-identical and whether the sweep got faster. That is its only job, so unlike the

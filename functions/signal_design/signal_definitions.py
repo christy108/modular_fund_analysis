@@ -272,6 +272,69 @@ def dict_all_SDG_1D_prosperity_into_people(signal_0_name="people plus prosperity
 
 
 
+# ---------------------------------------------------------------------------- #
+# ACTION-TYPE groupings — the single source of truth for "which of the 14 SASB action
+# types sit in which behaviour bucket". The action-space twin of the SDG group dicts at the
+# top of this file, and used the same way: the plain design below and
+# Materiality_Kevin4_Bucket in signal_definitions_materiality.py are BOTH generated from
+# KEVIN_4_BEHAVIOURS, so a re-cut here moves both families at once and they cannot drift.
+#
+# Members are spelled in the MATERIALITY slug namespace ("donation_funding"), which
+# functions/data_functions/process_materiality.py owns, because that is the namespace the
+# material__/immaterial__ columns are built from. The LC "TYPE: ..." spelling is the same
+# action under another name and lives in ACTION_SLUG_TO_LC_TYPE below.
+#
+# NOT the cut dict_4_signals_Action_1D_Pre_Nikkei uses, and NOT the one baked into the
+# workbook's pre-aggregated material__advocacy_new_def / __upskilling / __adaptation /
+# __innovation columns: volunteerism moves Upskilling -> Advocacy, assessment_and_measurement
+# and organizational_structuring move Adaptation -> Upskilling, and pricing moves Advocacy ->
+# Adaptation. Those four pre-aggregated columns therefore CANNOT express this cut -- it has to
+# be re-summed from the 14 flat action columns, which is exactly what Materiality_Kevin4_Bucket
+# does, and which is EXACT rather than approximate: each pre-aggregated bucket column equals
+# the sum of its own action members (verified on all 72,412 firm-years of v_2A1), so re-summing
+# is the same arithmetic the workbook already does, on a different membership.
+#
+# pricing is absent from dict_4_signals_Action_1D_Pre_Nikkei below, but NOT from the workbook's
+# material__advocacy_new_def, which is donation_funding + communication + association + pricing.
+# The LC-column design and the workbook column disagree about it; this cut follows the workbook.
+#
+# A PARTITION: all 14 action types, each exactly once. Checked on import of
+# signal_definitions_materiality.py, where the loader's MATERIALITY_ACTION_TYPES tuple is in
+# scope -- this module deliberately imports nothing and is kept that way.
+KEVIN_4_BEHAVIOURS = {
+    "Advocacy":   ["donation_funding", "communication", "association", "volunteerism"],
+    "Upskilling": ["training", "assessment_and_measurement", "organizational_structuring"],
+    "Adaptation": ["adoption_of_standards_and_rules", "incentives", "pricing",
+                   "asset_modification", "modification_of_procedures"],
+    "Innovation": ["new_products", "r_d_investments"],
+}
+
+
+# Materiality slug -> the LC column carrying the same action. EXPLICIT, not derived.
+#
+# Slug -> LC name is not a computable function: "donation_funding" and "r_d_investments"
+# each lost an "&" whose position cannot be recovered from the slug alone
+# ("r_d_investments" could be "r&d investments" or "r d investments"). The OTHER direction
+# IS derivable, and signal_definitions_materiality.py checks the round trip on import, so a
+# typo in a value here raises there rather than naming a column that is not on lc.
+ACTION_SLUG_TO_LC_TYPE = {
+    "donation_funding":                "TYPE: donation & funding",
+    "communication":                   "TYPE: communication",
+    "association":                     "TYPE: association",
+    "pricing":                         "TYPE: pricing",
+    "training":                        "TYPE: training",
+    "volunteerism":                    "TYPE: volunteerism",
+    "adoption_of_standards_and_rules": "TYPE: adoption of standards and rules",
+    "assessment_and_measurement":      "TYPE: assessment and measurement",
+    "incentives":                      "TYPE: incentives",
+    "organizational_structuring":      "TYPE: organizational structuring",
+    "asset_modification":              "TYPE: asset modification",
+    "modification_of_procedures":      "TYPE: modification of procedures",
+    "new_products":                    "TYPE: new products",
+    "r_d_investments":                 "TYPE: r&d investments",
+}
+
+
 def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name="Upskilling", signal_2_name="Adaptation-change", signal_3_name="Innovation"):
     return{
     
@@ -299,7 +362,31 @@ def dict_4_signals_Action_1D_Pre_Nikkei(signal_0_name="Advocacy", signal_1_name=
     }, signal_0_name, signal_1_name, signal_2_name, signal_3_name
 
 
-    
+def dict_4_signals_Action_1D_kevin_people():
+    """4 signals: one per KEVIN_4_BEHAVIOURS bucket, on LC's own 'TYPE: ...' columns.
+
+    The plain (no material/immaterial dimension) twin of Materiality_Kevin4_Bucket. Both
+    read KEVIN_4_BEHAVIOURS, so the cut is written once -- the only difference is the column
+    NAMESPACE: 'TYPE: donation & funding' here, material__donation_funding there.
+
+    Names are tagged "Kevin4_" deliberately. dict_4_signals_Action_1D_Pre_Nikkei emits bare
+    "Advocacy"/"Upskilling"/"Innovation" for a DIFFERENT cut of the same 14 actions, and two
+    runs whose cumulative_table rows both read "High Advocacy" would be indistinguishable in
+    a sweep while measuring different things.
+
+    Generated rather than written out, and so takes no signal_*_name arguments -- the same
+    shape as _sdg_signals_from_groups above. Renaming a signal means renaming its bucket,
+    which is what keeps this family and the materiality one spelling the cut identically.
+    """
+    categories = {}
+    names = []
+    for bucket, actions in KEVIN_4_BEHAVIOURS.items():
+        index = len(names)
+        names.append(f"Kevin4_{bucket}")
+        for action in actions:
+            categories[ACTION_SLUG_TO_LC_TYPE[action]] = index
+    return (categories, *names)
+
 
 def dict_4_stakeholder_signals_Pre_Nikkei(signal_0_name="communities", signal_1_name="employees", signal_2_name="suppliers", signal_3_name="customers"):
     return {"SREC: local communities and society": 0,

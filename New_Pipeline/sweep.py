@@ -7,13 +7,16 @@
     python -m New_Pipeline.sweep --only base_none     # a single named EXPERIMENTS entry
     python -m New_Pipeline.sweep --dry-run            # list what would run, run nothing
     python -m New_Pipeline.sweep --rebuild            # rebuild PDF/CSV from the ledger only
-    python -m New_Pipeline.sweep --params New_Pipeline.sweep_params_a
+    python -m New_Pipeline.sweep --params New_Pipeline.sweep_inputs.sweep_parameters_Developed_net
                                                        # read GRID/EXPLICIT/FIXED/
                                                        # SWEEP_NAME from THAT module
-                                                       # instead of sweep_parameters.py,
+                                                       # instead of sweep_parameters_US.py,
                                                        # so several sweeps can be queued
-                                                       # back to back unattended
-    python -m New_Pipeline.sweep --box                # also push results.{pdf,csv,xlsx}
+                                                       # back to back unattended. Every
+                                                       # sweep_parameters_*.py file lives in
+                                                       # New_Pipeline/sweep_inputs/ -- see
+                                                       # that package's docstring.
+    python -m New_Pipeline.sweep --box                # also push the PDF/CSV/XLSX
                                                        # to Box once the sweep finishes
                                                        # (see New_Pipeline/box_upload.py
                                                        # for the one-time app setup)
@@ -26,13 +29,18 @@ crashing, or being resumed tomorrow.
 **Nothing here changes the pipeline.** Each experiment goes through the ordinary
 ``New_Pipeline.run.run()``, and every number on the page is a dashboard widget payload
 this module reads back out of the run's manifest. See ``New_Pipeline/sweep_report.py``
-for the ledger/render/CSV layer and ``New_Pipeline/sweep_parameters.py`` for the inputs.
+for the ledger/render/CSV layer and ``New_Pipeline/sweep_inputs/`` for the inputs --
+every ``sweep_parameters_*.py`` file (one sweep's GRID/EXPLICIT/FIXED/SWEEP_NAME) lives
+there, so past and current sweep definitions sit in one place rather than scattered
+through New_Pipeline/.
 
 Output tree (all of it gitignored):
 
     sweep_output/
       results.jsonl        append-only ledger -- the source of truth
-      results.pdf          one dense page per experiment, rebuilt from the ledger
+      <sweep>.pdf          one dense page per experiment, rebuilt from the ledger
+                           (named after this folder, so it stays identifiable once
+                           it is mailed or uploaded)
       results.csv          one row per experiment, rebuilt from the ledger
       artifacts/<name>/    that run's parquets
       failures/<name>.log  traceback, for experiments that raised
@@ -54,8 +62,10 @@ from pathlib import Path
 # This import is module-level and runs BEFORE any flag is read, so it has to name a
 # module that actually exists: it was `sweep_parameters`, which the rename to
 # sweep_parameters_{US,EU}.py removed, and every invocation died on the import with
-# `cannot import name 'sweep_parameters'` regardless of --params.
-from New_Pipeline import sweep_parameters_US as SP
+# `cannot import name 'sweep_parameters'` regardless of --params. All sweep_parameters_*
+# files were later moved into New_Pipeline/sweep_inputs/ (one sweep per file, kept for
+# reference as the sweep count grows) -- this default followed them.
+from New_Pipeline.sweep_inputs import sweep_parameters_US as SP
 
 
 def _load_params(argv: list[str]) -> None:
@@ -83,18 +93,31 @@ from New_Pipeline.sweep_report import (
     build_pdf,
     build_xlsx,
     experiment_name,
+    headline_title,
     ledger_names,
     page_title,
+    set_presentation_order,
     param_diff,
+    rest_title,
 )
 
 
 def _paths(output_dir: str) -> dict:
+    """Every file this sweep reads or writes, derived from its output folder.
+
+    The PDF is named after the FOLDER (`<stamp>_<sweep_name>.pdf`) rather than
+    `results.pdf`: it is the artifact that leaves this directory -- mailed, dropped in
+    Box (box_upload.py uploads by `paths["pdf"].name`, so every sweep used to arrive
+    there as another "results.pdf"), or opened beside three others -- and a filename that
+    says which sweep it is is the whole difference. The ledger, CSV and XLSX keep their
+    fixed names: they are read by path from inside this folder, where the folder already
+    supplies the context.
+    """
     base = Path(output_dir)
     return {
         "base": base,
         "ledger": base / "results.jsonl",
-        "pdf": base / "results.pdf",
+        "pdf": base / f"{base.name}.pdf",
         "csv": base / "results.csv",
         "xlsx": base / "results.xlsx",
         "artifacts": base / "artifacts",
@@ -105,7 +128,7 @@ def _paths(output_dir: str) -> dict:
 def resolve_output_dir(parent: str, sweep_name: str, new_run: bool = False) -> Path:
     """Pick the folder this sweep writes to: ``<parent>/<UTC stamp>_<sweep_name>/``.
 
-    Each sweep gets its own folder so one can never overwrite another's results.pdf.
+    Each sweep gets its own folder so one can never overwrite another's results.
     But a bare timestamp per invocation would break --resume, which is the whole point of
     the ledger -- re-running the same command must CONTINUE the sweep, not start an empty
     one beside it. So an existing folder for this name is reused, and a new stamp is
@@ -178,7 +201,7 @@ def _plan(worklist: list[dict]) -> list[tuple[str, str, dict]]:
     for overrides in worklist:
         cfg = build_cfg(**overrides)        # raises on an unknown key or a bad value
         diff = param_diff(cfg, base)
-        planned.append((experiment_name(diff), page_title(diff), cfg))
+        planned.append((experiment_name(diff), headline_title(cfg), cfg))
     return planned
 
 
@@ -188,9 +211,8 @@ def _named_plan(names: list[str]) -> list[tuple[str, str, dict]]:
     keeps the diff honest for configs whose overrides live in a function body."""
     import json
 
-    from New_Pipeline.experiments import EXPERIMENTS, build_cfg
+    from New_Pipeline.experiments import EXPERIMENTS
 
-    base = build_cfg()
     planned = []
     for name in names:
         if name not in EXPERIMENTS:
@@ -198,7 +220,7 @@ def _named_plan(names: list[str]) -> list[tuple[str, str, dict]]:
         exp = EXPERIMENTS[name]()
         frame = next(iter(exp.inputs.values()))
         cfg = json.loads(frame["json"][0])
-        planned.append((name, page_title(param_diff(cfg, base)), cfg))
+        planned.append((name, headline_title(cfg), cfg))
     return planned
 
 
@@ -245,6 +267,12 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
     _register(name, cfg)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    # `title` is the four-facet headline; these two are the rest of the story. Stored on
+    # the record rather than recomputed at render time so the ledger alone -- the one
+    # authoritative artifact -- still says exactly what made this cell.
+    diff = param_diff(cfg)
+    extra = {"rest_title": rest_title(diff), "param_diff": page_title(diff)}
+
     # End-to-end wall clock for this cell. The manifest's own created_at/finalised_at
     # bracket node execution only, so they miss run()'s export, dashboard.md and the
     # decomposition PDF/CSV -- real per-cell cost that any optimisation has to be
@@ -261,14 +289,14 @@ def run_one(name: str, title: str, cfg: dict, paths: dict) -> dict:
         print(f"[sweep] FAILED {name}: {type(exc).__name__}: {exc}")
         print(f"[sweep]   traceback -> {paths['failures'] / f'{name}.log'}")
         return {
-            "experiment": name, "title": title, "timestamp": stamp,
+            "experiment": name, "title": title, **extra, "timestamp": stamp,
             "status": "failed", "error": f"{type(exc).__name__}: {exc}",
             "cfg": cfg, "payloads": {}, "run_dir": _latest_run_dir(name),
             "duration_s": time.perf_counter() - started,
         }
 
     return {
-        "experiment": name, "title": title, "timestamp": stamp,
+        "experiment": name, "title": title, **extra, "timestamp": stamp,
         "status": "ok", "cfg": cfg,
         "payloads": _collect_payloads(manifest),
         "run_dir": _latest_run_dir(name),
@@ -280,8 +308,8 @@ def _rebuild(paths: dict, upload_to_box: bool = False) -> None:
     pages = build_pdf(paths["ledger"], paths["pdf"])
     rows = build_csv(paths["ledger"], paths["csv"])
     build_xlsx(paths["ledger"], paths["xlsx"])
-    print(f"[sweep] rebuilt {paths['base']}/results.{{pdf,csv,xlsx}} "
-          f"({pages} pages, {rows} rows)")
+    print(f"[sweep] rebuilt {paths['pdf']} ({pages} pages) "
+          f"and {paths['base']}/results.{{csv,xlsx}} ({rows} rows)")
     if upload_to_box:
         from New_Pipeline.box_upload import upload_sweep_results
         upload_sweep_results(paths)
@@ -353,6 +381,8 @@ def main(argv: list[str]) -> None:
 
     # Before ANY read of SP below -- this may repoint it at another module.
     _load_params(argv)
+    # Hand the derived views this sweep's page order, now that --params has been applied.
+    set_presentation_order(getattr(SP, "SORT_BY", None), getattr(SP, "VALUE_ORDER", None))
 
     def flag_value(flag, default):
         return argv[argv.index(flag) + 1] if flag in argv else default

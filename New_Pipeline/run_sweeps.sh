@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Queue several sweeps back to back, unattended, with a live progress bar.
 #
-#   ./New_Pipeline/run_sweeps.sh New_Pipeline.sweep_parameters_US New_Pipeline.sweep_parameters_EU
+#   ./New_Pipeline/run_sweeps.sh New_Pipeline.sweep_inputs.sweep_parameters_US New_Pipeline.sweep_inputs.sweep_parameters_EU
 #
 # Each argument is a dotted module with the same shape as
-# New_Pipeline/sweep_parameters_US.py (SWEEP_NAME / GRID / EXPLICIT / FIXED). Each gets its
-# OWN sweep_output/<stamp>_<SWEEP_NAME>/ folder -- so two params modules produce two
-# separate results.pdf/.csv/.xlsx.
+# New_Pipeline/sweep_inputs/sweep_parameters_US.py (SWEEP_NAME / GRID / EXPLICIT / FIXED).
+# Every sweep_parameters_*.py file lives in New_Pipeline/sweep_inputs/ -- see that
+# package's docstring for the full list, past and current. Each gets its OWN
+# sweep_output/<stamp>_<SWEEP_NAME>/ folder -- so two params modules produce two separate
+# results.pdf/.csv/.xlsx.
 #
 # Deliberately NOT `&&`: a sweep that dies must not cancel the ones behind it. Each exit
 # status is recorded and the script exits non-zero if any failed, so the log says what

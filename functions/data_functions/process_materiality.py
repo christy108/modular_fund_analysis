@@ -51,9 +51,48 @@ MATERIALITY_COLUMNS = [
 # `unmapped__*__SDG_n` column -- the only unmapped consumers are node 07's `_wb_total`
 # denominator and its coverage table, both of which use the NON-per-SDG `unmapped__total`
 # that MATERIALITY_COLUMNS still supplies. Carrying the per-SDG unmapped cube would add 136
-# columns nothing reads. 2 groups x 8 actions x 17 SDGs = 272 columns.
-MATERIALITY_SDG_ACTIONS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
+# columns nothing reads. 2 groups x 22 actions x 17 SDGs = 748 columns.
+MATERIALITY_SDG_BUCKETS = ("adaptation", "advocacy_new_def", "advocacy_old_def", "innovation",
                            "preparation", "transformation", "upskilling", "total")
+
+
+# The 14 INDIVIDUAL action types, one level below the behaviour buckets above. The workbook
+# carries these only from the vintage that added section 8b upstream; older files have the
+# bucket columns and nothing else, which is why they are selected opportunistically below
+# rather than added to MATERIALITY_COLUMNS (a hard selection that would KeyError on every
+# already-published CSV).
+#
+# This tuple is the AUTHORITY on action spelling: signal_definitions_materiality.py imports it
+# and validates against it, so a design can never name a column the loader does not select.
+# The slugs match the upstream `{state}__{slug}` naming exactly -- `donation & funding` ->
+# `donation_funding`, `r&d investments` -> `r_d_investments`.
+#
+# `pricing` is included deliberately. It is a real action inside advocacy_new_def and so sits
+# inside every `{state}__total`; the 14 together sum exactly to total, which is what lets an
+# action share be read against the same denominator as a bucket share.
+MATERIALITY_ACTION_TYPES = ("donation_funding", "communication", "association", "pricing",
+                            "training", "volunteerism", "adoption_of_standards_and_rules",
+                            "assessment_and_measurement", "incentives",
+                            "organizational_structuring", "asset_modification",
+                            "modification_of_procedures", "new_products", "r_d_investments")
+
+MATERIALITY_ACTION_COLUMNS = [
+    f"{grp}__{act}"
+    for grp in ("immaterial", "material", "unmapped")
+    for act in MATERIALITY_ACTION_TYPES
+]
+
+
+# Everything that has a PER-SDG cube: the 7 behaviour buckets + total, and the 14 individual
+# action types. One tuple rather than two because every consumer asks the same question of it
+# -- "may a design name material__<act>__SDG_n?" -- and the answer is yes for both families.
+#
+# This is THE authority for that question. _SDG_ACTIONS in signal_definitions_materiality.py
+# and ACTIONS in New_Pipeline/initiative_brackets.py both import it rather than restating it:
+# all three used to be hand-maintained copies, and a design validating against a wider list
+# than the loader selects asks for a column that was never merged, which hands every firm-year
+# a NaN signal and empties the sort with no error anywhere.
+MATERIALITY_SDG_ACTIONS = MATERIALITY_SDG_BUCKETS + MATERIALITY_ACTION_TYPES
 
 MATERIALITY_SDG_COLUMNS = [
     f"{grp}__{act}__SDG_{n}"
@@ -85,7 +124,14 @@ def load_materiality(materiality_location=None, *, version, golden_data):
     loc = Path(materiality_location) if materiality_location is not None else _default_location()
     df = pd.read_csv(loc / filename)
     sdg_columns = [c for c in MATERIALITY_SDG_COLUMNS if c in df.columns]
-    df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS + sdg_columns].drop_duplicates(subset=["gvkey", "rfyear"])
+    # Opportunistic, like sdg_columns: a pre-section-8b workbook simply has none of these and
+    # still loads. The count is printed rather than inferred later because the failure mode it
+    # guards against is silent -- a design naming an absent column merges as NaN and empties
+    # the sort with no error anywhere. "0/42" here is the cheap early warning.
+    action_columns = [c for c in MATERIALITY_ACTION_COLUMNS if c in df.columns]
+    print(f"[materiality] aggregate action columns: "
+          f"{len(action_columns)}/{len(MATERIALITY_ACTION_COLUMNS)}")
+    df = df[["gvkey", "rfyear"] + MATERIALITY_COLUMNS + action_columns + sdg_columns].drop_duplicates(subset=["gvkey", "rfyear"])
     df["gvkey"] = df["gvkey"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)   # match lc's gvkey format (CSV stores gvkey as float, e.g. 1004.0)
     df["rfyear"] = df["rfyear"].astype("Int64")          # match lc's nullable-Int64 rfyear
     return df

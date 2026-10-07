@@ -412,6 +412,22 @@ def derive_signals_v1(lc, cfg):
 
     # ---- cell 16: category aggregation ----------------------------------- #
     categories_dict = C["categories_dict"]  # {category_col: group_int}
+
+    # Named up front rather than left to the bare KeyError the loop below would raise, because
+    # the common cause is a DATA VINTAGE mismatch, not a typo: the materiality loader selects
+    # its count columns opportunistically, so a design naming a column the workbook predates
+    # loads cleanly, merges as NaN, and empties the sort with no error anywhere. The aggregate
+    # action columns (material__training, ...) are exactly that case — they ship only in a
+    # workbook built after the action-level pivot was added upstream.
+    missing = [c for c in categories_dict if c not in lc_df.columns]
+    if missing:
+        raise KeyError(
+            f"signal design names {len(missing)} column(s) that are not on lc: {sorted(missing)}. "
+            f"If these are material__/immaterial__ columns, the materiality workbook vintage "
+            f"predates them — check the '[materiality] aggregate action columns: N/42' line "
+            f"from node 01 and MATERIALITY_ACTION_COLUMNS in process_materiality.py."
+        )
+
     for key, value in categories_dict.items():
         if f"sum_with_{value}" in lc_df.columns:
             lc_df[f"sum_with_{value}"] += lc_df[key]

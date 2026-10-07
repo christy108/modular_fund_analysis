@@ -63,6 +63,13 @@ _STD_GL = "f.indfmt='INDL' AND f.datafmt='HIST_STD' AND f.popsrc='I' AND f.conso
 # Per region: (funda table, standard-record filter, the gvkey-selecting CTE copied from
 # get_*_universe). The CTE WHERE clauses are the SAME ones in
 # functions/data_functions/get_data.py -- if those ever change, change these with them.
+#
+# THAT HAS DRIFTED ONCE, SILENTLY, AND IT COSTS A WHOLE REGION WHEN IT DOES. The `row`
+# exchg list was three codes short of get_data.py's (144/228/256 = Copenhagen/Oslo/
+# Stockholm), so the Nordics were absent: 9 of the universe's 1,855 DKK/NOK/SEK firms had
+# any row here. Widening `curcdd` alone did NOT fix it -- a currency filter cannot admit a
+# listing the exchange filter has already rejected. Diff BOTH clauses against get_data.py,
+# not just the one you came to change.
 QUERIES = {
     "usa": ("comp_na_daily_all.funda", _STD_NA, """
         WITH listings AS (
@@ -88,7 +95,8 @@ QUERIES = {
             WHERE s.datadate BETWEEN '01/01/{start}' AND '12/31/{end}'
               AND s.tpci = '0' AND s.prccd > 0 AND s.cshtrd > 0
               AND s.exchg IN (273, 132, 294, 278, 221, 261, 286, 167, 154, 171, 107,
-                              172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194)
+                              172, 209, 198, 271, 104, 192, 122, 193, 201, 151, 194,
+                              144, 228, 256)
               AND s.curcdd IN ('CHF', 'GBP', 'EUR', 'NOK', 'SEK', 'DKK')
         )
     """),
